@@ -301,6 +301,7 @@
   .szchip.num { background:#0a7cff; }
   .szchip.arr { background:#f08c1e; }
   #ed-box { position:absolute; border:1.5px dashed #0a7cff; cursor:move; touch-action:none; }
+  .exp-hide { display:none !important; }
   .ed-h { position:absolute; width:14px; height:14px; background:#0a7cff; border:2px solid #fff; border-radius:3px; box-shadow:0 1px 4px rgba(0,0,0,.3); touch-action:none; }
 </style>
 </head>
@@ -789,6 +790,7 @@ $("#btn-excel").addEventListener("click", () => $("#file-excel").click());
 $("#file-excel").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  snapshotCurrent();
   try {
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, { type: "array" });
@@ -818,7 +820,7 @@ $("#file-excel").addEventListener("change", async (e) => {
     if (!list.length) { toast("상품 행이 없습니다"); return; }
     if (list.length > 20) { toast(`상품이 ${list.length}개입니다 — 앞 20개만 불러옵니다`); list = list.slice(0, 20); }
     products = list;
-    workspaces = products.map(() => ({ html: null, photos: [], photosFull: [], photoLabels: [], mains: {}, tags: "", saved: false, modelMode: "part", aiCopied: false }));
+    workspaces = products.map(() => ({ html: null, photos: [], photosFull: [], photoLabels: [], mains: {}, tags: "", saved: false, modelMode: "part", aiCopied: false, copyEdited: false }));
     curIdx = -1;
     switchProduct(0);
     if (list.length <= 20 && list.length > 1) toast(`상품 ${products.length}개를 불러왔습니다 — 목록에서 선택해 작업하세요`);
@@ -982,8 +984,8 @@ const ROCKET_TEMPLATE = `
 const DEFAULT_CAPS = ["D 메인(흰배경)", "D1 디테일", "D2 연출", "D3 구성", "D4 사용", "D5 옵션"];
 function applyMainCaptions() {
   const caps = $$("#mains .main-cell:not(.opt-main) .cap");
-  const rocket = !!(current && current.rocket);
-  const opts = rocket ? [] : parseOptions();
+  const rocket = isRocket() && !!(current && current.rocket);
+  const opts = isRocket() ? [] : parseOptions();
   if (rocket && current.options) {
     caps.forEach((c, i) => { c.textContent = current.options[i] ? `${current.options[i].color} D` : DEFAULT_CAPS[i]; });
   } else {
@@ -1038,6 +1040,7 @@ $("#btn-sheet").addEventListener("click", async () => {
   const raw = $("#sheet-url").value.trim();
   const m = raw.match(/spreadsheets\/d\/([A-Za-z0-9_-]+)/);
   if (!m) { toast("구글시트 주소를 확인해 주세요"); return; }
+  snapshotCurrent();
   localStorage.setItem("rocket_sheet_url", raw);
   const btn = $("#btn-sheet");
   btn.disabled = true; btn.textContent = "불러오는 중...";
@@ -1087,7 +1090,7 @@ $("#btn-sheet").addEventListener("click", async () => {
         brand: gp.brand, options: opts, link: gp.link, rocket: true,
       };
     });
-    workspaces = products.map(() => ({ html: null, photos: [], photosFull: [], photoLabels: [], mains: {}, tags: "", saved: false, modelMode: "part", cat: ROCKET_CAT, aiCopied: false }));
+    workspaces = products.map(() => ({ html: null, photos: [], photosFull: [], photoLabels: [], mains: {}, tags: "", saved: false, modelMode: "part", cat: ROCKET_CAT, aiCopied: false, copyEdited: false }));
     curIdx = -1;
     setCategory(ROCKET_CAT, true);
     switchProduct(0);
@@ -1311,7 +1314,7 @@ function currentTemplateKind() { return isToy() ? "toy" : (isRocket() ? "rocket"
 function reinitCurrent() {
   if (curIdx < 0) return;
   const ws = workspaces[curIdx];
-  ws.html = null; ws.mains = {}; ws.pageStyle = "";
+  ws.html = null; ws.mains = {}; ws.pageStyle = ""; ws.aiCopied = false; ws.copyEdited = false;
   loadTemplateFor(category);
   clearMainSlots();
   fillProductFields(current);
@@ -1343,7 +1346,12 @@ function snapshotCurrent() {
   ws.modelMode = modelMode;
   ws.tags = $("#tags-area").value;
   ws.mains = {};
-  MAIN_SLOTS.forEach((n) => { const el = $(`[data-slot=${n}]`); ws.mains[n] = el.dataset.full || null; });
+  MAIN_SLOTS.forEach((n) => {
+    const el = $(`[data-slot=${n}]`);
+    ws.mains[n] = el.dataset.full
+      ? { full: el.dataset.full, orig: el.dataset.orig || null, fit: el.classList.contains("fit-contain") }
+      : null;
+  });
   ws.cat = category;
   ws.pageStyle = $("#page").getAttribute("style") || "";
 }
@@ -1366,7 +1374,15 @@ function switchProduct(i) {
     renderSrcThumbs();
     $("#tags-area").value = ws.tags || "";
     clearMainSlots();
-    MAIN_SLOTS.forEach((n) => { if (ws.mains && ws.mains[n]) setSlotImage($(`[data-slot=${n}]`), ws.mains[n]); });
+    MAIN_SLOTS.forEach((n) => {
+      const m = ws.mains && ws.mains[n];
+      if (!m) return;
+      const el = $(`[data-slot=${n}]`);
+      const full = typeof m === "string" ? m : m.full;
+      if (m.orig) el.dataset.orig = m.orig;
+      setSlotImage(el, full);
+      if (typeof m !== "string" && m.fit) el.classList.add("fit-contain");
+    });
     applyMainCaptions();
   } else {
     loadTemplateFor(category);
@@ -1531,6 +1547,7 @@ $("#btn-copy").addEventListener("click", () => {
   if (!current) { toast("먼저 엑셀을 업로드해 주세요"); return; }
   if (isRocket()) { toast("로켓 견적서 템플릿에는 문구 영역이 없습니다"); return; }
   if (isToy()) fillToyDefaults(); else fillDefaultCopy();
+  if (curIdx >= 0 && workspaces[curIdx]) workspaces[curIdx].copyEdited = false;
   toast("기본 문구를 채웠습니다 — 클릭해서 수정하세요");
 });
 
@@ -1551,6 +1568,7 @@ async function genAICopy() {
   try {
     const p = current;
     const toy = isToy();
+    const wsIdx = curIdx;
     const toyPrompt = `당신은 한국 이커머스(쿠팡) 문구·완구 상세페이지 전문 카피라이터입니다. 발랄하고 귀여운 키즈문구 쇼핑몰 톤(~해요, ~템, 의성어·의태어 활용)으로 작성하세요.
 규칙:
 - 과장·최상급 표현(최고, 1위, 완벽 등)과 효능 보장 표현 금지. 어린이·아이·유아·키즈 등 아동 지칭 단어 금지.
@@ -1591,6 +1609,7 @@ JSON으로만 응답: {"display_name":"다듬은 상품명 15~25자","catch":"�
     if (!data) throw new Error(lastErr || "요청 실패");
     const text = data.candidates[0].content.parts[0].text;
     const c = JSON.parse(text);
+    if (current !== p || isToy() !== toy) { toast("상품이 전환되어 AI 문구 적용을 건너뛰었습니다"); return false; }
     if (c.display_name) { $("#f-name").textContent = c.display_name; $("#f-name2").textContent = c.display_name; }
     if (toy) {
       const set = (id, v) => { const el = $(id); if (el && v) el.textContent = v; };
@@ -1613,7 +1632,7 @@ JSON으로만 응답: {"display_name":"다듬은 상품명 15~25자","catch":"�
         $(`#c-p${i + 1}b`).textContent = pt.body;
       });
     }
-    if (curIdx >= 0 && workspaces[curIdx]) workspaces[curIdx].aiCopied = true;
+    if (wsIdx >= 0 && workspaces[wsIdx]) workspaces[wsIdx].aiCopied = true;
     toast("AI 문구 생성 완료 — 클릭해서 다듬어 보세요");
     updateHeight();
     return true;
@@ -1957,7 +1976,13 @@ function bindPageSlots() {
 const DEFAULT_TEMPLATE = $("#page").innerHTML;
 bindPageSlots();
 function currentAISlots() { return isToy() ? TOY_AI_SLOTS : (isRocket() ? ROCKET_AI_SLOTS : SLOT_ORDER); }
-function currentBulkSlots() { return isToy() ? TOY_AI_SLOTS.concat(["tsize"]) : (isRocket() ? ROCKET_AI_SLOTS : SLOT_ORDER); }
+function currentBulkSlots() {
+  if (isToy()) return TOY_AI_SLOTS.concat(["tsize"]);
+  if (isRocket()) return ROCKET_AI_SLOTS;
+  const n = parseOptions().length;
+  if (n >= 2) return SLOT_ORDER.slice(0, -1).concat(Array.from({ length: n }, (_, i) => "opt" + (i + 1)));
+  return SLOT_ORDER;
+}
 MAIN_SLOTS.forEach((n) => {
   const slot = $(`[data-slot=${n}]`);
   slot.addEventListener("click", () => { pendingSlot = slot; $("#file-slot").click(); });
@@ -1989,10 +2014,19 @@ $("#file-bulk").addEventListener("change", async (e) => {
   const files = [...e.target.files];
   if (!files.length) return;
   const order = currentBulkSlots();
-  const empt = order.map((n) => $(`[data-slot=${n}]`)).filter((s) => s && s.classList.contains("empty"));
-  const targets = empt.length ? empt : order.map((n) => $(`[data-slot=${n}]`)).filter(Boolean);
+  const all = order.map((n) => $(`[data-slot=${n}]`)).filter((s) => s && s.offsetParent !== null);
+  const empt = all.filter((s) => s.classList.contains("empty"));
+  const targets = empt.length ? empt : all;
   for (let i = 0; i < Math.min(files.length, targets.length); i++) {
-    setSlotImage(targets[i], await readAsDataURL(files[i]));
+    const t = targets[i];
+    const url = await readAsDataURL(files[i]);
+    if (/^tsize/.test(t.dataset.slot || "")) {
+      const n = t.dataset.slot === "tsize" ? 0 : (t.dataset.slot === "tsize2" ? 1 : 2);
+      setSlotImage(t, await compositeSizeCut(url, n));
+      t.dataset.raw = url; t.dataset.adj = "{}";
+    } else {
+      setSlotImage(t, url);
+    }
   }
   toast(`이미지 ${Math.min(files.length, targets.length)}장을 배치했습니다`);
   e.target.value = "";
@@ -2103,16 +2137,20 @@ async function runAIGen(slotNames, btn, label) {
   if (!key) { toast("최상단에 API 키를 먼저 입력해 주세요"); return; }
   if (!srcPhotos.length) { toast("원본 사진을 먼저 넣어 주세요 (실물 기반으로 생성됩니다)"); return; }
   const targets = slotNames.map((n) => $(`[data-slot=${n}]`))
-    .filter((s) => s && s.classList.contains("empty") && !(s.closest("section") && s.closest("section").classList.contains("hidden-sec")));
+    .filter((s) => s && s.classList.contains("empty") && s.offsetParent !== null
+      && !(s.closest("section") && s.closest("section").classList.contains("hidden-sec")));
   if (!targets.length) { toast("빈 슬롯이 없습니다 — 다시 만들 슬롯의 이미지를 먼저 제거하세요"); return; }
   btn.disabled = true;
+  const startIdx = curIdx;
   let ok = 0, fail = 0;
   for (let i = 0; i < targets.length; i++) {
+    if (curIdx !== startIdx) { toast("상품이 전환되어 AI 생성을 중단했습니다"); break; }
     const slot = targets[i];
     btn.textContent = `생성 중 ${i + 1}/${targets.length}...`;
     toast(`AI 이미지 생성 중 ${i + 1}/${targets.length} (${slot.dataset.slot})`);
     try {
       const url = await genOneImage(slotPrompt(slot.dataset.slot), key);
+      if (curIdx !== startIdx) { toast("상품이 전환되어 AI 생성을 중단했습니다"); break; }
       setSlotImage(slot, url);
       ok++;
     } catch (err) {
@@ -2131,13 +2169,22 @@ async function runAIGen(slotNames, btn, label) {
 }
 
 $("#btn-ai-img").addEventListener("click", async () => {
-  // J. 문구 우선: AI 문구가 아직이면 자동으로 먼저 생성 (문구가 이미지 프롬프트의 기준)
-  const ws = curIdx >= 0 ? workspaces[curIdx] : null;
-  if (current && !isRocket() && apiKey() && srcPhotos.length && ws && !ws.aiCopied) {
-    toast("문구를 먼저 AI로 생성합니다 — 완성된 문구를 기준으로 이미지가 만들어집니다");
-    await genAICopy();
+  const btn = $("#btn-ai-img");
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    // J. 문구 우선: AI 문구가 아직이고 수기 수정도 없으면 자동으로 먼저 생성 (문구가 이미지 프롬프트의 기준)
+    const ws = curIdx >= 0 ? workspaces[curIdx] : null;
+    if (current && !isRocket() && apiKey() && srcPhotos.length && ws && !ws.aiCopied && !ws.copyEdited) {
+      btn.textContent = "문구 생성 중...";
+      toast("문구를 먼저 AI로 생성합니다 — 완성된 문구를 기준으로 이미지가 만들어집니다");
+      await genAICopy();
+    }
+    await runAIGen(currentAISlots(), btn, "상세 AI 생성");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "상세 AI 생성";
   }
-  runAIGen(currentAISlots(), $("#btn-ai-img"), "상세 AI 생성");
 });
 
 /* 대표: D 메인만 AI 생성, D1~D5는 상세 슬롯에서 재사용 (비용 절약) */
@@ -2151,7 +2198,8 @@ $("#btn-ai-mains").addEventListener("click", async () => {
   for (const [dst, src] of Object.entries(reuseMap)) {
     const dEl = $(`[data-slot=${dst}]`);
     let sEl = $(`[data-slot=${src}]`);
-    if (dst === "d3" && (!sEl || !sEl.dataset.full)) sEl = $("[data-slot=opt1]");  // 옵션 그리드 사용 시 D3는 옵션1 재사용
+    // 옵션 그리드 사용 시(또는 구성컷이 비었을 때) D3는 옵션1 재사용
+    if (dst === "d3" && src === "comp" && (parseOptions().length >= 2 || !sEl || !sEl.dataset.full)) sEl = $("[data-slot=opt1]");
     if (!dEl.classList.contains("empty")) continue;
     if (sEl && sEl.dataset.full) { setSlotImage(dEl, sEl.dataset.full); copied++; }
     else missing.push(dst.toUpperCase());
@@ -2162,16 +2210,22 @@ $("#btn-ai-mains").addEventListener("click", async () => {
     const key = apiKey();
     if (!key) { toast(`상세 재사용 ${copied}장 완료 — D 메인 생성은 API 키가 필요합니다`); return; }
     if (!srcPhotos.length) { toast(`상세 재사용 ${copied}장 완료 — D 메인 생성은 원본 사진이 필요합니다`); return; }
+    const origLabel = btn.textContent;
+    const startIdx = curIdx;
     btn.disabled = true; btn.textContent = "D 메인 생성 중...";
     try {
       const url = await genOneImage(slotPrompt("d0"), key);
-      setSlotImage(d0, url);
-      toast(`대표 완료: D 메인 AI 생성 + 상세 재사용 ${copied}장${missing.length ? ` (미채움: ${missing.join(",")} — 상세 먼저 생성하세요)` : ""}`);
+      if (curIdx !== startIdx) {
+        toast("상품이 전환되어 D 메인 결과를 적용하지 않았습니다");
+      } else {
+        setSlotImage(d0, url);
+        toast(`대표 완료: D 메인 AI 생성 + 상세 재사용 ${copied}장${missing.length ? ` (미채움: ${missing.join(",")} — 상세 먼저 생성하세요)` : ""}`);
+      }
     } catch (err) {
       console.error(err);
       toast(err.message === "BILLING" ? "이미지 모델은 Gemini 결제 활성화 후 사용 가능합니다" : "D 메인 생성 실패: " + err.message);
     }
-    btn.disabled = false; btn.textContent = "대표 AI 생성";
+    btn.disabled = false; btn.textContent = origLabel;
   } else {
     toast(`대표 완료: 상세 재사용 ${copied}장${missing.length ? ` (미채움: ${missing.join(",")} — 상세 먼저 생성하세요)` : ""}`);
   }
@@ -2192,6 +2246,13 @@ $("#btn-restore").addEventListener("click", () => {
 /* ---------- 저장: 상세 ---------- */
 async function buildCanvas() {
   document.body.classList.add("exporting");
+  // 슬롯이 전부 빈 사이즈/사용컷 섹션은 제목만 덩그러니 남지 않게 통째로 제외
+  const emptySecs = $$("#page section").filter((sec) => {
+    if (!(sec.classList.contains("sec-tsize") || sec.classList.contains("sec-use"))) return false;
+    const slots = [...sec.querySelectorAll(".slot")];
+    return slots.length > 0 && slots.every((s) => s.classList.contains("empty"));
+  });
+  emptySecs.forEach((s) => s.classList.add("exp-hide"));
   // 부모 레이아웃/스크롤 간섭을 피하기 위해 캡처 순간에만 페이지를 문서 최상위로 이동
   const page = $("#page");
   const parent = page.parentNode, next = page.nextSibling;
@@ -2207,6 +2268,7 @@ async function buildCanvas() {
   } finally {
     parent.insertBefore(page, next);
     holder.remove();
+    emptySecs.forEach((s) => s.classList.remove("exp-hide"));
     document.body.classList.remove("exporting");
   }
   return canvas;
@@ -2281,8 +2343,8 @@ function dataUrlTo1000(dataUrl, qtyBadge) {
 }
 
 $("#btn-save-mains").addEventListener("click", async () => {
-  const rocket = current && current.rocket;
-  const opts = rocket ? [] : parseOptions();
+  const rocket = isRocket() && current && current.rocket;
+  const opts = isRocket() ? [] : parseOptions();
   const visible = (el) => { const c = el.closest(".main-cell"); return !c || c.style.display !== "none"; };
   const filled = MAIN_SLOTS.map((n, i) => ({ el: $(`[data-slot=${n}]`), n, i })).filter((x) => x.el && x.el.dataset.full && visible(x.el));
   if (!filled.length) { toast("저장할 대표이미지가 없습니다 — 먼저 생성하거나 넣어 주세요"); return; }
@@ -2684,6 +2746,10 @@ document.addEventListener("input", (e) => {
   if (e.target && e.target.id === "f-color" && isToy()) renderChips();
   if (e.target && e.target.id === "f-size") updateSizeSlots();
   if (e.target && (e.target.id === "f-color" || e.target.id === "f-kcno")) { updateOptionSlots(); applyMainCaptions(); }
+  // 미리보기에서 문구를 직접 고치면 기록 — 상세 AI 생성 시 문구 자동 선행이 수기 문구를 덮어쓰지 않도록
+  if (e.target && e.target.isContentEditable && e.target.closest("#page") && curIdx >= 0 && workspaces[curIdx]) {
+    workspaces[curIdx].copyEdited = true;
+  }
 });
 updateHeight();
 </script>
