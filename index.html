@@ -277,9 +277,20 @@
   /* 슬롯 추가 버튼: 치수 편집 / 수정 / 배경 교체 / 되돌리기 */
   .slot .szedit { position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:6; border:none; background:rgba(46,158,68,.88); color:#fff; border-radius:8px; font-size:17px; padding:7px 14px; cursor:pointer; opacity:0; font-family:inherit; }
   .slot .edt { position:absolute; bottom:8px; left:8px; z-index:6; border:none; background:rgba(17,17,17,.72); color:#fff; border-radius:8px; font-size:15px; padding:4px 9px; cursor:pointer; opacity:0; font-family:inherit; }
-  .slot .bgx { position:absolute; bottom:8px; right:8px; z-index:6; border:none; background:rgba(148,64,222,.88); color:#fff; border-radius:8px; font-size:15px; padding:4px 9px; cursor:pointer; opacity:0; font-family:inherit; }
-  .slot .undo { position:absolute; bottom:44px; right:8px; z-index:6; border:none; background:rgba(17,17,17,.72); color:#fff; border-radius:8px; font-size:15px; padding:4px 9px; cursor:pointer; opacity:0; font-family:inherit; }
+  .slot .bgx { position:absolute; top:36px; left:8px; z-index:6; border:none; background:rgba(148,64,222,.88); color:#fff; border-radius:8px; font-size:15px; padding:4px 9px; cursor:pointer; opacity:0; font-family:inherit; }
+  .slot .undo { position:absolute; bottom:8px; right:8px; z-index:6; border:none; background:rgba(17,17,17,.72); color:#fff; border-radius:8px; font-size:15px; padding:4px 9px; cursor:pointer; opacity:0; font-family:inherit; }
   .slot:hover .szedit, .slot:hover .edt, .slot:hover .bgx, .slot:hover .undo { opacity:1; }
+  /* v1.27: 글자 지우기 버튼 · 수량 배지 미리보기 · 사이즈 그리드 · 사이드바 그룹 */
+  .slot .erz { position:absolute; top:48px; left:8px; z-index:6; border:none; background:rgba(17,17,17,.72); color:#fff; border-radius:8px; font-size:17px; padding:7px 14px; cursor:pointer; opacity:0; font-family:inherit; }
+  .slot-hero .erz, .slot-thero .erz, .slot-rkt .erz { top:104px !important; }
+  .slot-trow .erz { top:88px !important; }
+  .slot-main .erz { top:auto !important; left:50%; bottom:8px; transform:translateX(-50%); font-size:15px; padding:4px 9px; }
+  .slot:hover .erz { opacity:1; }
+  body.exporting .erz, body.exporting .qbadge { display:none !important; }
+  .qbadge { position:absolute; left:10px; bottom:10px; z-index:4; background:rgba(255,255,255,.94); border:1.5px solid #ddd; border-radius:8px; font-size:15px; font-weight:800; color:#111; padding:5px 12px; pointer-events:none; }
+  #tsize-grid { display:flex; flex-wrap:wrap; gap:20px; justify-content:center; }
+  #tsize-grid .slot-tsize { width:calc(50% - 10px); height:280px; margin-top:0 !important; }
+  .grp { margin:20px 0 8px; padding:9px 12px; background:#eef2f6; border-left:4px solid #111; border-radius:6px; font-size:13px; font-weight:800; color:#222; }
   /* K. 옵션 구성 그리드 (2열, 홀수면 마지막 가운데) */
   #opt-grid { display:flex; flex-wrap:wrap; gap:20px; padding:44px 48px 0; justify-content:center; }
   .opt-cell { width:calc(50% - 10px); text-align:center; }
@@ -327,8 +338,8 @@
         <span style="display:block">· 여러 개면 아래 목록에서 선택 — 상품별 작업 상태 자동 보존</span>
         <span style="display:block">· 상품명은 대충 적어도 AI가 다듬어 줍니다</span>
       </p>
-      <button class="btn" id="btn-template">엑셀 양식 받기</button>
       <button class="btn primary" id="btn-excel">엑셀 업로드</button>
+      <button class="btn" id="btn-template">엑셀 양식 받기</button>
       <input type="file" id="file-excel" accept=".xlsx,.xls,.csv" hidden>
       <div id="rocket-sheet" style="display:none">
         <div class="sub-label">구글시트 불러오기 (로켓)</div>
@@ -344,8 +355,8 @@
     <div class="step">
       <h2><span>STEP 2</span>문구</h2>
       <p class="hint">기본 문구를 채운 뒤 미리보기에서 직접 수정하거나, AI 문구를 생성할 수 있습니다. 문구가 이미지 생성의 기준이 되므로 문구를 먼저 완성하세요.</p>
-      <button class="btn primary" id="btn-copy">기본 문구 채우기</button>
       <button class="btn blue" id="btn-ai">AI 문구 생성</button>
+      <button class="btn primary" id="btn-copy">기본 문구 채우기</button>
       <div class="sub-label">쿠팡 검색태그 (20개)</div>
       <p class="hint">엑셀 업로드 시 상품명 기반으로 자동 생성됩니다. (AI 추천 검색어이므로 실제 검색량은 판매자센터에서 확인 권장)</p>
       <textarea id="tags-area" rows="5" placeholder="AI가 자동 생성합니다"></textarea>
@@ -355,7 +366,7 @@
 
     <div class="step">
       <h2><span>STEP 3</span>이미지</h2>
-      <div class="sub-label" style="margin-top:6px">원본 사진 (최대 12장)</div>
+      <div class="sub-label" style="margin-top:6px">📷 원본 사진 (공통 재료, 최대 12장)</div>
       <div id="dropzone">이미지를 여기로 드래그
         <span>1688 페이지의 이미지를 창에서 바로 끌어오면 원본 화질로 등록됩니다<br>캡쳐·이미지 복사 후 Ctrl+V 붙여넣기도 가능</span></div>
       <button class="btn" id="btn-src">파일 선택</button>
@@ -369,31 +380,31 @@
         <span style="display:block">· 4장이면 충분 — 앞뒤가 다른 상품만 뒷면·구조 사진 추가</span>
         <span style="display:block">· 썸네일 아래 라벨(앞면/뒷면 등)을 지정하면 AI가 정확히 구분</span>
       </p>
-      <div class="sub-label">이미지 모드</div>
-      <button class="btn imode active" data-imode="orig">원본 기본 + AI 보조</button>
-      <button class="btn imode" data-imode="ai">AI 기본 + 원본 보조</button>
-      <p class="hint" style="margin-top:4px">빈 슬롯의 원클릭 버튼이 모드에 따라 [원본으로 채우기] ↔ [AI로 채우기]로 바뀝니다.</p>
-      <div class="sub-label">대표이미지 : 원본 그대로 (권장)</div>
-      <button class="btn primary" id="btn-fill-mains">대표 원본 채우기</button>
-      <p class="hint" style="margin-top:6px">원본 사진을 D~D5에 순서대로 배치합니다. 저장 시 1000×1000 흰배경·수량 배지가 자동 적용되고 상품은 변형 없이 원본 그대로 유지됩니다.</p>
+      <div class="grp">🖼 상세 이미지 만들기</div>
+      <div class="sub-label" style="margin-top:6px">이미지 모드</div>
+      <button class="btn imode" data-imode="ai">AI(기본) + 원본(보조)</button>
+      <button class="btn imode" data-imode="orig">원본(기본) + AI(보조)</button>
+      <p class="hint" style="margin-top:4px">빈 슬롯의 원클릭 버튼이 모드에 따라 [AI로 채우기] ↔ [원본으로 채우기]로 바뀝니다.</p>
       <div id="model-toggle" style="display:none">
         <div class="sub-label">모델 표현 (패션잡화)</div>
         <button class="btn mm active" data-mm="part">손·목·발 부분만</button>
         <button class="btn mm" data-mm="face">얼굴 포함 모델</button>
       </div>
-      <div class="sub-label">AI 연출 생성</div>
       <button class="btn blue" id="btn-ai-img">상세 AI 생성</button>
-      <button class="btn blue" id="btn-ai-mains">대표 AI 연출 (보조)</button>
       <p class="hint" style="margin-top:6px; line-height:1.7">
-        <span style="display:block">· 상세 연출컷을 AI로 생성 (장당 수십 원, 빈 슬롯만)</span>
+        <span style="display:block">· 상세페이지의 빈 슬롯을 AI 연출컷으로 채웁니다 (장당 수십 원)</span>
         <span style="display:block">· 문구가 기본 상태면 AI 문구를 먼저 자동 생성한 뒤 이미지를 만듭니다</span>
-        <span style="display:block">· 대표 AI 연출은 D 메인만 생성, D1~D5는 상세 재사용</span>
         <span style="display:block">· 실패/불만족 슬롯은 빈칸의 [원본으로 채우기]로 대체</span>
       </p>
       <div class="sub-label">수동작업 : 섹션별 직접 삽입</div>
       <button class="btn primary" id="btn-bulk">이미지 일괄 넣기</button>
       <button class="btn" id="btn-clear-img">이미지 모두 지우기</button>
       <p class="hint" style="margin-top:6px">점선 영역 클릭 = 한 장씩 삽입. 일괄 순서: 히어로→소개→01~04→착용→사용→옵션. 슬롯의 이미지를 잡아 다른 슬롯으로 드래그하면 이동/교환됩니다.</p>
+      <div class="grp">⭐ 대표 이미지 만들기</div>
+      <button class="btn primary" id="btn-fill-mains">대표 원본 채우기 (권장)</button>
+      <p class="hint" style="margin-top:6px">원본 사진을 D 메인~D5에 순서대로 배치합니다. 저장 시 1000×1000 흰배경·수량 배지가 자동 적용되고 상품은 변형 없이 원본 그대로 유지됩니다.</p>
+      <button class="btn blue" id="btn-ai-mains">대표 AI 연출 (보조)</button>
+      <p class="hint" style="margin-top:6px">연출된 대표를 원할 때만 — D 메인만 AI로 만들고 D1~D5는 상세 이미지를 재사용합니다.</p>
       <input type="file" id="file-src" accept="image/*" multiple hidden>
       <input type="file" id="file-bulk" accept="image/*" multiple hidden>
       <input type="file" id="file-slot" accept="image/*" hidden>
@@ -402,14 +413,14 @@
     <div class="step">
       <h2>저장 항목</h2>
       <p class="hint" style="line-height:1.7">
-        <span style="display:block">· 대표: {상품번호} {상품명} D~D5.png (1000×1000, 6개 파일)</span>
+        <span style="display:block">· 대표: {상품번호} {상품명} D~D5.png (1000×1000)</span>
         <span style="display:block">· 상세: {상품번호} {상품명} S.png</span>
         <span style="display:block">· 상품정보: {상품번호}_상품정보.xlsx — 대량 작업 시 전체 1파일</span>
         <span style="display:block">· 대표 D 메인에는 수량 배지가 자동 표기됩니다</span>
         <span style="display:block">· 옵션이 여러 개면 D 메인이 옵션 수만큼 저장됩니다: {상품명}_{옵션} D.png</span>
         <span style="display:block">· 여러 파일 다운로드 허용 창이 뜨면 허용해 주세요</span>
       </p>
-      <button class="btn primary" id="btn-save-mains">대표이미지 저장 (6장)</button>
+      <button class="btn primary" id="btn-save-mains">대표이미지 저장</button>
       <button class="btn primary" id="btn-png">상세이미지 저장 (PNG)</button>
       <button class="btn" id="btn-jpg">상세 JPG</button>
       <button class="btn primary" id="btn-save-excel">상품정보 저장 (엑셀)</button>
@@ -525,15 +536,6 @@
         <div class="slot slot-use empty" data-slot="use2"></div>
       </section>
 
-      <section class="sec-tsize" data-sec="사이즈">
-        <div class="sec-tools"><button onclick="hideSec(this)">섹션 숨기기</button></div>
-        <h3 style="font-size:34px; font-weight:800; margin-bottom:26px;">Size</h3>
-        <div class="slot slot-tsize empty" data-slot="tsize"></div>
-        <div class="slot slot-tsize empty" data-slot="tsize2" style="display:none; margin-top:24px;"></div>
-        <div class="slot slot-tsize empty" data-slot="tsize3" style="display:none; margin-top:24px;"></div>
-        <div class="tsize-hint">클릭해 원본 사진을 넣으면 엑셀 사이즈 값이 자동 합성됩니다 (혼합상품은 / 로 구분, 최대 3개)</div>
-      </section>
-
       <section class="sec-comp" data-sec="상품 옵션">
         <div class="sec-tools"><button onclick="hideSec(this)">섹션 숨기기</button></div>
         <h2>상품 옵션</h2>
@@ -552,6 +554,17 @@
           <div class="spec-row"><div class="k">수량</div><div class="v" id="f-qty" contenteditable="true">기재예정</div></div>
           <div class="spec-row"><div class="k">사이즈</div><div class="v" id="f-size" contenteditable="true">기재예정</div></div>
         </div>
+      </section>
+
+      <section class="sec-tsize" data-sec="사이즈">
+        <div class="sec-tools"><button onclick="hideSec(this)">섹션 숨기기</button></div>
+        <h3 style="font-size:34px; font-weight:800; margin-bottom:26px;">Size</h3>
+        <div id="tsize-grid">
+          <div class="slot slot-tsize empty" data-slot="tsize"></div>
+          <div class="slot slot-tsize empty" data-slot="tsize2" style="display:none;"></div>
+          <div class="slot slot-tsize empty" data-slot="tsize3" style="display:none;"></div>
+        </div>
+        <div class="tsize-hint">클릭해 원본 사진을 넣으면 엑셀 사이즈 값이 자동 합성됩니다 (혼합상품은 / 로 구분, 최대 3개)</div>
       </section>
 
       <section class="sec-info" data-sec="Product Info">
@@ -629,6 +642,22 @@
       <button class="btn" id="sz-reset">기본 위치로</button>
       <button class="btn" id="sz-cancel">취소</button>
       <button class="btn primary" id="sz-apply">적용</button>
+    </div>
+  </div>
+</div>
+<div id="ermodal" class="modal">
+  <div class="mbox">
+    <div class="mtitle">글자 지우기</div>
+    <p class="msub">지울 글자 부분을 드래그로 박스 지정하면 주변 색으로 자연스럽게 메워집니다 · 여러 번 지정 가능 (사이즈컷은 치수 합성 전 원본에서 지워집니다)</p>
+    <div id="er-stage" style="position:relative; margin:0 auto; overflow:hidden; cursor:crosshair; touch-action:none; background:#f6f6f6;">
+      <img id="er-img" style="display:block; pointer-events:none;">
+      <div id="er-sel" style="display:none; position:absolute; border:2px dashed #e14b4a; background:rgba(225,75,74,.12); pointer-events:none;"></div>
+    </div>
+    <div style="margin-top:12px;">
+      <button class="btn" id="er-undo">한 칸 되돌리기</button>
+      <button class="btn" id="er-reset">전체 초기화</button>
+      <button class="btn" id="er-cancel">취소</button>
+      <button class="btn primary" id="er-apply">적용</button>
     </div>
   </div>
 </div>
@@ -998,6 +1027,34 @@ function applyMainCaptions() {
     cell.style.display = show ? "" : "none";
     if (show) cell.querySelector(".cap").textContent = `D 메인 – ${opts[oi]}`;
   });
+  // v1.27: 옵션이 여러 개면 D 메인들을 맨 위에 먼저 나열하고 D1~D5는 그 뒤로
+  const mainsBox = $("#mains");
+  if (mainsBox) {
+    const dispOrder = (!isRocket() && opts.length >= 2)
+      ? ["d0", "o2", "o3", "o4", "o5", "o6", "d1", "d2", "d3", "d4", "d5"]
+      : ["d0", "d1", "d2", "d3", "d4", "d5", "o2", "o3", "o4", "o5", "o6"];
+    dispOrder.forEach((n) => {
+      const s = $(`[data-slot=${n}]`);
+      const c = s && s.closest(".main-cell");
+      if (c) mainsBox.appendChild(c);
+    });
+  }
+  refreshQtyBadges();
+}
+
+/* v1.27: 수량 배지 미리보기 — D 메인 칸(옵션별 포함)에 저장 시와 같은 배지를 미리 표시 */
+function refreshQtyBadges() {
+  const qtyEl = $("#f-qty");
+  const qty = qtyEl ? qtyEl.textContent.trim() : "";
+  const show = !isRocket() && qty && qty !== "기재예정";
+  ["d0", "o2", "o3", "o4", "o5", "o6"].forEach((n) => {
+    const s = $(`[data-slot=${n}]`);
+    if (!s) return;
+    let b = s.querySelector(".qbadge");
+    if (!s.classList.contains("filled") || !show) { if (b) b.remove(); return; }
+    if (!b) { b = document.createElement("span"); b.className = "qbadge"; s.appendChild(b); }
+    b.textContent = qty;
+  });
 }
 
 /* 구글시트 로딩 */
@@ -1270,30 +1327,30 @@ function compositeSizeCut(dataUrl, entryIdx = 0, adj = null) {
       const x = c.getContext("2d"); x.drawImage(img, 0, 0, W, H);
       if (entry) {
         const L = sizeCutLayout(W, H, entry, adj);
-        const line = (x1, y1, x2, y2) => { x.strokeStyle = "#111"; x.lineWidth = 2.5; x.beginPath(); x.moveTo(x1, y1); x.lineTo(x2, y2); x.stroke(); };
-        const arrow = (px, py, dx, dy) => { x.fillStyle = "#111"; x.beginPath(); x.moveTo(px, py); x.lineTo(px + dx * 13 - dy * 8, py + dy * 13 + dx * 8); x.lineTo(px + dx * 13 + dy * 8, py + dy * 13 - dx * 8); x.closePath(); x.fill(); };
+        const line = (x1, y1, x2, y2) => { x.strokeStyle = "#111"; x.lineWidth = 3; x.beginPath(); x.moveTo(x1, y1); x.lineTo(x2, y2); x.stroke(); };
+        const arrow = (px, py, dx, dy) => { x.fillStyle = "#111"; x.beginPath(); x.moveTo(px, py); x.lineTo(px + dx * 16 - dy * 10, py + dy * 16 + dx * 10); x.lineTo(px + dx * 16 + dy * 10, py + dy * 16 - dx * 10); x.closePath(); x.fill(); };
         const txt = (tx, ty, s, size, rot) => {
           x.save();
           x.translate(tx, ty);
           if (rot) x.rotate(-Math.PI / 2);
           x.font = `800 ${size}px Pretendard, 'Malgun Gothic', sans-serif`;
           x.textAlign = "center"; x.textBaseline = "middle";
-          x.lineJoin = "round"; x.strokeStyle = "rgba(255,255,255,.92)"; x.lineWidth = 8;
+          x.lineJoin = "round"; x.strokeStyle = "rgba(255,255,255,.92)"; x.lineWidth = 9;
           x.strokeText(s, 0, 0);
           x.fillStyle = "#111"; x.fillText(s, 0, 0);
           x.restore();
         };
-        line(L.hx1, L.hy, L.hx2, L.hy); line(L.hx1, L.hy - 14, L.hx1, L.hy + 14); line(L.hx2, L.hy - 14, L.hx2, L.hy + 14);
+        line(L.hx1, L.hy, L.hx2, L.hy); line(L.hx1, L.hy - 16, L.hx1, L.hy + 16); line(L.hx2, L.hy - 16, L.hx2, L.hy + 16);
         arrow(L.hx1, L.hy, 1, 0); arrow(L.hx2, L.hy, -1, 0);
         if (L.kind === "wh") {
-          txt(L.wpos.x, L.wpos.y, entry.w, 44);
-          line(L.vx, L.vy1, L.vx, L.vy2); line(L.vx - 14, L.vy1, L.vx + 14, L.vy1); line(L.vx - 14, L.vy2, L.vx + 14, L.vy2);
+          txt(L.wpos.x, L.wpos.y, entry.w, 56);
+          line(L.vx, L.vy1, L.vx, L.vy2); line(L.vx - 16, L.vy1, L.vx + 16, L.vy1); line(L.vx - 16, L.vy2, L.vx + 16, L.vy2);
           arrow(L.vx, L.vy1, 0, 1); arrow(L.vx, L.vy2, 0, -1);
-          txt(L.hpos.x, L.hpos.y, entry.h, 40, true);
+          txt(L.hpos.x, L.hpos.y, entry.h, 50, true);
           const labelOnly = entry.text.replace(/[\d.\s]|x|×|\*|cm|mm|m/gi, "");
-          if (labelOnly) txt(L.tpos.x, L.tpos.y, entry.text, 36);
+          if (labelOnly) txt(L.tpos.x, L.tpos.y, entry.text, 44);
         } else {
-          txt(L.wpos.x, L.wpos.y, entry.text, 48);
+          txt(L.wpos.x, L.wpos.y, entry.text, 60);
         }
       }
       resolve(c.toDataURL("image/png"));
@@ -1680,7 +1737,13 @@ function renderSrcThumbs() {
 window.removeSrc = (i) => { srcPhotos.splice(i, 1); srcFull.splice(i, 1); srcLabels.splice(i, 1); renderSrcThumbs(); };
 window.setSrcLabel = (i, v) => { srcLabels[i] = v; };
 
-let imgMode = localStorage.getItem("img_mode") || "orig";
+let imgMode = localStorage.getItem("img_mode") || "ai";
+// v1.27: 기본 모드를 AI(기본)+원본(보조)로 전환 — 기존 사용자도 1회 자동 전환 (이후 선택은 유지)
+if (!localStorage.getItem("imgmode_v127")) {
+  imgMode = "ai";
+  localStorage.setItem("img_mode", "ai");
+  localStorage.setItem("imgmode_v127", "1");
+}
 
 async function addPhotoFile(f) {
   if (srcPhotos.length >= MAX_SRC) { toast(`원본 사진은 최대 ${MAX_SRC}장입니다`); return false; }
@@ -1918,10 +1981,12 @@ function setSlotImage(slotEl, dataUrl) {
   let btns = "";
   if (!isOpt) btns += `<button class="rgn" onclick="regenSlot(event, this)">AI 재생성</button>`;
   if (isTsize) btns += `<button class="szedit" onclick="editSizeCut(event, this)">치수 편집</button>`;
-  if (isMain) btns += `<button class="edt" onclick="editMainImage(event, this)">수정</button>`;
-  if (isDMain) btns += `<button class="bgx" onclick="swapBgAI(event, this)">배경 교체</button>`;
+  if (isMain) btns += `<button class="edt" onclick="editMainImage(event, this)">사이즈·크기 수정</button>`;
+  if (isDMain) btns += `<button class="bgx" onclick="swapBgAI(event, this)">배경만 교체</button>`;
   if (isDMain && slotEl.dataset.orig) btns += `<button class="undo" onclick="undoBg(event, this)">되돌리기</button>`;
+  btns += `<button class="erz" onclick="eraseText(event, this)">글자 지우기</button>`;
   slotEl.innerHTML = `<img src="${dataUrl}" draggable="true" ondragstart="slotImgDragStart(event)">` + btns + `<button class="rm" onclick="clearSlot(event, this)">제거</button>`;
+  if (isDMain && typeof refreshQtyBadges === "function") refreshQtyBadges();
   updateHeight();
 }
 
@@ -2714,7 +2779,7 @@ window.swapBgAI = async (ev, btn) => {
   } catch (err) {
     console.error(err);
     toast(err.message === "BILLING" ? "이미지 모델은 Gemini 결제 활성화 후 사용 가능합니다" : "배경 교체 실패: " + err.message);
-    btn.disabled = false; btn.textContent = "배경 교체";
+    btn.disabled = false; btn.textContent = "배경만 교체";
   }
 };
 window.undoBg = (ev, btn) => {
@@ -2727,6 +2792,119 @@ window.undoBg = (ev, btn) => {
   slot.classList.add("fit-contain");
   toast("원본 이미지로 되돌렸습니다");
 };
+
+/* v1.27: 글자 지우기 — 드래그로 박스 지정, 주변 픽셀 보간으로 메움 (비AI·무료) */
+let erState = null;
+window.eraseText = (ev, btn) => {
+  ev.stopPropagation();
+  const slot = btn.closest(".slot");
+  const isTsize = /^tsize/.test(slot.dataset.slot || "");
+  const base = isTsize ? (slot.dataset.raw || slot.dataset.full) : slot.dataset.full;
+  if (!base) return;
+  const probe = new Image();
+  probe.onload = () => {
+    const scale = 560 / probe.naturalWidth;
+    const stage = $("#er-stage");
+    stage.style.width = "560px";
+    stage.style.height = Math.round(probe.naturalHeight * scale) + "px";
+    $("#er-img").src = base;
+    $("#er-img").style.width = "560px";
+    erState = { slot, base, img: probe, rects: [], scale, isTsize };
+    $("#ermodal").classList.add("open");
+  };
+  probe.src = base;
+};
+function erFillData(d, W, H, r) {
+  const x0 = Math.max(1, Math.round(r.x)), y0 = Math.max(1, Math.round(r.y));
+  const x1 = Math.min(W - 2, Math.round(r.x + r.w)), y1 = Math.min(H - 2, Math.round(r.y + r.h));
+  if (x1 <= x0 || y1 <= y0) return;
+  const gp = (xx, yy, ch) => d[(yy * W + xx) * 4 + ch];
+  for (let yy = y0; yy <= y1; yy++) {
+    for (let xx = x0; xx <= x1; xx++) {
+      const wl = 1 / (xx - x0 + 1), wr = 1 / (x1 - xx + 1), wt = 1 / (yy - y0 + 1), wb = 1 / (y1 - yy + 1);
+      const ws = wl + wr + wt + wb, i = (yy * W + xx) * 4;
+      for (let ch = 0; ch < 3; ch++) {
+        d[i + ch] = (gp(x0 - 1, yy, ch) * wl + gp(x1 + 1, yy, ch) * wr + gp(xx, y0 - 1, ch) * wt + gp(xx, y1 + 1, ch) * wb) / ws;
+      }
+      d[i + 3] = 255;
+    }
+  }
+}
+function erRender() {
+  const st = erState;
+  if (!st) return null;
+  const c = document.createElement("canvas");
+  c.width = st.img.naturalWidth; c.height = st.img.naturalHeight;
+  const x = c.getContext("2d");
+  x.drawImage(st.img, 0, 0);
+  if (st.rects.length) {
+    const id = x.getImageData(0, 0, c.width, c.height);
+    for (const r of st.rects) erFillData(id.data, c.width, c.height, r);
+    x.putImageData(id, 0, 0);
+  }
+  return c;
+}
+function erUpdatePreview() {
+  const c = erRender();
+  if (c) $("#er-img").src = c.toDataURL("image/png");
+}
+let erDrag = null;
+$("#er-stage").addEventListener("pointerdown", (e) => {
+  if (!erState) return;
+  e.preventDefault();
+  e.currentTarget.setPointerCapture(e.pointerId);
+  const rc = e.currentTarget.getBoundingClientRect();
+  erDrag = { x0: e.clientX - rc.left, y0: e.clientY - rc.top, rc };
+  const sel = $("#er-sel");
+  sel.style.display = "block";
+  sel.style.left = erDrag.x0 + "px"; sel.style.top = erDrag.y0 + "px";
+  sel.style.width = "0px"; sel.style.height = "0px";
+});
+$("#er-stage").addEventListener("pointermove", (e) => {
+  if (!erDrag) return;
+  const x1 = e.clientX - erDrag.rc.left, y1 = e.clientY - erDrag.rc.top;
+  const sel = $("#er-sel");
+  sel.style.left = Math.min(erDrag.x0, x1) + "px";
+  sel.style.top = Math.min(erDrag.y0, y1) + "px";
+  sel.style.width = Math.abs(x1 - erDrag.x0) + "px";
+  sel.style.height = Math.abs(y1 - erDrag.y0) + "px";
+});
+$("#er-stage").addEventListener("pointerup", (e) => {
+  $("#er-sel").style.display = "none";
+  if (!erDrag || !erState) { erDrag = null; return; }
+  const x1 = e.clientX - erDrag.rc.left, y1 = e.clientY - erDrag.rc.top;
+  const s = erState.scale;
+  const r = { x: Math.min(erDrag.x0, x1) / s, y: Math.min(erDrag.y0, y1) / s,
+              w: Math.abs(x1 - erDrag.x0) / s, h: Math.abs(y1 - erDrag.y0) / s };
+  erDrag = null;
+  if (r.w < 4 || r.h < 4) return;
+  erState.rects.push(r);
+  erUpdatePreview();
+});
+$("#er-undo").addEventListener("click", () => { if (erState && erState.rects.length) { erState.rects.pop(); erUpdatePreview(); } });
+$("#er-reset").addEventListener("click", () => { if (erState) { erState.rects = []; erUpdatePreview(); } });
+$("#er-cancel").addEventListener("click", () => { $("#ermodal").classList.remove("open"); erState = null; });
+$("#er-apply").addEventListener("click", async () => {
+  const st = erState;
+  if (!st) return;
+  if (!st.rects.length) { $("#ermodal").classList.remove("open"); erState = null; return; }
+  const url = erRender().toDataURL("image/png");
+  if (st.isTsize) {
+    const nm = st.slot.dataset.slot;
+    const idx = nm === "tsize" ? 0 : (nm === "tsize2" ? 1 : 2);
+    let adj = {};
+    try { adj = JSON.parse(st.slot.dataset.adj || "{}"); } catch (_) {}
+    const comp = await compositeSizeCut(url, idx, adj);
+    setSlotImage(st.slot, comp);
+    st.slot.dataset.raw = url;
+    st.slot.dataset.adj = JSON.stringify(adj);
+  } else {
+    setSlotImage(st.slot, url);
+  }
+  $("#ermodal").classList.remove("open");
+  erState = null;
+  toast("글자를 지웠습니다");
+});
 
 /* ---------- 날개 배너 ---------- */
 $("#wing-top").addEventListener("click", () => $("#preview-wrap").scrollTo({ top: 0, behavior: "smooth" }));
@@ -2746,6 +2924,7 @@ document.addEventListener("input", (e) => {
   if (e.target && e.target.id === "f-color" && isToy()) renderChips();
   if (e.target && e.target.id === "f-size") updateSizeSlots();
   if (e.target && (e.target.id === "f-color" || e.target.id === "f-kcno")) { updateOptionSlots(); applyMainCaptions(); }
+  if (e.target && e.target.id === "f-qty") refreshQtyBadges();
   // 미리보기에서 문구를 직접 고치면 기록 — 상세 AI 생성 시 문구 자동 선행이 수기 문구를 덮어쓰지 않도록
   if (e.target && e.target.isContentEditable && e.target.closest("#page") && curIdx >= 0 && workspaces[curIdx]) {
     workspaces[curIdx].copyEdited = true;
