@@ -2388,6 +2388,38 @@ async function buildCanvas() {
     return slots.length > 0 && slots.every((s) => s.classList.contains("empty"));
   });
   emptySecs.forEach((s) => s.classList.add("exp-hide"));
+  // WYSIWYG 보정: html2canvas가 object-fit:cover(칸 맞춤 자르기)를 무시하므로,
+  // 미리보기와 동일한 중앙 크롭을 캡처 직전에 이미지에 직접 구워 넣고 캡처 후 복원
+  const pageImgs = $$("#page .slot.filled img");
+  await Promise.all(pageImgs.map((im) => new Promise((res) => {
+    if (im.complete && im.naturalWidth) return res();
+    im.addEventListener("load", res, { once: true });
+    im.addEventListener("error", res, { once: true });
+    setTimeout(res, 3000);
+  })));
+  const swapped = [];
+  for (const im of pageImgs) {
+    const slot = im.closest(".slot");
+    if (!slot || !im.naturalWidth || !im.naturalHeight) continue;
+    const sw = slot.clientWidth, sh = slot.clientHeight;
+    if (!sw || !sh) continue;
+    if (getComputedStyle(im).objectFit !== "cover") continue;
+    const scale = Math.max(sw / im.naturalWidth, sh / im.naturalHeight);
+    const cw = sw / scale, ch = sh / scale;
+    if (im.naturalWidth - cw < 2 && im.naturalHeight - ch < 2) continue;
+    const cc = document.createElement("canvas");
+    cc.width = Math.round(sw); cc.height = Math.round(sh);
+    cc.getContext("2d").drawImage(im, (im.naturalWidth - cw) / 2, (im.naturalHeight - ch) / 2, cw, ch, 0, 0, cc.width, cc.height);
+    swapped.push({ im, old: im.src });
+    im.src = cc.toDataURL("image/png");
+  }
+  if (swapped.length) {
+    await Promise.all(swapped.map((s) => new Promise((res) => {
+      if (s.im.complete && s.im.naturalWidth) return res();
+      s.im.onload = res; s.im.onerror = res;
+      setTimeout(res, 3000);
+    })));
+  }
   // 부모 레이아웃/스크롤 간섭을 피하기 위해 캡처 순간에만 페이지를 문서 최상위로 이동
   const page = $("#page");
   const parent = page.parentNode, next = page.nextSibling;
@@ -2403,6 +2435,7 @@ async function buildCanvas() {
   } finally {
     parent.insertBefore(page, next);
     holder.remove();
+    swapped.forEach((s) => { s.im.src = s.old; });
     emptySecs.forEach((s) => s.classList.remove("exp-hide"));
     document.body.classList.remove("exporting");
   }
