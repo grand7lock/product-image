@@ -72,7 +72,7 @@
   #src-thumbs .th .th-img button { position:absolute; top:2px; right:2px; width:18px; height:18px; border:none; border-radius:50%;
        background:rgba(17,17,17,.75); color:#fff; font-size:11px; line-height:1; cursor:pointer; padding:0; }
   #src-thumbs .th select { width:64px; font-size:10.5px; padding:2px 1px; margin:3px 0 0; border:1px solid #ddd; border-radius:6px; font-family:inherit; }
-  .btn.mm.active, .btn.imode.active { background:#111; color:#fff; }
+  .btn.mm.active, .btn.imode.active, .btn.gmode.active { background:#111; color:#fff; }
   #dropzone { border:2.5px dashed #0a7cff; background:#f2f8ff; border-radius:12px; padding:16px 12px; text-align:center;
        font-size:14px; font-weight:800; color:#0a63cc; cursor:pointer; margin:4px 0 8px; transition:background .15s; }
   #dropzone span { display:block; font-size:11.5px; font-weight:400; color:#7aa5cf; margin-top:6px; line-height:1.5; }
@@ -290,6 +290,7 @@
   .qbadge { position:absolute; left:10px; bottom:10px; z-index:4; background:rgba(255,255,255,.94); border:1.5px solid #ddd; border-radius:8px; font-size:15px; font-weight:800; color:#111; padding:5px 12px; pointer-events:none; }
   #tsize-grid { display:flex; flex-wrap:wrap; gap:20px; justify-content:center; }
   #tsize-grid .slot-tsize { width:calc(50% - 10px); height:280px; margin-top:0 !important; }
+  #tsize-grid .slot-tsize.filled { height:auto; }  /* 합성된 사이즈컷은 잘림 없이 전체 표시 */
   .grp { margin:20px 0 8px; padding:9px 12px; background:#eef2f6; border-left:4px solid #111; border-radius:6px; font-size:13px; font-weight:800; color:#222; }
   /* K. 옵션 구성 그리드 (2열, 홀수면 마지막 가운데) */
   #opt-grid { display:flex; flex-wrap:wrap; gap:20px; padding:44px 48px 0; justify-content:center; }
@@ -389,7 +390,13 @@
         <div class="sub-label">모델 표현 (패션잡화)</div>
         <button class="btn mm active" data-mm="part">손·목·발 부분만</button>
         <button class="btn mm" data-mm="face">얼굴 포함 모델</button>
+        <button class="btn mm" data-mm="none">모델 없이</button>
+        <p class="hint" style="margin-top:4px">[모델 없이] = 인물·신체가 전혀 등장하지 않음 — 작은 상품이 손 대비 작아 보이는 것을 방지</p>
       </div>
+      <div class="sub-label">생성 방식</div>
+      <button class="btn gmode" data-gmode="style">연출 우선 (기본)</button>
+      <button class="btn gmode" data-gmode="acc">정확도 우선</button>
+      <p class="hint" style="margin-top:4px">정확도 우선 = 원본 사진의 구도·각도를 유지하고 배경·조명만 바꿔 상품 변형을 최소화합니다.</p>
       <button class="btn blue" id="btn-ai-img">상세 AI 생성</button>
       <p class="hint" style="margin-top:6px; line-height:1.7">
         <span style="display:block">· 상세페이지의 빈 슬롯을 AI 연출컷으로 채웁니다 (장당 수십 원)</span>
@@ -787,9 +794,10 @@ function setCategory(cat, silent) {
 }
 let modelMode = "part";
 function setModelMode(mm, silent) {
-  modelMode = mm === "face" ? "face" : "part";
+  modelMode = (mm === "face" || mm === "none") ? mm : "part";
   $$("#model-toggle .mm").forEach((b) => b.classList.toggle("active", b.dataset.mm === modelMode));
-  if (!silent) toast(modelMode === "face" ? "얼굴 포함 20대 한국인 모델로 연출합니다" : "인물은 손·목·발 부분만 연출합니다");
+  if (!silent) toast(modelMode === "face" ? "얼굴 포함 20대 한국인 모델로 연출합니다"
+    : (modelMode === "none" ? "인물 없이 상품 단독으로만 연출합니다" : "인물은 손·목·발 부분만 연출합니다"));
 }
 $$("#model-toggle .mm").forEach((b) => b.addEventListener("click", () => setModelMode(b.dataset.mm)));
 
@@ -1759,7 +1767,7 @@ let srcPhotos = [];   // AI 참조용 (1024px)
 let srcFull = [];     // 원본 편집용 (1600px)
 let srcLabels = [];
 const MAX_SRC = 12;
-const SRC_LABELS = ["자동", "앞면", "뒷면", "디테일", "구조", "착용", "색상", "사이즈"];
+const SRC_LABELS = ["자동", "주인공", "보조소품", "앞면", "뒷면", "디테일", "구조", "착용", "색상", "사이즈"];
 
 function downscaleFile(file, max, q) {
   return new Promise((resolve, reject) => {
@@ -1943,6 +1951,17 @@ function setImgMode(m, silent) {
   if (!silent) toast(imgMode === "orig" ? "원본 기본 모드 — 빈 슬롯 버튼: [원본으로 채우기]" : "AI 기본 모드 — 빈 슬롯 버튼: [AI로 채우기]");
 }
 $$(".btn.imode").forEach((b) => b.addEventListener("click", () => setImgMode(b.dataset.imode)));
+
+/* v1.27 추가수정: 생성 방식 — 연출 우선(기본) / 정확도 우선(원본 구도 유지, 변형 최소화) */
+let genAcc = localStorage.getItem("gen_mode") === "acc" ? "acc" : "style";
+function setGenMode(m, silent) {
+  genAcc = m === "acc" ? "acc" : "style";
+  localStorage.setItem("gen_mode", genAcc);
+  $$(".btn.gmode").forEach((b) => b.classList.toggle("active", b.dataset.gmode === genAcc));
+  if (!silent) toast(genAcc === "acc" ? "정확도 우선 — 원본 구도를 유지하고 배경·조명만 바꿉니다" : "연출 우선 — 다양한 연출컷을 생성합니다");
+}
+$$(".btn.gmode").forEach((b) => b.addEventListener("click", () => setGenMode(b.dataset.gmode)));
+setGenMode(genAcc, true);
 
 window.genFromEmpty = async (ev, btn) => {
   ev.stopPropagation();
@@ -2176,14 +2195,26 @@ $("#btn-clear-img").addEventListener("click", () => {
 const IMG_MODELS = ["gemini-3.1-flash-image", "gemini-2.5-flash-image"];
 
 function aiCommon() {
-  const person = (category === "패션잡화" && modelMode === "face")
+  const person = (modelMode === "none")
+    ? "사람·신체(손·팔·발·다리 포함)는 절대 등장시키지 마세요. 상품 단독 또는 배경·소품만으로 연출하세요. "
+    : (category === "패션잡화" && modelMode === "face")
     ? "인물이 필요한 컷에는 20대 한국인 모델(자연스럽고 단정한 인상)이 상품을 착용·사용하는 모습으로 연출하세요. 얼굴이 크게 나오는 컷은 최소화하고 손·목·발 등 부분 컷과 섞어 자연스럽게 구성하세요. 어린이·아동은 절대 등장 금지. "
     : "어린이·아동이 등장해서는 안 되며, 아동용 분위기(장난감 방, 유아용품 등)도 피하세요. 인물은 성인의 손 정도만 허용됩니다. ";
+  const comp = $("#f-comp") ? $("#f-comp").textContent.trim() : "";
+  const compRule = (comp && comp !== "기재예정")
+    ? `이 상세페이지의 주인공 상품은 "${comp}"입니다. 사진에 함께 찍힌 다른 물건이 주인공처럼 부각되면 안 됩니다. `
+    : "";
+  const labelRule = (srcLabels.includes("주인공") || srcLabels.includes("보조소품"))
+    ? "'주인공' 라벨이 붙은 사진의 상품이 이 상세의 주인공입니다. '보조소품' 라벨 사진 속 물건은 배경 소품일 뿐이므로 절대 중심에 두거나 부각하지 마세요. "
+    : "";
+  const accRule = (typeof genAcc !== "undefined" && genAcc === "acc")
+    ? "연출은 최소화하세요: 원본 사진의 구도·각도·상품 배치를 최대한 그대로 유지하고, 배경·조명·분위기만 바꾸는 수준으로 생성하세요. 상품 재현 정확도가 최우선입니다. "
+    : "";
   const sz = $("#f-size") ? $("#f-size").textContent.trim() : "";
   const sizeRule = (sz && sz !== "기재예정")
     ? `실제 상품 사이즈: ${sz}. 이 사이즈의 실제 크기감이 느껴지도록 손·주변 사물과의 비례를 현실적으로 표현하고, 여러 상품이 함께 등장하면 상품 간 크기 비례를 사이즈 정보와 사진 그대로 유지하세요. `
     : "";
-  return `첨부된 실제 상품 사진들을 참고하여, 상품의 형태·색상·디테일을 정확히 그대로 유지한 새로운 연출 사진을 만들어 주세요. 실제 상품과 다른 모습으로 바꾸면 안 되고, 사진에 없는 새로운 디자인·패턴·형태·색상을 창작하는 것도 절대 금지입니다. 상품의 생김새는 첨부 사진과 완전히 동일해야 하며, 구성 개수도 원본과 동일하게 유지하세요. ${sizeRule}각 사진 앞의 [사진n: 라벨] 표기(앞면/뒷면/구조 등)를 정확히 구분해 반영하고, '뒷면' 라벨 사진이 있으면 뒷면 묘사는 반드시 그 사진과 동일해야 합니다. 뒷면 정보가 없으면 뒷면을 지어내지 마세요. 사진 안에 글자·숫자·로고·워터마크를 절대 넣지 마세요. ${person}실제 구성품이 아닌 다른 상품/소품이 주인공처럼 보이면 안 됩니다. 밝고 깨끗한 상업 상품 사진 스타일. 판매 카테고리: ${category}. `;
+  return `첨부된 실제 상품 사진들을 참고하여, 상품의 형태·색상·디테일을 정확히 그대로 유지한 새로운 연출 사진을 만들어 주세요. 실제 상품과 다른 모습으로 바꾸면 안 되고, 사진에 없는 새로운 디자인·패턴·형태·색상을 창작하는 것도 절대 금지입니다. 상품의 생김새는 첨부 사진과 완전히 동일해야 하며, 구성 개수도 원본과 동일하게 유지하세요. ${compRule}${labelRule}${accRule}${sizeRule}각 사진 앞의 [사진n: 라벨] 표기(앞면/뒷면/구조 등)를 정확히 구분해 반영하고, '뒷면' 라벨 사진이 있으면 뒷면 묘사는 반드시 그 사진과 동일해야 합니다. 뒷면 정보가 없으면 뒷면을 지어내지 마세요. 사진 안에 글자·숫자·로고·워터마크를 절대 넣지 마세요. ${person}실제 구성품이 아닌 다른 상품/소품이 주인공처럼 보이면 안 됩니다. 밝고 깨끗한 상업 상품 사진 스타일. 판매 카테고리: ${category}. `;
 }
 
 function slotPrompt(slotName) {
@@ -2196,8 +2227,12 @@ function slotPrompt(slotName) {
     case "p2": return common + `용도: '${t("#c-p2t")}' 포인트 설명 이미지. 내용: ${t("#c-p2b")}`;
     case "p3": return common + `용도: '${t("#c-p3t")}' 포인트 설명 이미지. 내용: ${t("#c-p3b")}`;
     case "p4": return common + `용도: '${t("#c-p4t")}' 포인트 설명 이미지. 내용: ${t("#c-p4b")}`;
-    case "use1": return common + "용도: 착용컷. 성인이 상품을 실제로 착용하거나 손에 든 모습의 클로즈업 연출 (얼굴은 나오지 않게, 손·손목 등 부분 위주로 자연스럽게).";
-    case "use2": return common + "용도: 사용컷. 상품을 실제로 사용하는 장면을 자연스러운 일상 공간에서 연출한 모습.";
+    case "use1": return common + (modelMode === "none"
+      ? "용도: 상품 클로즈업 연출컷. 인물 없이 상품의 착용감·질감이 돋보이는 클로즈업."
+      : "용도: 착용컷. 성인이 상품을 실제로 착용하거나 손에 든 모습의 클로즈업 연출 (얼굴은 나오지 않게, 손·손목 등 부분 위주로 자연스럽게).");
+    case "use2": return common + (modelMode === "none"
+      ? "용도: 상품 단독 연출컷. 인물 없이 실사용 공간(책상·거실 등)에 상품을 자연스럽게 배치한 모습."
+      : "용도: 사용컷. 상품을 실제로 사용하는 장면을 자연스러운 일상 공간에서 연출한 모습.");
     case "comp": return common + `용도: 구성품 소개. 밝은 흰색 배경 위에 모든 구성품이 가지런히 정돈되어 놓인 모습. 실제 구성 정보 — 구성: ${t("#f-comp")} / 색상: ${t("#f-color")} / 수량: ${t("#f-qty")} / 사이즈: ${t("#f-size")}. 이 구성과 수량·색상에 일치하도록 정확히 표현하세요.`;
     // 로켓 템플릿 슬롯
     case "r1": return common + "용도: 로켓 견적서용 연출 사진 1 — 상품이 실제 사용되는 공간에 자연스럽게 배치된 밝은 연출 컷.";
@@ -2206,19 +2241,23 @@ function slotPrompt(slotName) {
     // 문구·완구 템플릿 슬롯
     case "thero": return common + "용도: 상세페이지 최상단 배경 연출 컷. 파스텔 톤의 몽환적이고 발랄한 배경(하늘·버블·구름·반짝임 등) 속에 상품이 매력적으로 놓인 구도. 상단 3분의 1은 텍스트가 올라갈 수 있게 배경 위주로 여백을 두세요.";
     case "trow1": return common + "용도: 특징 클로즈업 1 — 상품의 디테일과 질감이 잘 보이는 정사각 클로즈업.";
-    case "trow2": return common + "용도: 특징 클로즈업 2 — 성인의 손이 상품을 만지거나 누르는 촉감 정사각 컷.";
+    case "trow2": return common + (modelMode === "none"
+      ? "용도: 특징 클로즈업 2 — 상품의 촉감·질감이 느껴지는 정사각 클로즈업 (인물 없이)."
+      : "용도: 특징 클로즈업 2 — 성인의 손이 상품을 만지거나 누르는 촉감 정사각 컷.");
     case "trow3": return common + "용도: 특징 클로즈업 3 — 다른 각도에서 본 상품의 매력 포인트 정사각 컷.";
     case "tp1": return common + `용도: '${t("#t-p1t")}' 포인트 연출 컷. 내용: ${t("#t-p1c")}`;
     case "tp2": return common + `용도: 색상·옵션이 모두 한눈에 보이도록 정렬한 컷. 실제 색상 구성: ${t("#f-color")}. 이 색상 구성과 일치해야 합니다.`;
-    case "play1": return common + `용도: 놀이/사용 장면 1 — '${t("#t-pc1")}' 동작을 보여주는 컷 (성인 손만).`;
-    case "play2": return common + `용도: 놀이/사용 장면 2 — '${t("#t-pc2")}' 동작을 보여주는 컷 (성인 손만).`;
-    case "play3": return common + `용도: 놀이/사용 장면 3 — '${t("#t-pc3")}' 동작을 보여주는 컷 (성인 손만).`;
+    case "play1": return common + `용도: 놀이/사용 장면 1 — '${t("#t-pc1")}' 동작을 ${modelMode === "none" ? "연상시키는 상품 연출 컷 (인물 없이)" : "보여주는 컷 (성인 손만)"}.`;
+    case "play2": return common + `용도: 놀이/사용 장면 2 — '${t("#t-pc2")}' 동작을 ${modelMode === "none" ? "연상시키는 상품 연출 컷 (인물 없이)" : "보여주는 컷 (성인 손만)"}.`;
+    case "play3": return common + `용도: 놀이/사용 장면 3 — '${t("#t-pc3")}' 동작을 ${modelMode === "none" ? "연상시키는 상품 연출 컷 (인물 없이)" : "보여주는 컷 (성인 손만)"}.`;
     // 대표이미지 6종 (정사각형, 쿠팡 규격)
     case "d0": return common + "용도: 쿠팡 대표이미지(메인). 순수한 흰색(#FFFFFF) 배경 위에 상품 전체가 정면으로 깔끔하게 놓인 모습. 그림자는 은은하게, 상품이 화면의 대부분을 차지하는 정사각형 구도. 소품·배경 요소 없이 상품만.";
     case "d1": return common + "용도: 대표 추가컷(디테일). 상품의 질감·마감·디테일이 잘 보이는 클로즈업, 밝은 배경, 정사각형 구도.";
     case "d2": return common + "용도: 대표 추가컷(연출). 상품을 어울리는 공간에 자연스럽게 배치한 밝은 라이프스타일 연출, 정사각형 구도.";
     case "d3": return common + "용도: 대표 추가컷(구성). 전체 구성품을 밝은 배경 위에 가지런히 나열한 모습, 정사각형 구도.";
-    case "d4": return common + "용도: 대표 추가컷(사용). 성인의 손이 상품을 사용하는 장면, 밝고 깨끗한 배경, 정사각형 구도.";
+    case "d4": return common + (modelMode === "none"
+      ? "용도: 대표 추가컷(사용). 인물 없이 사용 장면을 연상시키는 상품 연출, 밝고 깨끗한 배경, 정사각형 구도."
+      : "용도: 대표 추가컷(사용). 성인의 손이 상품을 사용하는 장면, 밝고 깨끗한 배경, 정사각형 구도.");
     case "d5": return common + "용도: 대표 추가컷(옵션/색상). 색상·옵션의 다양함이 한눈에 보이도록 정렬한 모습, 밝은 배경, 정사각형 구도.";
     default: return common;
   }
