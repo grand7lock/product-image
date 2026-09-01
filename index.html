@@ -1844,7 +1844,7 @@ JSON으로만 응답: {"display_name":"다듬은 상품명 15~25자","catch":"�
     updateHeight();
   }
 }
-$("#btn-ai").addEventListener("click", genAICopy);
+$("#btn-ai").addEventListener("click", () => genAICopy());
 
 /* ---------- 원본 사진 (최대 12장 + 라벨) ---------- */
 let srcPhotos = [];   // AI 참조용 (1024px)
