@@ -72,7 +72,7 @@
   #src-thumbs .th .th-img button { position:absolute; top:2px; right:2px; width:18px; height:18px; border:none; border-radius:50%;
        background:rgba(17,17,17,.75); color:#fff; font-size:11px; line-height:1; cursor:pointer; padding:0; }
   #src-thumbs .th select { width:64px; font-size:10.5px; padding:2px 1px; margin:3px 0 0; border:1px solid #ddd; border-radius:6px; font-family:inherit; }
-  .btn.mm.active, .btn.imode.active, .btn.gmode.active { background:#111; color:#fff; }
+  .btn.mm.active, .btn.imode.active, .btn.gmode.active, .btn.rgm.active, .btn.bsz.active { background:#111; color:#fff; }
   #dropzone { border:2.5px dashed #0a7cff; background:#f2f8ff; border-radius:12px; padding:16px 12px; text-align:center;
        font-size:14px; font-weight:800; color:#0a63cc; cursor:pointer; margin:4px 0 8px; transition:background .15s; }
   #dropzone span { display:block; font-size:11.5px; font-weight:400; color:#7aa5cf; margin-top:6px; line-height:1.5; }
@@ -152,7 +152,7 @@
   .num-block .num { font-size:44px; font-weight:800; }
   .num-block .bar { width:44px; height:4px; background:#111; margin:16px 0 24px; }
   .num-block h3 { font-size:28px; font-weight:800; letter-spacing:-0.8px; line-height:1.38; margin-bottom:14px; }
-  .num-block p { font-size:21px; color:#808080; line-height:1.62; }
+  .num-block p { font-size:26px; color:#808080; line-height:1.62; }
 
   .sec-use { padding-top:120px; text-align:center; }
   .use-sub { font-size:23px; color:#808080; line-height:1.7; margin:26px 48px 46px; white-space:pre-wrap; }
@@ -444,6 +444,11 @@
       <p class="hint" style="margin-top:6px">원본 사진을 빈 대표 칸에 순서대로 배치합니다. 저장 시 1000×1000 흰배경·수량 배지가 자동 적용되고 상품은 변형 없이 원본 그대로 유지됩니다.</p>
       <button class="btn blue" id="btn-ai-mains">대표 AI 연출 (보조)</button>
       <p class="hint" style="margin-top:6px">연출된 대표를 원할 때만 — D 메인을 AI로 생성합니다 (D1~D5는 상세 자동 재사용).</p>
+      <div class="sub-label">수량 배지 크기</div>
+      <button class="btn bsz" data-bsz="s">작게</button>
+      <button class="btn bsz" data-bsz="m">보통</button>
+      <button class="btn bsz" data-bsz="l">크게</button>
+      <p class="hint" style="margin-top:4px">D 메인의 수량 배지 크기 — 미리보기와 저장 모두 적용됩니다.</p>
       </div>
       <input type="file" id="file-src" accept="image/*" multiple hidden>
       <input type="file" id="file-bulk" accept="image/*" multiple hidden>
@@ -455,18 +460,19 @@
       <p class="hint" style="line-height:1.7">
         <span style="display:block">· 대표: {상품번호} {상품명} D~D5.png (1000×1000)</span>
         <span style="display:block">· 상세: {상품번호} {상품명} S.jpg — 용량이 작아 이미지호스팅·모바일 로딩에 유리 (PNG 선택 가능)</span>
-        <span style="display:block">· 상품정보: {상품번호} {상품명} EX.xlsx — 대량 작업 시 전체 1파일</span>
+        <span style="display:block">· 상품정보: {상품번호} {상품명} EX.xlsx — [전체 엑셀]은 전 상품 1파일</span>
         <span style="display:block">· 대표 D 메인에는 수량 배지가 자동 표기됩니다</span>
         <span style="display:block">· 옵션이 여러 개면 D 메인이 옵션 수만큼 저장됩니다: {상품명}_{옵션} D.png</span>
         <span style="display:block">· 여러 파일 다운로드 허용 창이 뜨면 허용해 주세요</span>
       </p>
       <button class="btn blue" id="btn-save-all">3종 한 번에 저장 (ZIP)</button>
       <p class="hint" style="margin-top:4px">{상품번호} {상품명}.zip — 압축을 풀면 같은 이름의 폴더 안에 대표(PNG)·상세(JPG)·상품정보 엑셀이 함께 들어 있습니다.</p>
-      <button class="btn primary" id="btn-save-mains">대표이미지 저장</button>
-      <button class="btn" id="btn-save-mains-jpg">대표 JPG</button>
-      <button class="btn primary" id="btn-jpg">상세이미지 저장 (JPG)</button>
-      <button class="btn primary" id="btn-save-excel">상품정보 저장 (엑셀)</button>
+      <button class="btn primary" id="btn-save-mains-jpg">대표 JPG</button>
+      <button class="btn" id="btn-save-mains">대표 PNG</button>
+      <button class="btn primary" id="btn-jpg">상세 JPG</button>
       <button class="btn" id="btn-png">상세 PNG</button>
+      <button class="btn primary" id="btn-save-excel">상품정보 엑셀</button>
+      <button class="btn" id="btn-save-excel-all">전체 엑셀</button>
       <button class="btn primary" id="btn-save-label" style="display:none">표시사항 저장 (PNG)</button>
       <div class="meta-line" id="height-info"></div>
     </div>
@@ -645,7 +651,7 @@
       </div><!-- /#page -->
 
       <div id="mains-band">
-        <div class="pane-label">대표이미지 (1000×1000 — 옵션이 여러 개면 D 메인이 옵션 수만큼)</div>
+        <div class="pane-label">대표이미지 (옵션이 여러 개면 D 메인이 옵션 수만큼)</div>
         <div id="mains">
           <div class="main-cell"><div class="slot slot-main empty" data-slot="d0"></div><div class="cap">D 메인(흰배경)</div></div>
           <div class="main-cell"><div class="slot slot-main empty" data-slot="d1"></div><div class="cap">D1 디테일</div></div>
@@ -707,10 +713,20 @@
       <img id="er-img" style="display:block; pointer-events:none;">
       <div id="er-sel" style="display:none; position:absolute; border:2px dashed #e14b4a; background:rgba(225,75,74,.12); pointer-events:none;"></div>
       <div id="er-guide"></div>
+      <canvas id="er-paint" style="position:absolute; left:0; top:0; pointer-events:none;"></canvas>
+      <div id="er-cursor" style="display:none; position:absolute; border:2px dashed #0a7cff; border-radius:50%; pointer-events:none;"></div>
     </div>
     <p class="msub" style="margin-top:6px;">파란 점선 = 상세에서 실제로 보이는 영역</p>
-    <div style="margin-top:12px;">
-      <button class="btn" id="er-undo">한 칸 되돌리기</button>
+    <div style="margin-top:10px;">
+      <span style="font-size:12px; color:#888; margin-right:4px;">지우개 모양</span>
+      <button class="btn" id="er-mode-circle">● 원형</button>
+      <button class="btn" id="er-mode-rect">■ 사각 박스</button>
+      <span style="font-size:12px; color:#888; margin:0 4px 0 12px;">크기</span>
+      <input type="range" id="er-size" min="1" max="10" step="1" value="4" style="width:120px; vertical-align:middle;">
+      <span id="er-size-v" style="font-size:12px; font-weight:800; color:#0a7cff;">4</span>
+    </div>
+    <div style="margin-top:8px;">
+      <button class="btn" id="er-undo">한 획 되돌리기</button>
       <button class="btn" id="er-reset">전체 초기화</button>
       <button class="btn" id="er-cancel">취소</button>
       <button class="btn primary" id="er-apply">적용</button>
@@ -730,6 +746,24 @@
       <button class="btn" id="ed-reset">원래대로</button>
       <button class="btn" id="ed-cancel">취소</button>
       <button class="btn primary" id="ed-apply">적용</button>
+    </div>
+  </div>
+</div>
+<div id="rgmodal" class="modal">
+  <div class="mbox" style="min-width:360px;">
+    <div class="mtitle">AI 재생성</div>
+    <p class="msub" id="rg-slotname"></p>
+    <textarea id="rg-extra" rows="2" placeholder="추가 요구사항 (예: 배경을 더 밝게, 소품 빼고 상품만) — 없으면 비워두세요" style="width:320px;"></textarea>
+    <p class="msub" style="margin-top:8px;">모델 표현 — 이번 생성 1회에만 적용</p>
+    <div>
+      <button class="btn rgm active" data-rgm="default">기본(전체 설정)</button>
+      <button class="btn rgm" data-rgm="part">손·목·발만</button>
+      <button class="btn rgm" data-rgm="face">얼굴 포함</button>
+      <button class="btn rgm" data-rgm="none">모델 없이</button>
+    </div>
+    <div style="margin-top:12px;">
+      <button class="btn" id="rg-cancel">취소</button>
+      <button class="btn primary" id="rg-go">생성</button>
     </div>
   </div>
 </div>
@@ -1138,10 +1172,20 @@ function applyMainCaptions() {
 }
 
 /* v1.27: 수량 배지 미리보기 — D 메인 칸(옵션별 포함)에 저장 시와 같은 배지를 미리 표시 */
+let badgeSize = ["s", "m", "l"].includes(localStorage.getItem("badge_size")) ? localStorage.getItem("badge_size") : "m";
+function badgeScale() { return badgeSize === "s" ? 0.7 : (badgeSize === "l" ? 1.3 : 1); }
+function setBadgeSize(v, silent) {
+  badgeSize = ["s", "l"].includes(v) ? v : "m";
+  localStorage.setItem("badge_size", badgeSize);
+  $$(".btn.bsz").forEach((b) => b.classList.toggle("active", b.dataset.bsz === badgeSize));
+  refreshQtyBadges();
+  if (!silent) toast("수량 배지 크기: " + (badgeSize === "s" ? "작게" : badgeSize === "l" ? "크게" : "보통"));
+}
 function refreshQtyBadges() {
   const qtyEl = $("#f-qty");
   const qty = qtyEl ? qtyEl.textContent.trim() : "";
   const show = !isRocket() && qty && qty !== "기재예정";
+  const f = badgeScale();
   ["d0", "o2", "o3", "o4", "o5", "o6"].forEach((n) => {
     const s = $(`[data-slot=${n}]`);
     if (!s) return;
@@ -1149,8 +1193,12 @@ function refreshQtyBadges() {
     if (!s.classList.contains("filled") || !show) { if (b) b.remove(); return; }
     if (!b) { b = document.createElement("span"); b.className = "qbadge"; s.appendChild(b); }
     b.textContent = qty;
+    b.style.fontSize = Math.round(15 * f) + "px";
+    b.style.padding = `${Math.round(5 * f)}px ${Math.round(12 * f)}px`;
   });
 }
+$$(".btn.bsz").forEach((b) => b.addEventListener("click", () => setBadgeSize(b.dataset.bsz)));
+setBadgeSize(badgeSize, true);
 
 /* 구글시트 로딩 */
 function gvizJsonp(id, sheetName) {
@@ -2165,29 +2213,57 @@ function autoReuseFrom(srcSlot) {
   }
 }
 
-/* 슬롯 1개만 AI 재생성 (추가 요구사항 입력 가능) */
-async function regenSlot(ev, btn) {
+/* 슬롯 1개만 AI 재생성 — 창에서 추가 요구사항 + 모델 표현(1회성) 선택 */
+let rgState = null;
+let rgModel = "default";
+function regenSlot(ev, btn) {
   ev.stopPropagation();
   const slot = btn.closest(".slot");
   const key = apiKey();
   if (!key) { toast("최상단에 API 키를 먼저 입력해 주세요"); return; }
   if (!srcPhotos.length) { toast("원본 사진을 먼저 넣어 주세요"); return; }
-  const extra = window.prompt("이미지 생성 시 추가 요구사항을 입력하세요.\n(예: 배경을 더 밝게, 소품 빼고 상품만, 정면 각도로)\n없으면 비워두고 확인.", "");
-  if (extra === null) return;
-  btn.disabled = true; btn.textContent = "생성 중...";
+  rgState = { slot };
+  rgModel = "default";
+  $("#rg-extra").value = "";
+  $$(".btn.rgm").forEach((b) => b.classList.toggle("active", b.dataset.rgm === "default"));
+  $("#rg-slotname").textContent = `'${(typeof SLOT_LABELS !== "undefined" && SLOT_LABELS[slot.dataset.slot]) || slot.dataset.slot}' 슬롯을 다시 생성합니다`;
+  $("#rgmodal").classList.add("open");
+}
+window.regenSlot = regenSlot;
+$$(".btn.rgm").forEach((b) => b.addEventListener("click", () => {
+  rgModel = b.dataset.rgm;
+  $$(".btn.rgm").forEach((x) => x.classList.toggle("active", x === b));
+}));
+$("#rg-cancel").addEventListener("click", () => { $("#rgmodal").classList.remove("open"); rgState = null; });
+$("#rg-go").addEventListener("click", async () => {
+  const st = rgState;
+  if (!st) return;
+  $("#rgmodal").classList.remove("open");
+  rgState = null;
+  const slot = st.slot;
+  const rgn = slot.querySelector(".rgn");
+  if (rgn) { rgn.disabled = true; rgn.textContent = "생성 중..."; }
   try {
-    let prompt = slotPrompt(slot.dataset.slot);
-    if (extra.trim()) prompt += ` [사용자 추가 요청 — 반드시 반영]: ${extra.trim()}`;
-    const url = await genOneImage(prompt, key);
+    const saved = modelMode;
+    let prompt;
+    try {
+      if (rgModel !== "default") modelMode = rgModel;
+      prompt = slotPrompt(slot.dataset.slot);
+    } finally {
+      modelMode = saved;
+    }
+    const extra = $("#rg-extra").value.trim();
+    if (extra) prompt += ` [사용자 추가 요청 — 반드시 반영]: ${extra}`;
+    const url = await genOneImage(prompt, apiKey());
     setSlotImage(slot, url);
     toast(`${slot.dataset.slot} 슬롯을 다시 생성했습니다`);
   } catch (err) {
     console.error(err);
     toast(err.message === "BILLING" ? "이미지 모델은 Gemini 결제 활성화 후 사용 가능합니다" : "재생성 실패: " + err.message);
-    btn.disabled = false; btn.textContent = "AI 재생성";
+    const rgn2 = slot.querySelector(".rgn");
+    if (rgn2) { rgn2.disabled = false; rgn2.textContent = "AI 재생성"; }
   }
-}
-window.regenSlot = regenSlot;
+});
 
 function clearSlotEl(slot) {
   slot.innerHTML = "";
@@ -2615,9 +2691,10 @@ function dataUrlTo1000(dataUrl, qtyBadge, fmt) {
       const w = img.width * s, h = img.height * s;
       ctx.drawImage(img, (1000 - w) / 2, (1000 - h) / 2, w, h);
       if (qtyBadge) {
-        ctx.font = "800 105px Pretendard, 'Malgun Gothic', sans-serif";
+        const bs = typeof badgeScale === "function" ? badgeScale() : 1;
+        ctx.font = `800 ${Math.round(105 * bs)}px Pretendard, 'Malgun Gothic', sans-serif`;
         const tw = ctx.measureText(qtyBadge).width;
-        const bw = tw + 96, bh = 168, bx = 36, by = 1000 - bh - 36, r = 30;
+        const bw = tw + 96 * bs, bh = 168 * bs, bx = 36, by = 1000 - bh - 36, r = 30 * bs;
         ctx.beginPath();
         ctx.moveTo(bx + r, by);
         ctx.arcTo(bx + bw, by, bx + bw, by + bh, r);
@@ -2632,7 +2709,7 @@ function dataUrlTo1000(dataUrl, qtyBadge, fmt) {
         ctx.stroke();
         ctx.fillStyle = "#111111";
         ctx.textBaseline = "middle";
-        ctx.fillText(qtyBadge, bx + 48, by + bh / 2 + 8);
+        ctx.fillText(qtyBadge, bx + 48 * bs, by + bh / 2 + 8 * bs);
       }
       resolve(c.toDataURL(fmt === "jpg" ? "image/jpeg" : "image/png", 0.92));
     };
@@ -2708,15 +2785,7 @@ $("#btn-save-all").addEventListener("click", async () => {
     btn.textContent = "상세 렌더 중...";
     const canvas = await buildCanvas();
     dir.file(`${no}${name} S.jpg`, b64(canvas.toDataURL("image/jpeg", 0.92)), { base64: true });
-    const f = wsFields(curIdx);
-    const optOut = f.opt === "기재예정" ? "" : (f.opt || "");
-    const ws2 = XLSX.utils.aoa_to_sheet([
-      ["NO", "상품명", "상품 옵션", "색상", "수량", "사이즈", "소재", "구성", "검색태그(20개)"],
-      [current.no || "", f.name, optOut, f.color, f.qty, f.size, f.mat, f.comp, f.tags],
-    ]);
-    ws2["!cols"] = [{ wch: 8.1 }, { wch: 41.1 }, { wch: 14 }, { wch: 12.6 }];
-    const wb2 = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb2, ws2, "상품정보");
+    const wb2 = buildExcelWB([excelRow(curIdx)]);
     dir.file(`${no}${name} EX.xlsx`, XLSX.write(wb2, { type: "array", bookType: "xlsx" }));
     btn.textContent = "압축 중...";
     const blob = await zip.generateAsync({ type: "blob" });
@@ -2754,29 +2823,33 @@ function wsFields(i) {
   return { name: cleanName(p.name), opt: p.opt || "", color: p.color, qty: p.qty, size: p.size, mat: p.mat, comp: p.comp, tags: "" };
 }
 
-$("#btn-save-excel").addEventListener("click", () => {
-  if (!current) { toast("먼저 엑셀을 업로드해 주세요"); return; }
-  const rowsOut = products.map((p, i) => {
-    const f = wsFields(i);
-    const optOut = f.opt === "기재예정" ? "" : (f.opt || "");
-    return [p.no || "", f.name, optOut, f.color, f.qty, f.size, f.mat, f.comp, f.tags];
-  });
-  const ws = XLSX.utils.aoa_to_sheet([
-    ["NO", "상품명", "상품 옵션", "색상", "수량", "사이즈", "소재", "구성", "검색태그(20개)"],
-    ...rowsOut,
-  ]);
-  ws["!cols"] = [{ wch: 8.1 }, { wch: 41.1 }, { wch: 12.6 }];
+const EXCEL_HEADER = ["NO", "상품명", "상품 옵션", "색상", "수량", "사이즈", "소재", "구성", "검색태그(20개)"];
+function excelRow(i) {
+  const f = wsFields(i);
+  const optOut = f.opt === "기재예정" ? "" : (f.opt || "");
+  return [products[i].no || "", f.name, optOut, f.color, f.qty, f.size, f.mat, f.comp, f.tags];
+}
+function buildExcelWB(rows) {
+  const ws = XLSX.utils.aoa_to_sheet([EXCEL_HEADER, ...rows]);
+  ws["!cols"] = [{ wch: 8.1 }, { wch: 41.1 }, { wch: 14 }, { wch: 12.6 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "상품정보");
-  if (products.length > 1) {
-    XLSX.writeFile(wb, "상품정보_전체.xlsx");
-    toast(`상품 ${products.length}건의 정보를 한 파일로 저장했습니다`);
-  } else {
-    const { no, name } = fileBase();
-    XLSX.writeFile(wb, `${no}${name} EX.xlsx`);
-    toast("상품정보 엑셀을 저장했습니다");
-  }
+  return wb;
+}
+$("#btn-save-excel").addEventListener("click", () => {
+  if (!current) { toast("먼저 엑셀을 업로드해 주세요"); return; }
+  const wb = buildExcelWB([excelRow(curIdx)]);
+  const { no, name } = fileBase();
+  XLSX.writeFile(wb, `${no}${name} EX.xlsx`);
   markSaved();
+  toast("현재 상품의 상품정보 엑셀을 저장했습니다");
+});
+$("#btn-save-excel-all").addEventListener("click", () => {
+  if (!current) { toast("먼저 엑셀을 업로드해 주세요"); return; }
+  const wb = buildExcelWB(products.map((_, i) => excelRow(i)));
+  XLSX.writeFile(wb, "상품정보_전체.xlsx");
+  markSaved();
+  toast(`상품 ${products.length}건의 정보를 한 파일로 저장했습니다`);
 });
 
 /* ========== v1.26 ========== */
@@ -3311,7 +3384,12 @@ window.eraseText = (ev, btn) => {
     stage.style.height = Math.round(probe.naturalHeight * scale) + "px";
     $("#er-img").src = base;
     $("#er-img").style.width = "560px";
-    erState = { slot, base, img: probe, rects: [], scale, isTsize };
+    const pc = $("#er-paint");
+    pc.width = 560;
+    pc.height = Math.round(probe.naturalHeight * scale);
+    pc.getContext("2d").clearRect(0, 0, pc.width, pc.height);
+    erState = { slot, base, img: probe, items: [], scale, isTsize };
+    erSyncTools();
     // U2. 상세에서 실제로 보이는 영역(cover 크롭) 점선 가이드
     const g = $("#er-guide");
     let show = false;
@@ -3349,6 +3427,26 @@ function erFillData(d, W, H, r) {
     }
   }
 }
+/* 원형 스탬프: 원 경계 밖(바운딩 박스 가장자리) 색으로 원 내부만 보간 */
+function erFillCircle(d, W, H, cx, cy, r) {
+  const x0 = Math.max(1, Math.round(cx - r)), x1 = Math.min(W - 2, Math.round(cx + r));
+  const y0 = Math.max(1, Math.round(cy - r)), y1 = Math.min(H - 2, Math.round(cy + r));
+  if (x1 <= x0 || y1 <= y0) return;
+  const gp = (xx, yy, ch) => d[(yy * W + xx) * 4 + ch];
+  const r2 = r * r;
+  for (let yy = y0; yy <= y1; yy++) {
+    for (let xx = x0; xx <= x1; xx++) {
+      const ddx = xx - cx, ddy = yy - cy;
+      if (ddx * ddx + ddy * ddy > r2) continue;
+      const wl = 1 / (xx - x0 + 1), wr = 1 / (x1 - xx + 1), wt = 1 / (yy - y0 + 1), wb = 1 / (y1 - yy + 1);
+      const ws = wl + wr + wt + wb, i = (yy * W + xx) * 4;
+      for (let ch = 0; ch < 3; ch++) {
+        d[i + ch] = (gp(x0 - 1, yy, ch) * wl + gp(x1 + 1, yy, ch) * wr + gp(xx, y0 - 1, ch) * wt + gp(xx, y1 + 1, ch) * wb) / ws;
+      }
+      d[i + 3] = 255;
+    }
+  }
+}
 function erRender() {
   const st = erState;
   if (!st) return null;
@@ -3356,9 +3454,15 @@ function erRender() {
   c.width = st.img.naturalWidth; c.height = st.img.naturalHeight;
   const x = c.getContext("2d");
   x.drawImage(st.img, 0, 0);
-  if (st.rects.length) {
+  if (st.items.length) {
     const id = x.getImageData(0, 0, c.width, c.height);
-    for (const r of st.rects) erFillData(id.data, c.width, c.height, r);
+    for (const it of st.items) {
+      if (it.type === "stroke") {
+        for (const p of it.pts) erFillCircle(id.data, c.width, c.height, p.x, p.y, it.r);
+      } else {
+        erFillData(id.data, c.width, c.height, it);
+      }
+    }
     x.putImageData(id, 0, 0);
   }
   return c;
@@ -3367,46 +3471,112 @@ function erUpdatePreview() {
   const c = erRender();
   if (c) $("#er-img").src = c.toDataURL("image/png");
 }
+/* 지우개 도구 상태 (원형 기본 / 사각, 크기 1~10) */
+let erMode = localStorage.getItem("er_mode") === "rect" ? "rect" : "circle";
+let erSize = Math.min(10, Math.max(1, parseInt(localStorage.getItem("er_size") || "4", 10)));
+function erBrushR() {
+  return erState ? erState.img.naturalWidth * (0.006 + erSize * 0.006) : 30;
+}
+function erSyncTools() {
+  $("#er-mode-circle").classList.toggle("primary", erMode === "circle");
+  $("#er-mode-rect").classList.toggle("primary", erMode === "rect");
+  $("#er-size").value = erSize;
+  $("#er-size-v").textContent = erSize;
+  $("#er-cursor").style.display = "none";
+}
+$("#er-mode-circle").addEventListener("click", () => { erMode = "circle"; localStorage.setItem("er_mode", erMode); erSyncTools(); });
+$("#er-mode-rect").addEventListener("click", () => { erMode = "rect"; localStorage.setItem("er_mode", erMode); erSyncTools(); });
+$("#er-size").addEventListener("input", () => {
+  erSize = parseInt($("#er-size").value, 10);
+  localStorage.setItem("er_size", erSize);
+  $("#er-size-v").textContent = erSize;
+});
+function erPaintDot(dx, dy) {
+  const st = erState;
+  const ctx = $("#er-paint").getContext("2d");
+  ctx.fillStyle = "rgba(10,124,255,.28)";
+  ctx.beginPath();
+  ctx.arc(dx, dy, erBrushR() * st.scale, 0, Math.PI * 2);
+  ctx.fill();
+}
 let erDrag = null;
 $("#er-stage").addEventListener("pointerdown", (e) => {
   if (!erState) return;
   e.preventDefault();
   e.currentTarget.setPointerCapture(e.pointerId);
   const rc = e.currentTarget.getBoundingClientRect();
-  erDrag = { x0: e.clientX - rc.left, y0: e.clientY - rc.top, rc };
-  const sel = $("#er-sel");
-  sel.style.display = "block";
-  sel.style.left = erDrag.x0 + "px"; sel.style.top = erDrag.y0 + "px";
-  sel.style.width = "0px"; sel.style.height = "0px";
+  const dx = e.clientX - rc.left, dy = e.clientY - rc.top;
+  if (erMode === "circle") {
+    const s = erState.scale;
+    erDrag = { rc, stroke: { type: "stroke", r: erBrushR(), pts: [{ x: dx / s, y: dy / s }] }, lastX: dx, lastY: dy };
+    erPaintDot(dx, dy);
+  } else {
+    erDrag = { rc, x0: dx, y0: dy };
+    const sel = $("#er-sel");
+    sel.style.display = "block";
+    sel.style.left = dx + "px"; sel.style.top = dy + "px";
+    sel.style.width = "0px"; sel.style.height = "0px";
+  }
 });
 $("#er-stage").addEventListener("pointermove", (e) => {
+  if (!erState) return;
+  const rc = e.currentTarget.getBoundingClientRect();
+  const dx = e.clientX - rc.left, dy = e.clientY - rc.top;
+  // 원형 커서 미리보기
+  if (erMode === "circle") {
+    const cr = erBrushR() * erState.scale;
+    const cur = $("#er-cursor");
+    cur.style.display = "block";
+    cur.style.left = (dx - cr) + "px";
+    cur.style.top = (dy - cr) + "px";
+    cur.style.width = cur.style.height = (cr * 2) + "px";
+  }
   if (!erDrag) return;
-  const x1 = e.clientX - erDrag.rc.left, y1 = e.clientY - erDrag.rc.top;
-  const sel = $("#er-sel");
-  sel.style.left = Math.min(erDrag.x0, x1) + "px";
-  sel.style.top = Math.min(erDrag.y0, y1) + "px";
-  sel.style.width = Math.abs(x1 - erDrag.x0) + "px";
-  sel.style.height = Math.abs(y1 - erDrag.y0) + "px";
+  if (erDrag.stroke) {
+    const step = Math.max(4, erBrushR() * erState.scale * 0.45);
+    if (Math.hypot(dx - erDrag.lastX, dy - erDrag.lastY) >= step) {
+      const s = erState.scale;
+      erDrag.stroke.pts.push({ x: dx / s, y: dy / s });
+      erDrag.lastX = dx; erDrag.lastY = dy;
+      erPaintDot(dx, dy);
+    }
+  } else {
+    const sel = $("#er-sel");
+    sel.style.left = Math.min(erDrag.x0, dx) + "px";
+    sel.style.top = Math.min(erDrag.y0, dy) + "px";
+    sel.style.width = Math.abs(dx - erDrag.x0) + "px";
+    sel.style.height = Math.abs(dy - erDrag.y0) + "px";
+  }
 });
+$("#er-stage").addEventListener("pointerleave", () => { $("#er-cursor").style.display = "none"; });
 $("#er-stage").addEventListener("pointerup", (e) => {
   $("#er-sel").style.display = "none";
   if (!erDrag || !erState) { erDrag = null; return; }
-  const x1 = e.clientX - erDrag.rc.left, y1 = e.clientY - erDrag.rc.top;
+  if (erDrag.stroke) {
+    erState.items.push(erDrag.stroke);
+    erDrag = null;
+    const pc = $("#er-paint");
+    pc.getContext("2d").clearRect(0, 0, pc.width, pc.height);
+    erUpdatePreview();
+    return;
+  }
+  const dx = e.clientX - erDrag.rc.left, dy = e.clientY - erDrag.rc.top;
   const s = erState.scale;
-  const r = { x: Math.min(erDrag.x0, x1) / s, y: Math.min(erDrag.y0, y1) / s,
-              w: Math.abs(x1 - erDrag.x0) / s, h: Math.abs(y1 - erDrag.y0) / s };
+  const r = { x: Math.min(erDrag.x0, dx) / s, y: Math.min(erDrag.y0, dy) / s,
+              w: Math.abs(dx - erDrag.x0) / s, h: Math.abs(dy - erDrag.y0) / s };
   erDrag = null;
   if (r.w < 4 || r.h < 4) return;
-  erState.rects.push(r);
+  r.type = "rect";
+  erState.items.push(r);
   erUpdatePreview();
 });
-$("#er-undo").addEventListener("click", () => { if (erState && erState.rects.length) { erState.rects.pop(); erUpdatePreview(); } });
-$("#er-reset").addEventListener("click", () => { if (erState) { erState.rects = []; erUpdatePreview(); } });
+$("#er-undo").addEventListener("click", () => { if (erState && erState.items.length) { erState.items.pop(); erUpdatePreview(); } });
+$("#er-reset").addEventListener("click", () => { if (erState) { erState.items = []; erUpdatePreview(); } });
 $("#er-cancel").addEventListener("click", () => { $("#ermodal").classList.remove("open"); erState = null; });
 $("#er-apply").addEventListener("click", async () => {
   const st = erState;
   if (!st) return;
-  if (!st.rects.length) { $("#ermodal").classList.remove("open"); erState = null; return; }
+  if (!st.items.length) { $("#ermodal").classList.remove("open"); erState = null; return; }
   const url = erRender().toDataURL("image/png");
   if (st.isTsize) {
     const nm = st.slot.dataset.slot;
