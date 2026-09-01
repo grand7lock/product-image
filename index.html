@@ -306,6 +306,15 @@
   #tsize-grid .slot-tsize { width:calc(50% - 10px); height:280px; margin-top:0 !important; }
   #tsize-grid .slot-tsize.filled { height:auto; }  /* 합성된 사이즈컷은 잘림 없이 전체 표시 */
   .grp { margin:20px 0 8px; padding:9px 12px; background:#eef2f6; border-left:4px solid #111; border-radius:6px; font-size:13px; font-weight:800; color:#222; }
+  /* v1.28 UI: 상세/대표 그룹 배경 분리 (파랑/초록) */
+  .grpbox { border-radius:12px; padding:12px 12px 14px; margin:16px -8px 0; border-left:4px solid transparent; }
+  .grpbox.gblue { background:#EDF4FF; border-left-color:#0a7cff; }
+  .grpbox.ggreen { background:#EAF7EE; border-left-color:#2E9E44; }
+  .grpbox .grp { margin:0 0 8px; padding:0; background:none; border-left:none; border-radius:0; }
+  .grpbox.gblue .grp { color:#0a4f9e; }
+  .grpbox.ggreen .grp { color:#1e6b31; }
+  .grpbox .hint { color:#8a97a5; }
+  .grpbox.ggreen .hint { color:#6f9c7c; }
   /* K. 옵션 구성 그리드 (2열, 홀수면 마지막 가운데) */
   #opt-grid { display:flex; flex-wrap:wrap; gap:20px; padding:44px 48px 0; justify-content:center; }
   .opt-cell { width:calc(50% - 10px); text-align:center; }
@@ -396,6 +405,7 @@
         <span style="display:block">· 4장이면 충분 — 앞뒤가 다른 상품만 뒷면·구조 사진 추가</span>
         <span style="display:block">· 썸네일 아래 라벨(앞면/뒷면 등)을 지정하면 AI가 정확히 구분</span>
       </p>
+      <div class="grpbox gblue">
       <div class="grp">⭐ 상세 이미지 만들기</div>
       <div class="sub-label" style="margin-top:6px">이미지 모드</div>
       <button class="btn imode" data-imode="ai">AI(기본) + 원본(보조)</button>
@@ -422,19 +432,22 @@
       <button class="btn primary" id="btn-bulk">이미지 일괄 넣기</button>
       <button class="btn" id="btn-clear-img">이미지 모두 지우기</button>
       <p class="hint" style="margin-top:6px">점선 영역 클릭 = 한 장씩 삽입. 일괄 순서: 히어로→소개→01~04→착용→사용→옵션. 슬롯의 이미지를 잡아 다른 슬롯으로 드래그하면 이동/교환됩니다.</p>
+      </div>
+      <div class="grpbox ggreen">
       <div class="grp">⭐ 대표 이미지 만들기</div>
       <p class="hint" style="margin-top:2px">상세 이미지를 만들면 <b>D1~D5는 자동으로 채워지고</b>, 상세를 수정하면 자동으로 따라 갱신됩니다. 직접 넣은 대표 칸은 덮어쓰지 않습니다.</p>
       <button class="btn primary" id="btn-fill-mains">대표 원본 채우기 (권장)</button>
       <p class="hint" style="margin-top:6px">원본 사진을 빈 대표 칸에 순서대로 배치합니다. 저장 시 1000×1000 흰배경·수량 배지가 자동 적용되고 상품은 변형 없이 원본 그대로 유지됩니다.</p>
       <button class="btn blue" id="btn-ai-mains">대표 AI 연출 (보조)</button>
       <p class="hint" style="margin-top:6px">연출된 대표를 원할 때만 — D 메인을 AI로 생성합니다 (D1~D5는 상세 자동 재사용).</p>
+      </div>
       <input type="file" id="file-src" accept="image/*" multiple hidden>
       <input type="file" id="file-bulk" accept="image/*" multiple hidden>
       <input type="file" id="file-slot" accept="image/*" hidden>
     </div>
 
     <div class="step">
-      <h2><span>STEP 4</span>저장</h2>
+      <h2><span>STEP 4</span>결과물 저장</h2>
       <p class="hint" style="line-height:1.7">
         <span style="display:block">· 대표: {상품번호} {상품명} D~D5.png (1000×1000)</span>
         <span style="display:block">· 상세: {상품번호} {상품명} S.png</span>
@@ -445,8 +458,8 @@
       </p>
       <button class="btn primary" id="btn-save-mains">대표이미지 저장</button>
       <button class="btn primary" id="btn-png">상세이미지 저장 (PNG)</button>
-      <button class="btn" id="btn-jpg">상세 JPG</button>
       <button class="btn primary" id="btn-save-excel">상품정보 저장 (엑셀)</button>
+      <button class="btn" id="btn-jpg">상세 JPG</button>
       <button class="btn primary" id="btn-save-label" style="display:none">표시사항 저장 (PNG)</button>
       <div class="meta-line" id="height-info"></div>
     </div>
