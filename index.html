@@ -686,7 +686,7 @@
 <div id="szmodal" class="modal">
   <div class="mbox">
     <div class="mtitle">치수 위치·화살표 편집</div>
-    <p class="msub">파란 점 = 치수 숫자 이동 · 주황 점 = 화살표 끝점(길이·위치) 이동</p>
+    <p class="msub">파란 점 = 치수 숫자 이동 · 주황 점 = 화살표 끝점 — 360° 어디로든 이동 (대각선 치수 가능)</p>
     <div id="sz-stage" style="position:relative; margin:0 auto; background:#f6f6f6; overflow:hidden;"><img id="sz-img" style="display:block;"></div>
     <div style="margin-top:10px;">
       <span style="font-size:12px; color:#888; margin-right:4px;">화살표 굵기</span>
@@ -1476,30 +1476,52 @@ function sizeLwParams() {
     : { lw: 2, ah: 12, aw: 7, tick: 12 };
 }
 
-/* 치수 레이아웃: 상품 경계 기반 기본 위치 + 사용자 조정값(adj) — 숫자는 각 치수선 중앙 */
+/* 구버전 조정값(ax1/ax2/ahy/avx/ay1/ay2)을 자유 끝점(h1~v2)으로 변환 */
+function normalizeAdj(a) {
+  if (!a) return {};
+  if (a.ax1 !== undefined || a.ax2 !== undefined || a.ahy !== undefined) {
+    if (a.h1x === undefined) a.h1x = a.ax1 || 0;
+    if (a.h1y === undefined) a.h1y = a.ahy || 0;
+    if (a.h2x === undefined) a.h2x = a.ax2 || 0;
+    if (a.h2y === undefined) a.h2y = a.ahy || 0;
+    delete a.ax1; delete a.ax2; delete a.ahy;
+  }
+  if (a.avx !== undefined || a.ay1 !== undefined || a.ay2 !== undefined) {
+    if (a.v1x === undefined) a.v1x = a.avx || 0;
+    if (a.v1y === undefined) a.v1y = a.ay1 || 0;
+    if (a.v2x === undefined) a.v2x = a.avx || 0;
+    if (a.v2y === undefined) a.v2y = a.ay2 || 0;
+    delete a.avx; delete a.ay1; delete a.ay2;
+  }
+  return a;
+}
+
+/* 치수 레이아웃: 상품 경계 기반 기본 위치 + 자유 끝점 조정값 — 끝점은 360° 어디로든(대각선 가능) */
 function sizeCutLayout(W, H, entry, adj, b) {
-  const a = Object.assign({ wdx: 0, wdy: 0, hdx: 0, hdy: 0, tdx: 0, tdy: 0, ax1: 0, ax2: 0, ahy: 0, ay1: 0, ay2: 0, avx: 0 }, adj || {});
+  const a = normalizeAdj(Object.assign({}, adj || {}));
+  const g = (k) => a[k] || 0;
   const bb = b || { x0: 90, x1: W - 150, y0: 70, y1: H - 150 };
   const bhx1 = Math.max(20, bb.x0), bhx2 = Math.min(W - 20, bb.x1);
   const bhy = Math.min(H - 40, bb.y1 + 55);
   const wy = bhy + 52 <= H - 26 ? bhy + 52 : bhy - 48;
+  const base = {
+    h1: { x: bhx1 + g("h1x"), y: bhy + g("h1y") },
+    h2: { x: bhx2 + g("h2x"), y: bhy + g("h2y") },
+    wpos: { x: (bhx1 + bhx2) / 2 + g("wdx"), y: wy + g("wdy") },
+  };
   if (entry && entry.w && entry.h) {
     const bvx = Math.min(W - 30, bb.x1 + 55);
     const bvy1 = Math.max(24, bb.y0), bvy2 = Math.min(H - 24, bb.y1);
-    return {
+    return Object.assign(base, {
       kind: "wh",
-      hy: bhy + a.ahy, hx1: bhx1 + a.ax1, hx2: bhx2 + a.ax2,
-      vx: bvx + a.avx, vy1: bvy1 + a.ay1, vy2: bvy2 + a.ay2,
-      wpos: { x: (bhx1 + bhx2) / 2 + a.wdx, y: wy + a.wdy },
-      hpos: { x: bvx - 24 + a.hdx, y: (bvy1 + bvy2) / 2 + a.hdy },
-      tpos: { x: (bhx1 + bhx2) / 2 + a.tdx, y: Math.max(44, bb.y0 - 46) + a.tdy },
-    };
+      v1: { x: bvx + g("v1x"), y: bvy1 + g("v1y") },
+      v2: { x: bvx + g("v2x"), y: bvy2 + g("v2y") },
+      hpos: { x: bvx - 24 + g("hdx"), y: (bvy1 + bvy2) / 2 + g("hdy") },
+      tpos: { x: (bhx1 + bhx2) / 2 + g("tdx"), y: Math.max(44, bb.y0 - 46) + g("tdy") },
+    });
   }
-  return {
-    kind: "w",
-    hy: bhy + a.ahy, hx1: bhx1 + a.ax1, hx2: bhx2 + a.ax2,
-    wpos: { x: (bhx1 + bhx2) / 2 + a.wdx, y: wy + a.wdy },
-  };
+  base.kind = "w";
+  return base;
 }
 
 function compositeSizeCut(dataUrl, entryIdx = 0, adj = null) {
@@ -1528,12 +1550,22 @@ function compositeSizeCut(dataUrl, entryIdx = 0, adj = null) {
           x.fillStyle = "#111"; x.fillText(s, 0, 0);
           x.restore();
         };
-        line(L.hx1, L.hy, L.hx2, L.hy); line(L.hx1, L.hy - P.tick, L.hx1, L.hy + P.tick); line(L.hx2, L.hy - P.tick, L.hx2, L.hy + P.tick);
-        arrow(L.hx1, L.hy, 1, 0); arrow(L.hx2, L.hy, -1, 0);
+        // 치수선: 두 끝점 사이를 잇고, 화살촉·눈금은 선 기울기를 따라 회전 (대각선 지원)
+        const dimLine = (p1, p2) => {
+          const dx = p2.x - p1.x, dy = p2.y - p1.y;
+          const len = Math.hypot(dx, dy) || 1;
+          const ux = dx / len, uy = dy / len;
+          const nx = -uy, ny = ux;
+          line(p1.x, p1.y, p2.x, p2.y);
+          line(p1.x - nx * P.tick, p1.y - ny * P.tick, p1.x + nx * P.tick, p1.y + ny * P.tick);
+          line(p2.x - nx * P.tick, p2.y - ny * P.tick, p2.x + nx * P.tick, p2.y + ny * P.tick);
+          arrow(p1.x, p1.y, ux, uy);
+          arrow(p2.x, p2.y, -ux, -uy);
+        };
+        dimLine(L.h1, L.h2);
         if (L.kind === "wh") {
           txt(L.wpos.x, L.wpos.y, entry.w, Math.round(56 * fs));
-          line(L.vx, L.vy1, L.vx, L.vy2); line(L.vx - P.tick, L.vy1, L.vx + P.tick, L.vy1); line(L.vx - P.tick, L.vy2, L.vx + P.tick, L.vy2);
-          arrow(L.vx, L.vy1, 0, 1); arrow(L.vx, L.vy2, 0, -1);
+          dimLine(L.v1, L.v2);
           txt(L.hpos.x, L.hpos.y, entry.h, Math.round(50 * fs), "right");
           const labelOnly = entry.text.replace(/[\d.\s]|x|×|\*|cm|mm|m/gi, "");
           if (labelOnly) txt(L.tpos.x, L.tpos.y, entry.text, Math.round(44 * fs));
@@ -3063,7 +3095,7 @@ window.editSizeCut = (ev, btn) => {
   const entry = entries[idx] || entries[0] || null;
   if (!entry) { toast("사이즈 값이 없습니다 — 스펙의 사이즈를 먼저 입력하세요"); return; }
   let adj = {};
-  try { adj = JSON.parse(slot.dataset.adj || "{}"); } catch (_) {}
+  try { adj = normalizeAdj(JSON.parse(slot.dataset.adj || "{}")); } catch (_) {}
   const probe = new Image();
   probe.onload = () => {
     const W = 1000, H = Math.round(1000 * probe.height / probe.width);
@@ -3106,9 +3138,9 @@ function szRender(rebuildChips) {
     chips.push(["num", "w", L.wpos.x, L.wpos.y], ["num", "h", L.hpos.x, L.hpos.y]);
     const labelOnly = st.entry.text.replace(/[\d.\s]|x|×|\*|cm|mm|m/gi, "");
     if (labelOnly) chips.push(["num", "t", L.tpos.x, L.tpos.y]);
-    chips.push(["arr", "aL", L.hx1, L.hy], ["arr", "aR", L.hx2, L.hy], ["arr", "vT", L.vx, L.vy1], ["arr", "vB", L.vx, L.vy2]);
+    chips.push(["arr", "h1", L.h1.x, L.h1.y], ["arr", "h2", L.h2.x, L.h2.y], ["arr", "v1", L.v1.x, L.v1.y], ["arr", "v2", L.v2.x, L.v2.y]);
   } else {
-    chips.push(["num", "w", L.wpos.x, L.wpos.y], ["arr", "aL", L.hx1, L.hy], ["arr", "aR", L.hx2, L.hy]);
+    chips.push(["num", "w", L.wpos.x, L.wpos.y], ["arr", "h1", L.h1.x, L.h1.y], ["arr", "h2", L.h2.x, L.h2.y]);
   }
   for (const [cls, key, cx, cy] of chips) {
     const d = document.createElement("div");
@@ -3143,10 +3175,10 @@ function szDragStart(e) {
       case "w": a.wdx = px - L0.wpos.x; a.wdy = py - L0.wpos.y; break;
       case "h": a.hdx = px - L0.hpos.x; a.hdy = py - L0.hpos.y; break;
       case "t": a.tdx = px - L0.tpos.x; a.tdy = py - L0.tpos.y; break;
-      case "aL": a.ax1 = px - L0.hx1; a.ahy = py - L0.hy; break;
-      case "aR": a.ax2 = px - L0.hx2; a.ahy = py - L0.hy; break;
-      case "vT": a.ay1 = py - L0.vy1; a.avx = px - L0.vx; break;
-      case "vB": a.ay2 = py - L0.vy2; a.avx = px - L0.vx; break;
+      case "h1": a.h1x = px - L0.h1.x; a.h1y = py - L0.h1.y; break;
+      case "h2": a.h2x = px - L0.h2.x; a.h2y = py - L0.h2.y; break;
+      case "v1": a.v1x = px - L0.v1.x; a.v1y = py - L0.v1.y; break;
+      case "v2": a.v2x = px - L0.v2.x; a.v2y = py - L0.v2.y; break;
     }
     szRender(true);
   };
