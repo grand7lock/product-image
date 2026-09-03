@@ -473,15 +473,18 @@
       <button class="btn" id="btn-png">상세 PNG</button>
       <button class="btn primary" id="btn-save-excel">상품정보 엑셀</button>
       <button class="btn" id="btn-save-excel-all">전체 엑셀</button>
-      <div class="sub-label">작업 상태</div>
-      <button class="btn primary" id="btn-work-save">작업 저장</button>
-      <button class="btn" id="btn-work-load">작업 불러오기</button>
+    </div>
+
+    <div class="step">
+      <h2><span>STEP 5</span>작업 파일 저장 (수정 가능한 파일)</h2>
+      <input type="file" id="file-work" accept=".ktw,.json" hidden>
+      <button class="btn primary" id="btn-work-save">작업물 저장</button>
+      <button class="btn" id="btn-work-load">작업물 수정하기</button>
       <p class="hint" style="margin-top:6px; line-height:1.7">
-        <span style="display:block">· 작업 전체(상품·이미지·문구)를 파일 1개로 저장 — 나중에 불러오면 그대로 복원</span>
+        <span style="display:block">· 작업 전체(상품·이미지·문구)를 파일 1개로 저장 — 언제든 다시 열어 수정</span>
         <span style="display:block">· 다른 PC에서도 열려서 작업 인수인계 가능 (이미지 포함이라 파일이 큽니다)</span>
         <span style="display:block">· 3분마다 이 브라우저에 자동 임시저장 — 새로고침 사고 시 재접속하면 복구 안내</span>
       </p>
-      <input type="file" id="file-work" accept=".ktw,.json" hidden>
       <button class="btn primary" id="btn-save-label" style="display:none">표시사항 저장 (PNG)</button>
       <div class="meta-line" id="height-info"></div>
     </div>
@@ -3780,7 +3783,7 @@ $("#btn-work-save").addEventListener("click", () => {
   a.download = `작업저장_${stamp}.ktw`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-  toast(`작업 파일을 저장했습니다 (상품 ${products.length}개) — [작업 불러오기]로 복원`);
+  toast(`작업 파일을 저장했습니다 (상품 ${products.length}개) — [작업물 수정하기]로 복원`);
 });
 $("#btn-work-load").addEventListener("click", () => {
   if (hasUnsaved() && !confirm("저장하지 않은 현재 작업이 있습니다. 불러오면 덮어씁니다. 계속할까요?")) return;
