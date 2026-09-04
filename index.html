@@ -324,6 +324,23 @@
   #opt-grid { display:flex; flex-wrap:wrap; gap:20px; padding:44px 48px 0; justify-content:center; }
   .opt-cell { width:calc(50% - 10px); text-align:center; }
   .slot-opt { width:100%; height:330px; border-radius:12px; }
+  /* 합친 구성(+) */
+  .cmb-badge { display:inline-block; margin-left:8px; padding:2px 12px; border:2px solid #0a7cff; border-radius:14px; color:#0a7cff; font-size:15px; font-weight:800; vertical-align:2px; }
+  .slot .cmb { position:absolute; top:8px; left:8px; z-index:6; border:none; background:rgba(10,124,255,.88); color:#fff;
+              border-radius:8px; font-size:17px; padding:7px 14px; cursor:pointer; opacity:0; font-family:inherit; }
+  .slot:hover .cmb { opacity:1; }
+  body.exporting .cmb { display:none !important; }
+  #cb-rows { max-height:42vh; overflow:auto; text-align:left; }
+  .cb-row { margin:10px 0 4px; }
+  .cb-pill { display:inline-block; padding:4px 14px; border-radius:14px; font-size:13px; font-weight:800; background:#e8f1ff; color:#0a63cc; margin-bottom:6px; }
+  .cb-thumbs { display:flex; gap:6px; flex-wrap:wrap; }
+  .cb-th { width:64px; height:64px; border:2px solid #ddd; border-radius:8px; cursor:pointer; overflow:hidden; background:#fafafa; position:relative; flex:none; }
+  .cb-th img { width:100%; height:100%; object-fit:cover; }
+  .cb-th.sel { border-color:#0a7cff; border-width:3px; }
+  .cb-th.sel::after { content:'✓'; position:absolute; top:2px; right:2px; width:18px; height:18px; border-radius:50%;
+              background:#0a7cff; color:#fff; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  #cb-preview { display:block; margin:10px auto 0; border:1.5px solid #ddd; border-radius:10px; background:#fff; }
+  .btn.cbl.active { background:#111; color:#fff; }
   .opt-name { font-size:24px; font-weight:800; margin-top:14px; }
   .opt-cert { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:6px; min-height:44px; }
   .opt-kcno { font-size:17px; color:#808080; }
@@ -805,6 +822,24 @@
     <p class="msub">보낼 위치를 클릭하세요 — 빈 칸은 이동, 채워진 칸은 서로 교체됩니다</p>
     <div id="mv-grid"></div>
     <div style="margin-top:12px;"><button class="btn" id="mv-cancel">취소</button></div>
+  </div>
+</div>
+<div id="cbmodal" class="modal">
+  <div class="mbox" style="width:560px; max-width:92vw;">
+    <div class="mtitle" id="cb-title">구성 합치기</div>
+    <p class="msub">구성별로 원본 사진을 1장씩 고르세요 — 합쳐진 1장이 옵션 칸과 해당 대표 D칸에 함께 들어갑니다</p>
+    <div id="cb-rows"></div>
+    <div style="margin-top:10px; text-align:left;">
+      <span style="font-size:13px; font-weight:800; color:#555; margin-right:6px;">배치</span>
+      <button class="btn cbl active" data-cbl="auto">자동</button>
+      <button class="btn cbl" data-cbl="row">한 줄로</button>
+    </div>
+    <canvas id="cb-preview" width="240" height="240"></canvas>
+    <div style="margin-top:12px;">
+      <button class="btn primary" id="cb-go">콜라주 합성 (기본)</button>
+      <button class="btn" id="cb-ai">AI로 자연스럽게 (보조)</button>
+      <button class="btn" id="cb-cancel">취소</button>
+    </div>
   </div>
 </div>
 <div id="toast"></div>
@@ -2191,7 +2226,12 @@ $("#btn-fill-mains").addEventListener("click", () => {
 
 function ensureEmptyUI(slot) {
   if (!slot.classList.contains("empty")) return;
-  if (/^opt/.test(slot.dataset.slot || "")) { slot.innerHTML = ""; return; }  // 옵션 칸: 원본 삽입 전용 (AI 버튼 없음)
+  if (/^opt/.test(slot.dataset.slot || "")) {  // 옵션 칸: 원본 삽입 전용 (AI 버튼 없음) — 합친 구성(+)만 합치기 버튼
+    slot.innerHTML = optCombinedParts(slot)
+      ? `<button class="orig" style="background:rgba(10,124,255,.85)" onclick="openCombine(event, this)">구성 합치기</button>`
+      : "";
+    return;
+  }
   if (slot.querySelector(".orig")) return;
   slot.innerHTML = (typeof imgMode !== "undefined" && imgMode === "ai")
     ? `<button class="orig" style="background:rgba(10,124,255,.85)" onclick="genFromEmpty(event, this)">AI로 채우기</button>`
@@ -2239,6 +2279,7 @@ function setSlotImage(slotEl, dataUrl) {
   const isDMain = nm === "d0" || /^o\d$/.test(nm);
   let btns = "";
   if (!isOpt) btns += `<button class="rgn" onclick="regenSlot(event, this)">AI 재생성</button>`;
+  if (isOpt && optCombinedParts(slotEl)) btns += `<button class="cmb" onclick="openCombine(event, this)">구성 합치기</button>`;
   if (isTsize) btns += `<button class="szedit" onclick="editSizeCut(event, this)">치수 편집</button>`;
   btns += `<button class="edt" onclick="editMainImage(event, this)">사이즈·크기 수정</button>`;
   btns += `<button class="bgx" onclick="swapBgAI(event, this)">배경만 교체</button>`;
@@ -2975,11 +3016,17 @@ function updateOptionSlots() {
     const show = i < n;
     cell.style.display = show ? "" : "none";
     if (!show) return;
-    cell.querySelector(".opt-name").textContent = opts[i];
+    const nmEl = cell.querySelector(".opt-name");
+    nmEl.textContent = opts[i];
+    if (opts[i].split("+").map((s) => s.trim()).filter(Boolean).length >= 2) {
+      const bd = document.createElement("span"); bd.className = "cmb-badge"; bd.textContent = "합친 구성"; nmEl.appendChild(bd);
+    }
     const cno = certs[i] && certs[i] !== "기재예정" ? certs[i] : "";
     cell.querySelector(".opt-kcno").textContent = cno;
     cell.querySelector(".opt-kcimg").style.display = cno ? "inline-block" : "none";
   });
+  // 옵션 텍스트 변경 시 빈 옵션 칸의 [구성 합치기] 버튼 표시 갱신
+  $$("#opt-grid .slot-opt.empty").forEach((s) => { s.innerHTML = ""; ensureEmptyUI(s); });
 }
 
 /* A. 히어로 문구 위치 이동 (상단 → 중앙 → 하단 순환) */
@@ -3131,6 +3178,139 @@ $("#mv-grid").addEventListener("click", async (e) => {
   if (!from || !target) return;
   if (mode === "copy") await copySlotImage(from, target);
   else await swapSlotImages(from.dataset.slot, target);
+});
+
+/* 합친 구성(+) — 옵션 1개가 여러 구성일 때 사진 n장을 1장으로 합치기 (콜라주 기본 / AI 보조) */
+function optCombinedParts(slotEl) {
+  const m = /^opt(\d)$/.exec(slotEl.dataset.slot || "");
+  if (!m) return null;
+  const o = parseOptions()[parseInt(m[1], 10) - 1] || "";
+  const parts = o.split("+").map((s) => s.trim()).filter(Boolean);
+  return parts.length >= 2 ? parts : null;
+}
+function combineDMainFor(slotEl) {
+  const i = parseInt((slotEl.dataset.slot || "").replace("opt", ""), 10) - 1;
+  return $(`[data-slot=${i === 0 ? "d0" : "o" + (i + 1)}]`);
+}
+async function composeCollage(urls, layout, out) {
+  out = out || 1000;
+  const imgs = await Promise.all(urls.map((u) => new Promise((res, rej) => {
+    const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = u;
+  })));
+  const n = imgs.length;
+  const cols = layout === "row" ? n : (n <= 2 ? n : (n <= 4 ? 2 : 3));
+  const rows = Math.ceil(n / cols);
+  const c = document.createElement("canvas"); c.width = out; c.height = out;
+  const x = c.getContext("2d");
+  x.fillStyle = "#fff"; x.fillRect(0, 0, out, out);
+  const cw = out / cols, ch = out / rows, pad = 0.05;
+  imgs.forEach((im, i) => {
+    const r = Math.floor(i / cols);
+    const inRow = (r === rows - 1) ? (n - r * cols) : cols;  // 마지막 줄은 가운데 정렬
+    const x0 = (out - inRow * cw) / 2 + (i - r * cols) * cw;
+    const y0 = r * ch;
+    const w = cw * (1 - pad * 2), h = ch * (1 - pad * 2);
+    const s = Math.min(w / im.width, h / im.height);
+    x.drawImage(im, x0 + cw * pad + (w - im.width * s) / 2, y0 + ch * pad + (h - im.height * s) / 2, im.width * s, im.height * s);
+  });
+  return c.toDataURL("image/png");
+}
+let cbState = null;
+let cbLayout = "auto";
+window.openCombine = (ev, btn) => {
+  ev.stopPropagation();
+  const slot = btn.closest(".slot");
+  const parts = optCombinedParts(slot);
+  if (!parts) return;
+  if (!srcFull.length) { toast("원본 사진을 먼저 넣어 주세요"); return; }
+  cbState = { slot, parts, sel: parts.map((_, i) => (i < srcFull.length ? i : -1)) };
+  $("#cb-title").textContent = `구성 합치기 — ${parts.join("+")}`;
+  $("#cb-rows").innerHTML = parts.map((p, ri) => `
+    <div class="cb-row" data-ri="${ri}">
+      <div class="cb-pill"></div>
+      <div class="cb-thumbs">${srcFull.map((u, ti) => `<div class="cb-th${cbState.sel[ri] === ti ? " sel" : ""}" data-ti="${ti}"><img src="${u}"></div>`).join("")}</div>
+    </div>`).join("");
+  $$("#cb-rows .cb-row .cb-pill").forEach((p, ri) => { p.textContent = parts[ri]; });
+  $$(".btn.cbl").forEach((b) => b.classList.toggle("active", b.dataset.cbl === cbLayout));
+  $("#cbmodal").classList.add("open");
+  cbPreview();
+};
+async function cbPreview() {
+  const st = cbState;
+  const cv = $("#cb-preview");
+  const x = cv.getContext("2d");
+  x.fillStyle = "#fff"; x.fillRect(0, 0, cv.width, cv.height);
+  if (!st || st.sel.some((i) => i < 0)) return;
+  const url = await composeCollage(st.sel.map((i) => srcFull[i]), cbLayout, 480);
+  if (cbState !== st) return;
+  const im = new Image();
+  im.onload = () => { if (cbState === st) x.drawImage(im, 0, 0, cv.width, cv.height); };
+  im.src = url;
+}
+$("#cb-rows").addEventListener("click", (e) => {
+  const th = e.target.closest(".cb-th");
+  if (!th || !cbState) return;
+  const ri = parseInt(th.closest(".cb-row").dataset.ri, 10);
+  cbState.sel[ri] = parseInt(th.dataset.ti, 10);
+  th.closest(".cb-thumbs").querySelectorAll(".cb-th").forEach((t) => t.classList.toggle("sel", t === th));
+  cbPreview();
+});
+$$(".btn.cbl").forEach((b) => b.addEventListener("click", () => {
+  cbLayout = b.dataset.cbl;
+  $$(".btn.cbl").forEach((x) => x.classList.toggle("active", x === b));
+  cbPreview();
+}));
+$("#cb-cancel").addEventListener("click", () => { $("#cbmodal").classList.remove("open"); cbState = null; });
+function cbApply(slot, url) {  // 옵션 칸 + 해당 옵션 대표 D 동시 적용, 덮어쓴 D칸 반환
+  delete slot.dataset.raw; delete slot.dataset.adj; delete slot.dataset.orig; delete slot.dataset.auto; delete slot.dataset.edorig;
+  setSlotImage(slot, url);
+  const dEl = combineDMainFor(slot);
+  if (!dEl) return null;
+  if (dEl.dataset.edorig) { toast("대표 D칸은 직접 수정한 이미지가 있어 그대로 두었습니다"); return null; }
+  delete dEl.dataset.raw; delete dEl.dataset.adj; delete dEl.dataset.orig; delete dEl.dataset.auto; delete dEl.dataset.edorig;
+  setSlotImage(dEl, url);
+  dEl.classList.add("fit-contain");
+  return dEl;
+}
+$("#cb-go").addEventListener("click", async () => {
+  const st = cbState;
+  if (!st) return;
+  if (st.sel.some((i) => i < 0)) { toast("구성마다 사진을 1장씩 선택해 주세요"); return; }
+  $("#cbmodal").classList.remove("open"); cbState = null;
+  const url = await composeCollage(st.sel.map((i) => srcFull[i]), cbLayout);
+  cbApply(st.slot, url);
+  toast(`${st.parts.join("+")} 구성을 1장으로 합쳤습니다 (옵션 칸 + 대표 D)`);
+});
+$("#cb-ai").addEventListener("click", async () => {
+  const st = cbState;
+  if (!st) return;
+  if (st.sel.some((i) => i < 0)) { toast("구성마다 사진을 1장씩 선택해 주세요"); return; }
+  const key = apiKey();
+  if (!key) { toast("최상단에 API 키를 먼저 입력해 주세요"); return; }
+  const btn = $("#cb-ai");
+  btn.disabled = true; btn.textContent = "생성 중...";
+  try {
+    const prompt = aiCommon() + `용도: 옵션 구성 사진. 첨부한 ${st.parts.length}개 구성(${st.parts.join(", ")})이 밝은 흰색 배경 위에 나란히 가지런히 놓인 정사각형 상품 사진. 각 첨부 사진 앞의 [구성n] 라벨을 구분하고, 상품의 색상·형태를 절대 바꾸지 말고 그대로 유지하세요.`;
+    const parts = [{ text: prompt }];
+    st.sel.forEach((i, n) => {
+      const u = srcPhotos[i] || srcFull[i];
+      parts.push({ text: `[구성${n + 1}: ${st.parts[n]}]` });
+      const [head, b64] = u.split(",");
+      parts.push({ inline_data: { mime_type: head.match(/data:(.*?);/)[1], data: b64 } });
+    });
+    const url = await genImageFromParts(parts, key);
+    const fitted = await fitToSlot(st.slot, url);
+    $("#cbmodal").classList.remove("open"); cbState = null;
+    const dEl = cbApply(st.slot, fitted);
+    st.slot.dataset.edorig = url;  // 재수정은 AI 원본에서
+    if (dEl) dEl.dataset.edorig = url;
+    toast(`${st.parts.join("+")} 구성을 AI로 합성했습니다 (옵션 칸 + 대표 D)`);
+  } catch (err) {
+    console.error(err);
+    toast(err.message === "BILLING" ? "이미지 모델은 Gemini 결제 활성화 후 사용 가능합니다" : "AI 합성 실패: " + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "AI로 자연스럽게 (보조)";
+  }
 });
 
 /* X2. 원본 사진을 넣으면 빈 D 메인(옵션 메인 포함)에 자동 배치 — D1~D5는 상세 자동 복사 대기 */
