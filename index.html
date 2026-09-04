@@ -847,8 +847,16 @@
       <span style="font-size:13px; font-weight:800; color:#555; margin-right:6px;">배치</span>
       <button class="btn cbl active" data-cbl="auto">자동</button>
       <button class="btn cbl" data-cbl="row">한 줄로</button>
+      <button class="btn" id="cb-reset">자동 배치로 (조정 초기화)</button>
     </div>
-    <canvas id="cb-preview" width="240" height="240"></canvas>
+    <canvas id="cb-preview" width="280" height="280" style="cursor:move; touch-action:none;"></canvas>
+    <p class="msub" style="margin-top:6px;">미리보기에서 이미지 클릭 = 선택 · 드래그 = 이동 · 선택 후 아래 슬라이더로 크기 조절</p>
+    <div style="margin-top:6px; text-align:left; display:flex; align-items:center; gap:8px;">
+      <span style="font-size:12.5px; font-weight:800; color:#555; white-space:nowrap;">선택 이미지 크기</span>
+      <input type="range" id="cb-scale" min="30" max="250" value="100" disabled style="flex:1; min-width:80px;">
+      <span style="font-size:12.5px; font-weight:800; color:#555; white-space:nowrap; margin-left:6px;">전체 여백</span>
+      <input type="range" id="cb-pad" min="0" max="15" value="5" style="flex:1; min-width:80px;">
+    </div>
     <div style="margin-top:12px;">
       <button class="btn primary" id="cb-go">콜라주 합성 (기본)</button>
       <button class="btn" id="cb-ai">AI로 자연스럽게 (보조)</button>
@@ -2402,6 +2410,7 @@ function clearSlotEl(slot) {
   delete slot.dataset.auto;
   delete slot.dataset.edorig;
   delete slot.dataset.trash;
+  delete slot.dataset.cb;
   slot.classList.add("empty");
   slot.classList.remove("filled", "fit-contain");
   ensureEmptyUI(slot);
@@ -3309,27 +3318,49 @@ function combineDMainFor(slotEl) {
   const i = nm === "comp" ? 0 : parseInt(nm.replace("opt", ""), 10) - 1;
   return $(`[data-slot=${i === 0 ? "d0" : "o" + (i + 1)}]`);
 }
-async function composeCollage(urls, layout, out) {
-  out = out || 1000;
-  const imgs = await Promise.all(urls.map((u) => new Promise((res, rej) => {
-    const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = u;
-  })));
-  const n = imgs.length;
+/* v2: 배치 지오메트리 공용 — 자동 격자 셀 + 이미지별 조정(tf: {s,dx,dy}, 1000 좌표계) + 전체 여백(pad) */
+function collageRects(n, layout, pad, out) {
   const cols = layout === "row" ? n : (n <= 2 ? n : (n <= 4 ? 2 : 3));
   const rows = Math.ceil(n / cols);
-  const c = document.createElement("canvas"); c.width = out; c.height = out;
-  const x = c.getContext("2d");
-  x.fillStyle = "#fff"; x.fillRect(0, 0, out, out);
-  const cw = out / cols, ch = out / rows, pad = 0.05;
-  imgs.forEach((im, i) => {
+  const cw = out / cols, ch = out / rows;
+  const rects = [];
+  for (let i = 0; i < n; i++) {
     const r = Math.floor(i / cols);
     const inRow = (r === rows - 1) ? (n - r * cols) : cols;  // 마지막 줄은 가운데 정렬
     const x0 = (out - inRow * cw) / 2 + (i - r * cols) * cw;
     const y0 = r * ch;
-    const w = cw * (1 - pad * 2), h = ch * (1 - pad * 2);
-    const s = Math.min(w / im.width, h / im.height);
-    x.drawImage(im, x0 + cw * pad + (w - im.width * s) / 2, y0 + ch * pad + (h - im.height * s) / 2, im.width * s, im.height * s);
+    rects.push({ x: x0 + cw * pad, y: y0 + ch * pad, w: cw * (1 - pad * 2), h: ch * (1 - pad * 2) });
+  }
+  return rects;
+}
+function drawCollage(x, out, imgs, layout, pad, tfs) {
+  x.fillStyle = "#fff"; x.fillRect(0, 0, out, out);
+  const rects = collageRects(imgs.length, layout, pad, out);
+  const drawn = [];
+  imgs.forEach((im, i) => {
+    const rc = rects[i];
+    const t = (tfs && tfs[i]) || {};
+    const base = Math.min(rc.w / im.width, rc.h / im.height) * (t.s || 1);
+    const w = im.width * base, h = im.height * base;
+    const dx0 = rc.x + rc.w / 2 + (t.dx || 0) - w / 2;
+    const dy0 = rc.y + rc.h / 2 + (t.dy || 0) - h / 2;
+    x.drawImage(im, dx0, dy0, w, h);
+    drawn.push({ x: dx0, y: dy0, w, h });
   });
+  return drawn;
+}
+const cbImgCache = new Map();
+function cbLoadImg(u) {
+  if (!cbImgCache.has(u)) {
+    cbImgCache.set(u, new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = u; }));
+  }
+  return cbImgCache.get(u);
+}
+async function composeCollage(urls, layout, out, pad, tfs) {
+  out = out || 1000;
+  const imgs = await Promise.all(urls.map(cbLoadImg));
+  const c = document.createElement("canvas"); c.width = out; c.height = out;
+  drawCollage(c.getContext("2d"), out, imgs, layout, pad == null ? 0.05 : pad, tfs);
   return c.toDataURL("image/png");
 }
 let cbState = null;
@@ -3340,7 +3371,24 @@ window.openCombine = (ev, btn) => {
   const parts = optCombinedParts(slot);
   if (!parts) return;
   if (!srcFull.length) { toast("원본 사진을 먼저 넣어 주세요"); return; }
-  cbState = { slot, parts, sel: parts.map((_, i) => (i < srcFull.length ? i : -1)) };
+  // 이전 조정값 복원 (구성 수·사진 수가 맞을 때만)
+  let saved = null;
+  try { saved = JSON.parse(slot.dataset.cb || "null"); } catch (e) { /* 무시 */ }
+  const ok = saved && Array.isArray(saved.sel) && saved.sel.length === parts.length
+    && saved.sel.every((i) => i >= 0 && i < srcFull.length);
+  cbState = {
+    slot, parts,
+    sel: ok ? saved.sel.slice() : parts.map((_, i) => (i < srcFull.length ? i : -1)),
+    pad: ok && saved.pad != null ? saved.pad : 0.05,
+    tf: ok && Array.isArray(saved.tf) && saved.tf.length === parts.length
+      ? saved.tf.map((t) => ({ s: t.s || 1, dx: t.dx || 0, dy: t.dy || 0 }))
+      : parts.map(() => ({ s: 1, dx: 0, dy: 0 })),
+    selIdx: -1, drawn: [],
+  };
+  if (ok && saved.layout) cbLayout = saved.layout;
+  $("#cb-pad").value = Math.round(cbState.pad * 100);
+  $("#cb-scale").value = 100;
+  $("#cb-scale").disabled = true;
   $("#cb-title").textContent = `구성 합치기 — ${parts.join("+")}`;
   $("#cb-rows").innerHTML = parts.map((p, ri) => `
     <div class="cb-row" data-ri="${ri}">
@@ -3357,13 +3405,78 @@ async function cbPreview() {
   const cv = $("#cb-preview");
   const x = cv.getContext("2d");
   x.fillStyle = "#fff"; x.fillRect(0, 0, cv.width, cv.height);
-  if (!st || st.sel.some((i) => i < 0)) return;
-  const url = await composeCollage(st.sel.map((i) => srcFull[i]), cbLayout, 480);
+  if (!st || st.sel.some((i) => i < 0)) { if (st) st.drawn = []; return; }
+  const imgs = await Promise.all(st.sel.map((i) => cbLoadImg(srcFull[i])));
   if (cbState !== st) return;
-  const im = new Image();
-  im.onload = () => { if (cbState === st) x.drawImage(im, 0, 0, cv.width, cv.height); };
-  im.src = url;
+  const k = cv.width / 1000;
+  x.save(); x.scale(k, k);
+  st.drawn = drawCollage(x, 1000, imgs, cbLayout, st.pad, st.tf);
+  x.restore();
+  if (st.selIdx >= 0 && st.drawn[st.selIdx]) {
+    const r = st.drawn[st.selIdx];
+    x.strokeStyle = "#0a7cff"; x.lineWidth = 2.5; x.setLineDash([6, 4]);
+    x.strokeRect(r.x * k, r.y * k, r.w * k, r.h * k);
+    x.setLineDash([]);
+  }
 }
+/* 미리보기 편집: 클릭=선택, 드래그=이동, 슬라이더=선택 크기/전체 여백 */
+let cbDrag = null;
+$("#cb-preview").addEventListener("pointerdown", (e) => {
+  const st = cbState;
+  if (!st || !st.drawn.length) return;
+  e.preventDefault();
+  const cv = $("#cb-preview");
+  const rect = cv.getBoundingClientRect();
+  const px = (e.clientX - rect.left) * (1000 / rect.width);
+  const py = (e.clientY - rect.top) * (1000 / rect.height);
+  let hit = -1;
+  for (let i = st.drawn.length - 1; i >= 0; i--) {
+    const r = st.drawn[i];
+    if (px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) { hit = i; break; }
+  }
+  st.selIdx = hit;
+  const sc = $("#cb-scale");
+  sc.disabled = hit < 0;
+  if (hit >= 0) {
+    sc.value = Math.round((st.tf[hit].s || 1) * 100);
+    try { cv.setPointerCapture(e.pointerId); } catch (err) { /* 합성 이벤트 등 캡처 불가 시에도 드래그는 진행 */ }
+    cbDrag = { i: hit, sx: e.clientX, sy: e.clientY, dx0: st.tf[hit].dx || 0, dy0: st.tf[hit].dy || 0, rw: rect.width };
+  }
+  cbPreview();
+});
+$("#cb-preview").addEventListener("pointermove", (e) => {
+  const st = cbState;
+  if (!st || !cbDrag) return;
+  const f = 1000 / cbDrag.rw;
+  st.tf[cbDrag.i].dx = cbDrag.dx0 + (e.clientX - cbDrag.sx) * f;
+  st.tf[cbDrag.i].dy = cbDrag.dy0 + (e.clientY - cbDrag.sy) * f;
+  cbPreview();
+});
+["pointerup", "pointercancel"].forEach((ev) => $("#cb-preview").addEventListener(ev, () => { cbDrag = null; }));
+$("#cb-scale").addEventListener("input", () => {
+  const st = cbState;
+  if (!st || st.selIdx < 0) return;
+  st.tf[st.selIdx].s = (+$("#cb-scale").value) / 100;
+  cbPreview();
+});
+$("#cb-pad").addEventListener("input", () => {
+  const st = cbState;
+  if (!st) return;
+  st.pad = (+$("#cb-pad").value) / 100;
+  cbPreview();
+});
+$("#cb-reset").addEventListener("click", () => {
+  const st = cbState;
+  if (!st) return;
+  st.tf = st.parts.map(() => ({ s: 1, dx: 0, dy: 0 }));
+  st.pad = 0.05;
+  st.selIdx = -1;
+  $("#cb-pad").value = 5;
+  $("#cb-scale").value = 100;
+  $("#cb-scale").disabled = true;
+  cbPreview();
+  toast("자동 배치로 초기화했습니다");
+});
 $("#cb-rows").addEventListener("click", (e) => {
   const th = e.target.closest(".cb-th");
   if (!th || !cbState) return;
@@ -3394,8 +3507,9 @@ $("#cb-go").addEventListener("click", async () => {
   if (!st) return;
   if (st.sel.some((i) => i < 0)) { toast("구성마다 사진을 1장씩 선택해 주세요"); return; }
   $("#cbmodal").classList.remove("open"); cbState = null;
-  const url = await composeCollage(st.sel.map((i) => srcFull[i]), cbLayout);
+  const url = await composeCollage(st.sel.map((i) => srcFull[i]), cbLayout, 1000, st.pad, st.tf);
   cbApply(st.slot, url);
+  st.slot.dataset.cb = JSON.stringify({ sel: st.sel, layout: cbLayout, pad: st.pad, tf: st.tf });  // 다시 열면 이어서 수정
   toast(`${st.parts.join("+")} 구성을 1장으로 합쳤습니다 (옵션 칸 + 대표 D)`);
 });
 $("#cb-ai").addEventListener("click", async () => {
