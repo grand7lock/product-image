@@ -3063,10 +3063,22 @@ function updateOptionSlots() {
     cell.querySelector(".opt-kcno").textContent = cno;
     cell.querySelector(".opt-kcimg").style.display = cno ? "inline-block" : "none";
   });
-  // 옵션 텍스트 변경 시 빈 옵션 칸·구성 칸의 [구성 합치기] 버튼 표시 갱신
-  $$("#opt-grid .slot-opt.empty").forEach((s) => { s.innerHTML = ""; ensureEmptyUI(s); });
-  const compEl = $("[data-slot=comp]");
-  if (compEl && compEl.classList.contains("empty")) { compEl.innerHTML = ""; ensureEmptyUI(compEl); }
+  // 옵션 텍스트 변경 시 옵션 칸·구성 칸의 [구성 합치기] 버튼 표시 갱신 (빈 칸 + 채워진 칸 모두)
+  const refreshCmb = (s) => {
+    if (!s) return;
+    if (s.classList.contains("empty")) { s.innerHTML = ""; ensureEmptyUI(s); return; }
+    const has = s.querySelector(".cmb");
+    const need = !!optCombinedParts(s);
+    if (need && !has) {
+      const b = document.createElement("button");
+      b.className = "cmb"; b.textContent = "구성 합치기";
+      b.setAttribute("onclick", "openCombine(event, this)");
+      s.appendChild(b);
+    }
+    if (!need && has) has.remove();
+  };
+  $$("#opt-grid .slot-opt").forEach(refreshCmb);
+  refreshCmb($("[data-slot=comp]"));
 }
 
 /* v1.30: 히어로 글자 박스 (없음 → 제목만 → 제목+문구 순환) — 문구 위치 이동 시 박스도 함께 이동 */
