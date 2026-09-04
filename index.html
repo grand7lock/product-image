@@ -143,13 +143,13 @@
   .hero-overlay h1, .hero-overlay .hero-sub { pointer-events:auto; }
   .sec-hero h1 { font-size:52px; font-weight:800; letter-spacing:-1.5px; line-height:1.25; padding:0 40px; }
   .hero-sub { font-size:25px; color:#5f5f5f; line-height:1.7; margin:34px 40px 0; white-space:pre-wrap; }
-  /* v1.30: 히어로 글자 뒤 반투명 박스 (글자 위치 이동 시 함께 이동) — 농도 3단계: 기본 중간 회색 / bs2 진회색 / bs3 옅은 검정 */
-  .hero-overlay.tb1 h1, .hero-overlay.tb2 h1 { display:inline-block; background:rgba(110,110,110,.62); color:#fff; padding:10px 32px; }
-  .hero-overlay.tb2 .hero-sub { display:inline-block; background:rgba(110,110,110,.52); color:#fff; padding:14px 28px; }
-  .hero-overlay.bs2.tb1 h1, .hero-overlay.bs2.tb2 h1 { background:rgba(75,75,75,.66); }
-  .hero-overlay.bs2.tb2 .hero-sub { background:rgba(75,75,75,.56); }
-  .hero-overlay.bs3.tb1 h1, .hero-overlay.bs3.tb2 h1 { background:rgba(45,45,45,.66); }
-  .hero-overlay.bs3.tb2 .hero-sub { background:rgba(45,45,45,.56); }
+  /* v1.30: 히어로 글자 뒤 반투명 박스 (글자 위치 이동 시 함께 이동) — 농도 3단계: 기본 진회색 / bs2 옅은 검정 / bs3 중간 회색 */
+  .hero-overlay.tb1 h1, .hero-overlay.tb2 h1 { display:inline-block; background:rgba(75,75,75,.66); color:#fff; padding:10px 32px; }
+  .hero-overlay.tb2 .hero-sub { display:inline-block; background:rgba(75,75,75,.56); color:#fff; padding:14px 28px; }
+  .hero-overlay.bs2.tb1 h1, .hero-overlay.bs2.tb2 h1 { background:rgba(45,45,45,.66); }
+  .hero-overlay.bs2.tb2 .hero-sub { background:rgba(45,45,45,.56); }
+  .hero-overlay.bs3.tb1 h1, .hero-overlay.bs3.tb2 h1 { background:rgba(110,110,110,.62); }
+  .hero-overlay.bs3.tb2 .hero-sub { background:rgba(110,110,110,.52); }
   /* v1.30: 히어로 문구 줄간격 (보통 1.7 → 좁게 1.45 → 촘촘 1.25) */
   .hero-overlay.lh-mid .hero-sub { line-height:1.45; }
   .hero-overlay.lh-tight .hero-sub { line-height:1.25; }
@@ -737,6 +737,9 @@
       <button class="btn" id="sz-fs-s">작게</button>
       <button class="btn" id="sz-fs-m">보통</button>
       <button class="btn" id="sz-fs-l">크게</button>
+      <span style="font-size:12px; color:#888; margin:0 4px 0 12px;">선 색</span>
+      <button class="btn" id="sz-lc-k">검정</button>
+      <button class="btn" id="sz-lc-w">흰색</button>
     </div>
     <div style="margin-top:8px;">
       <button class="btn" id="sz-add">＋ 치수선 추가</button>
@@ -1602,16 +1605,21 @@ function compositeSizeCut(dataUrl, entryIdx = 0, adj = null) {
         const bounds = detectProductBounds(img, W, H);
         const L = sizeCutLayout(W, H, entry, adj, bounds);
         const P = sizeLwParams();
-        const line = (x1, y1, x2, y2) => { x.strokeStyle = "#111"; x.lineWidth = P.lw; x.beginPath(); x.moveTo(x1, y1); x.lineTo(x2, y2); x.stroke(); };
-        const arrow = (px, py, dx, dy) => { x.fillStyle = "#111"; x.beginPath(); x.moveTo(px, py); x.lineTo(px + dx * P.ah - dy * P.aw, py + dy * P.ah + dx * P.aw); x.lineTo(px + dx * P.ah + dy * P.aw, py + dy * P.ah - dx * P.aw); x.closePath(); x.fill(); };
+        // v1.30: 선 색 — 배경이 어두우면 흰색 선택 가능 (adj.lc === "w")
+        const white = !!(adj && adj.lc === "w");
+        const lc = white ? "#fff" : "#111";
+        const line = (x1, y1, x2, y2) => { x.strokeStyle = lc; x.lineWidth = P.lw; x.beginPath(); x.moveTo(x1, y1); x.lineTo(x2, y2); x.stroke(); };
+        const arrow = (px, py, dx, dy) => { x.fillStyle = lc; x.beginPath(); x.moveTo(px, py); x.lineTo(px + dx * P.ah - dy * P.aw, py + dy * P.ah + dx * P.aw); x.lineTo(px + dx * P.ah + dy * P.aw, py + dy * P.ah - dx * P.aw); x.closePath(); x.fill(); };
         const txt = (tx, ty, s, size, align) => {
           x.save();
           x.translate(tx, ty);
           x.font = `800 ${size}px Pretendard, 'Malgun Gothic', sans-serif`;
           x.textAlign = align || "center"; x.textBaseline = "middle";
-          x.lineJoin = "round"; x.strokeStyle = "rgba(255,255,255,.92)"; x.lineWidth = 9;
+          x.lineJoin = "round";
+          x.strokeStyle = white ? "rgba(17,17,17,.85)" : "rgba(255,255,255,.92)";
+          x.lineWidth = 9;
           x.strokeText(s, 0, 0);
-          x.fillStyle = "#111"; x.fillText(s, 0, 0);
+          x.fillStyle = lc; x.fillText(s, 0, 0);
           x.restore();
         };
         // 치수선: 두 끝점 사이를 잇고, 화살촉·눈금은 선 기울기를 따라 회전 (대각선 지원)
@@ -2163,11 +2171,13 @@ async function slotDropHandler(e) {
     const raw = dataUrl;
     const nn = slot.dataset.slot === "tsize" ? 0 : (slot.dataset.slot === "tsize2" ? 1 : 2);
     dataUrl = await compositeSizeCut(dataUrl, nn);
+    resetSlotMeta(slot);
     setSlotImage(slot, dataUrl);
     slot.dataset.raw = raw; slot.dataset.adj = "{}";
     toast("슬롯에 이미지를 배치했습니다");
     return;
   }
+  resetSlotMeta(slot);
   setSlotImage(slot, dataUrl);
   if (slot.classList.contains("slot-main")) slot.classList.add("fit-contain");
   toast("슬롯에 이미지를 배치했습니다");
@@ -2281,6 +2291,12 @@ function readAsDataURL(file) {
   });
 }
 
+/* v1.30: 새 이미지를 넣을 때 이전 이미지의 편집 흔적(편집 원본·배경교체 원본·치수 보정 등) 제거
+   — 안 지우면 [사이즈·크기 수정]이 예전 이미지를 띄움 (이신혜 리포트) */
+function resetSlotMeta(slot) {
+  delete slot.dataset.raw; delete slot.dataset.adj;
+  delete slot.dataset.orig; delete slot.dataset.auto; delete slot.dataset.edorig;
+}
 function setSlotImage(slotEl, dataUrl) {
   slotEl.classList.remove("empty");
   slotEl.classList.add("filled");
@@ -2450,6 +2466,7 @@ $("#file-slot").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (file && pendingSlot) {
     let url = await readAsDataURL(file);
+    resetSlotMeta(pendingSlot);
     if (/^tsize/.test(pendingSlot.dataset.slot)) {
       const raw = url;
       const n = pendingSlot.dataset.slot === "tsize" ? 0 : (pendingSlot.dataset.slot === "tsize2" ? 1 : 2);
@@ -2475,6 +2492,7 @@ $("#file-bulk").addEventListener("change", async (e) => {
   for (let i = 0; i < Math.min(files.length, targets.length); i++) {
     const t = targets[i];
     const url = await readAsDataURL(files[i]);
+    resetSlotMeta(t);
     if (/^tsize/.test(t.dataset.slot || "")) {
       const n = t.dataset.slot === "tsize" ? 0 : (t.dataset.slot === "tsize2" ? 1 : 2);
       setSlotImage(t, await compositeSizeCut(url, n));
@@ -3091,15 +3109,22 @@ window.cycleTitleBox = (btn) => {
   if (nxt) ov.classList.add("tb" + nxt);
   toast("글자 박스: " + ["없음", "제목만", "제목+문구"][nxt]);
 };
-/* v1.30: 히어로 박스 농도 (중간 회색 → 진회색 → 옅은 검정 순환) */
+/* v1.30: 히어로 박스 농도 (진회색 기본 → 옅은 검정 → 중간 회색 순환) — 박스가 꺼져 있으면 자동으로 켬 */
 window.cycleBoxShade = (btn) => {
   const ov = btn.closest("section").querySelector(".hero-overlay");
   if (!ov) return;
+  let turnedOn = "";
+  if (!ov.classList.contains("tb1") && !ov.classList.contains("tb2")) {
+    ov.classList.add("tb1");
+    turnedOn = "글자 박스(제목만)를 켰습니다 · ";
+    toast(turnedOn + "박스 농도: 진회색");
+    return;
+  }
   const cur = ov.classList.contains("bs3") ? 2 : (ov.classList.contains("bs2") ? 1 : 0);
   ov.classList.remove("bs2", "bs3");
   const nxt = (cur + 1) % 3;
   if (nxt) ov.classList.add("bs" + (nxt + 1));
-  toast("박스 농도: " + ["중간 회색", "진회색", "옅은 검정"][nxt]);
+  toast("박스 농도: " + ["진회색", "옅은 검정", "중간 회색"][nxt]);
 };
 /* v1.30: 히어로 문구 줄간격 (보통 → 좁게 → 촘촘 순환) */
 window.cycleLineGap = (btn) => {
@@ -3462,6 +3487,8 @@ function szLwButtons() {
   $("#sz-fs-l").classList.toggle("primary", fs === 1.25);
   $("#sz-off").classList.toggle("primary", !!st.adj.off);
   $("#sz-off").textContent = st.adj.off ? "치수 표기 켜기" : "치수 표기 안 함";
+  $("#sz-lc-k").classList.toggle("primary", st.adj.lc !== "w");
+  $("#sz-lc-w").classList.toggle("primary", st.adj.lc === "w");
 }
 function szRender(rebuildChips) {
   const st = szState;
@@ -3513,9 +3540,19 @@ function szEditText(k) {
   set(v.trim());
   szRender(true);
 }
+let szLastTap = { k: null, t: 0 };
 function szDragStart(e) {
   e.preventDefault();
   const chip = e.currentTarget;
+  // 파란 점 더블클릭 = 숫자 직접 입력 — pointerdown preventDefault가 브라우저 dblclick을 막으므로 직접 감지
+  const k0 = chip.dataset.k;
+  const now = Date.now();
+  if (chip.classList.contains("num") && szLastTap.k === k0 && now - szLastTap.t < 400) {
+    szLastTap = { k: null, t: 0 };
+    szEditText(k0);
+    return;
+  }
+  szLastTap = { k: k0, t: now };
   chip.setPointerCapture(e.pointerId);
   const sx = e.clientX, sy = e.clientY;
   const ox = parseFloat(chip.style.left), oy = parseFloat(chip.style.top);
@@ -3560,6 +3597,8 @@ $("#sz-lw-thick").addEventListener("click", () => { localStorage.setItem("size_l
 $("#sz-fs-s").addEventListener("click", () => { if (szState) { szState.adj.fs = 0.8; szLwButtons(); szRender(false); } });
 $("#sz-fs-m").addEventListener("click", () => { if (szState) { delete szState.adj.fs; szLwButtons(); szRender(false); } });
 $("#sz-fs-l").addEventListener("click", () => { if (szState) { szState.adj.fs = 1.25; szLwButtons(); szRender(false); } });
+$("#sz-lc-k").addEventListener("click", () => { if (szState) { delete szState.adj.lc; szLwButtons(); szRender(false); } });
+$("#sz-lc-w").addEventListener("click", () => { if (szState) { szState.adj.lc = "w"; szLwButtons(); szRender(false); } });
 $("#sz-off").addEventListener("click", () => {
   if (!szState) return;
   if (szState.adj.off) delete szState.adj.off; else szState.adj.off = true;
@@ -4017,6 +4056,7 @@ $("#er-apply").addEventListener("click", async () => {
   } else {
     setSlotImage(st.slot, url);
   }
+  delete st.slot.dataset.edorig;  // 지운 결과가 새 기준 — [사이즈·크기 수정]이 지우기 전 원본을 띄우지 않게 (이신혜 리포트)
   $("#ermodal").classList.remove("open");
   erState = null;
   toast("글자를 지웠습니다");
