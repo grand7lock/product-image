@@ -143,9 +143,13 @@
   .hero-overlay h1, .hero-overlay .hero-sub { pointer-events:auto; }
   .sec-hero h1 { font-size:52px; font-weight:800; letter-spacing:-1.5px; line-height:1.25; padding:0 40px; }
   .hero-sub { font-size:25px; color:#5f5f5f; line-height:1.7; margin:34px 40px 0; white-space:pre-wrap; }
-  /* v1.30: 히어로 글자 뒤 반투명 박스 (글자 위치 이동 시 함께 이동) */
-  .hero-overlay.tb1 h1, .hero-overlay.tb2 h1 { display:inline-block; background:rgba(30,30,30,.72); color:#fff; padding:10px 32px; }
-  .hero-overlay.tb2 .hero-sub { display:inline-block; background:rgba(30,30,30,.62); color:#fff; padding:14px 28px; }
+  /* v1.30: 히어로 글자 뒤 반투명 박스 (글자 위치 이동 시 함께 이동) — 농도 3단계: 기본 중간 회색 / bs2 진회색 / bs3 옅은 검정 */
+  .hero-overlay.tb1 h1, .hero-overlay.tb2 h1 { display:inline-block; background:rgba(110,110,110,.62); color:#fff; padding:10px 32px; }
+  .hero-overlay.tb2 .hero-sub { display:inline-block; background:rgba(110,110,110,.52); color:#fff; padding:14px 28px; }
+  .hero-overlay.bs2.tb1 h1, .hero-overlay.bs2.tb2 h1 { background:rgba(75,75,75,.66); }
+  .hero-overlay.bs2.tb2 .hero-sub { background:rgba(75,75,75,.56); }
+  .hero-overlay.bs3.tb1 h1, .hero-overlay.bs3.tb2 h1 { background:rgba(45,45,45,.66); }
+  .hero-overlay.bs3.tb2 .hero-sub { background:rgba(45,45,45,.56); }
   /* v1.30: 히어로 문구 줄간격 (보통 1.7 → 좁게 1.45 → 촘촘 1.25) */
   .hero-overlay.lh-mid .hero-sub { line-height:1.45; }
   .hero-overlay.lh-tight .hero-sub { line-height:1.25; }
@@ -335,6 +339,7 @@
   .slot .cmb { position:absolute; top:8px; left:8px; z-index:6; border:none; background:rgba(10,124,255,.88); color:#fff;
               border-radius:8px; font-size:17px; padding:7px 14px; cursor:pointer; opacity:0; font-family:inherit; }
   .slot:hover .cmb { opacity:1; }
+  .slot-comp .cmb { top:122px; }  /* 구성 칸: 좌열 AI재생성/배경교체/되돌리기 아래 */
   body.exporting .cmb { display:none !important; }
   #cb-rows { max-height:42vh; overflow:auto; text-align:left; }
   .cb-row { margin:10px 0 4px; }
@@ -548,7 +553,7 @@
       <div id="page">
 
       <section class="sec-hero" data-sec="히어로">
-        <div class="sec-tools"><button onclick="cycleTitleBox(this)">글자 박스</button><button onclick="cycleLineGap(this)">줄간격</button><button onclick="cycleTextPos(this)">문구 위치</button><button onclick="hideSec(this)">섹션 숨기기</button></div>
+        <div class="sec-tools"><button onclick="cycleTitleBox(this)">글자 박스</button><button onclick="cycleBoxShade(this)">박스 농도</button><button onclick="cycleLineGap(this)">줄간격</button><button onclick="cycleTextPos(this)">문구 위치</button><button onclick="hideSec(this)">섹션 숨기기</button></div>
         <div class="slot slot-hero empty" data-slot="hero"></div>
         <div class="hero-overlay">
           <h1 id="f-name" contenteditable="true">상품명</h1>
@@ -1691,8 +1696,8 @@ function snapshotCurrent() {
   MAIN_SLOTS.forEach((n) => {
     const el = $(`[data-slot=${n}]`);
     ws.mains[n] = el.dataset.full
-      ? { full: el.dataset.full, orig: el.dataset.orig || null, fit: el.classList.contains("fit-contain"), auto: el.dataset.auto || null, ed: el.dataset.edorig || null }
-      : null;
+      ? { full: el.dataset.full, orig: el.dataset.orig || null, fit: el.classList.contains("fit-contain"), auto: el.dataset.auto || null, ed: el.dataset.edorig || null, trash: el.dataset.trash || null }
+      : (el.dataset.trash ? { trash: el.dataset.trash } : null);
   });
   ws.cat = category;
   ws.pageStyle = $("#page").getAttribute("style") || "";
@@ -1720,7 +1725,9 @@ function switchProduct(i) {
       const m = ws.mains && ws.mains[n];
       if (!m) return;
       const el = $(`[data-slot=${n}]`);
+      if (typeof m !== "string" && m.trash) el.dataset.trash = m.trash;
       const full = typeof m === "string" ? m : m.full;
+      if (!full) { el.innerHTML = ""; ensureEmptyUI(el); return; }  // 휴지통만 있는 빈 칸
       if (m.orig) el.dataset.orig = m.orig;
       setSlotImage(el, full);
       if (typeof m !== "string" && m.fit) el.classList.add("fit-contain");
@@ -2232,16 +2239,16 @@ $("#btn-fill-mains").addEventListener("click", () => {
 
 function ensureEmptyUI(slot) {
   if (!slot.classList.contains("empty")) return;
-  if (/^opt/.test(slot.dataset.slot || "")) {  // 옵션 칸: 원본 삽입 전용 (AI 버튼 없음) — 합친 구성(+)만 합치기 버튼
-    slot.innerHTML = optCombinedParts(slot)
-      ? `<button class="orig" style="background:rgba(10,124,255,.85)" onclick="openCombine(event, this)">구성 합치기</button>`
-      : "";
-    return;
-  }
-  if (slot.querySelector(".orig")) return;
-  slot.innerHTML = (typeof imgMode !== "undefined" && imgMode === "ai")
+  const nm = slot.dataset.slot || "";
+  const trashBtn = slot.dataset.trash
+    ? `<button class="orig" style="background:rgba(46,158,68,.85)" onclick="restoreSlot(event, this)">제거 복구</button>` : "";
+  const cmbBtn = optCombinedParts(slot)
+    ? `<button class="orig" style="background:rgba(10,124,255,.85)" onclick="openCombine(event, this)">구성 합치기</button>` : "";
+  if (/^opt/.test(nm)) { slot.innerHTML = cmbBtn + trashBtn; return; }  // 옵션 칸: 원본 삽입 전용 (AI 버튼 없음)
+  const mainBtn = (typeof imgMode !== "undefined" && imgMode === "ai")
     ? `<button class="orig" style="background:rgba(10,124,255,.85)" onclick="genFromEmpty(event, this)">AI로 채우기</button>`
     : `<button class="orig" onclick="fillFromOriginal(event, this)">원본으로 채우기</button>`;
+  slot.innerHTML = mainBtn + (nm === "comp" ? cmbBtn : "") + trashBtn;
 }
 window.fillFromOriginal = (ev, btn) => {
   ev.stopPropagation();
@@ -2285,7 +2292,7 @@ function setSlotImage(slotEl, dataUrl) {
   const isDMain = nm === "d0" || /^o\d$/.test(nm);
   let btns = "";
   if (!isOpt) btns += `<button class="rgn" onclick="regenSlot(event, this)">AI 재생성</button>`;
-  if (isOpt && optCombinedParts(slotEl)) btns += `<button class="cmb" onclick="openCombine(event, this)">구성 합치기</button>`;
+  if ((isOpt || nm === "comp") && optCombinedParts(slotEl)) btns += `<button class="cmb" onclick="openCombine(event, this)">구성 합치기</button>`;
   if (isTsize) btns += `<button class="szedit" onclick="editSizeCut(event, this)">치수 편집</button>`;
   btns += `<button class="edt" onclick="editMainImage(event, this)">사이즈·크기 수정</button>`;
   btns += `<button class="bgx" onclick="swapBgAI(event, this)">배경만 교체</button>`;
@@ -2378,16 +2385,41 @@ function clearSlotEl(slot) {
   delete slot.dataset.orig;
   delete slot.dataset.auto;
   delete slot.dataset.edorig;
+  delete slot.dataset.trash;
   slot.classList.add("empty");
   slot.classList.remove("filled", "fit-contain");
   ensureEmptyUI(slot);
   updateHeight();
 }
+/* v1.30: [제거]한 이미지는 칸별 휴지통에 보관 → 빈 칸의 [제거 복구]로 되살림 */
 function clearSlot(ev, btn) {
   ev.stopPropagation();
-  clearSlotEl(btn.closest(".slot"));
+  const slot = btn.closest(".slot");
+  const t = slot.dataset.full ? JSON.stringify({
+    full: slot.dataset.full, raw: slot.dataset.raw || null, adj: slot.dataset.adj || null,
+    orig: slot.dataset.orig || null, edorig: slot.dataset.edorig || null, auto: slot.dataset.auto || null,
+    fit: slot.classList.contains("fit-contain"),
+  }) : null;
+  clearSlotEl(slot);
+  if (t) { slot.dataset.trash = t; slot.innerHTML = ""; ensureEmptyUI(slot); }
 }
 window.clearSlot = clearSlot;
+window.restoreSlot = (ev, btn) => {
+  ev.stopPropagation();
+  const slot = btn.closest(".slot");
+  let t = null;
+  try { t = JSON.parse(slot.dataset.trash || "null"); } catch (e) { /* 무시 */ }
+  if (!t || !t.full) { toast("복구할 이미지가 없습니다"); return; }
+  delete slot.dataset.trash;
+  if (t.raw) slot.dataset.raw = t.raw;
+  if (t.adj) slot.dataset.adj = t.adj;
+  if (t.orig) slot.dataset.orig = t.orig;
+  if (t.edorig) slot.dataset.edorig = t.edorig;
+  setSlotImage(slot, t.full);
+  if (t.fit) slot.classList.add("fit-contain"); else slot.classList.remove("fit-contain");
+  if (t.auto) slot.dataset.auto = t.auto;
+  toast("제거한 이미지를 복구했습니다");
+};
 
 function bindPageSlots() {
   $$("#page .slot").forEach((slot) => {
@@ -3031,8 +3063,10 @@ function updateOptionSlots() {
     cell.querySelector(".opt-kcno").textContent = cno;
     cell.querySelector(".opt-kcimg").style.display = cno ? "inline-block" : "none";
   });
-  // 옵션 텍스트 변경 시 빈 옵션 칸의 [구성 합치기] 버튼 표시 갱신
+  // 옵션 텍스트 변경 시 빈 옵션 칸·구성 칸의 [구성 합치기] 버튼 표시 갱신
   $$("#opt-grid .slot-opt.empty").forEach((s) => { s.innerHTML = ""; ensureEmptyUI(s); });
+  const compEl = $("[data-slot=comp]");
+  if (compEl && compEl.classList.contains("empty")) { compEl.innerHTML = ""; ensureEmptyUI(compEl); }
 }
 
 /* v1.30: 히어로 글자 박스 (없음 → 제목만 → 제목+문구 순환) — 문구 위치 이동 시 박스도 함께 이동 */
@@ -3044,6 +3078,16 @@ window.cycleTitleBox = (btn) => {
   const nxt = (cur + 1) % 3;
   if (nxt) ov.classList.add("tb" + nxt);
   toast("글자 박스: " + ["없음", "제목만", "제목+문구"][nxt]);
+};
+/* v1.30: 히어로 박스 농도 (중간 회색 → 진회색 → 옅은 검정 순환) */
+window.cycleBoxShade = (btn) => {
+  const ov = btn.closest("section").querySelector(".hero-overlay");
+  if (!ov) return;
+  const cur = ov.classList.contains("bs3") ? 2 : (ov.classList.contains("bs2") ? 1 : 0);
+  ov.classList.remove("bs2", "bs3");
+  const nxt = (cur + 1) % 3;
+  if (nxt) ov.classList.add("bs" + (nxt + 1));
+  toast("박스 농도: " + ["중간 회색", "진회색", "옅은 검정"][nxt]);
 };
 /* v1.30: 히어로 문구 줄간격 (보통 → 좁게 → 촘촘 순환) */
 window.cycleLineGap = (btn) => {
@@ -3210,14 +3254,22 @@ $("#mv-grid").addEventListener("click", async (e) => {
 
 /* 합친 구성(+) — 옵션 1개가 여러 구성일 때 사진 n장을 1장으로 합치기 (콜라주 기본 / AI 보조) */
 function optCombinedParts(slotEl) {
-  const m = /^opt(\d)$/.exec(slotEl.dataset.slot || "");
-  if (!m) return null;
-  const o = parseOptions()[parseInt(m[1], 10) - 1] || "";
+  const nm = slotEl.dataset.slot || "";
+  let o = "";
+  const m = /^opt(\d)$/.exec(nm);
+  if (m) o = parseOptions()[parseInt(m[1], 10) - 1] || "";
+  else if (nm === "comp") {
+    if (parseOptions().length >= 2) return null;  // 옵션 그리드 사용 중이면 구성 칸은 숨겨져 있음
+    const ov = $("#f-opt") ? $("#f-opt").textContent.trim() : "";
+    const cv = $("#f-color") ? $("#f-color").textContent.trim() : "";
+    o = (ov && ov !== "기재예정") ? ov : ((cv && cv !== "기재예정") ? cv : "");
+  } else return null;
   const parts = o.split("+").map((s) => s.trim()).filter(Boolean);
   return parts.length >= 2 ? parts : null;
 }
 function combineDMainFor(slotEl) {
-  const i = parseInt((slotEl.dataset.slot || "").replace("opt", ""), 10) - 1;
+  const nm = slotEl.dataset.slot || "";
+  const i = nm === "comp" ? 0 : parseInt(nm.replace("opt", ""), 10) - 1;
   return $(`[data-slot=${i === 0 ? "d0" : "o" + (i + 1)}]`);
 }
 async function composeCollage(urls, layout, out) {
