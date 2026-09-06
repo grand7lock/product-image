@@ -941,8 +941,10 @@
     <div style="margin-top:8px; text-align:left;">
       <button class="btn blue" id="bi-start">일괄 가져오기 시작</button>
       <button class="btn" id="bi-folder">저장 폴더 변경</button>
+      <a class="btn" href="1688helper.exe" download="1688도우미.exe" style="text-decoration:none;">도우미 내려받기 (.exe)</a>
       <button class="btn" id="bi-close">닫기</button>
     </div>
+    <p class="hint" style="text-align:left; margin-top:4px">도우미가 없는 PC는 [도우미 내려받기]로 받아 더블클릭 실행 (설치 불필요) → 첫 실행 때 저장 폴더 지정 → 켜둔 채 사용</p>
     <div id="bi-progress" style="text-align:left; margin-top:10px; max-height:44vh; overflow:auto;"></div>
   </div>
 </div>
@@ -4540,7 +4542,7 @@ $("#bi-start").addEventListener("click", async () => {
     if (firstNew < 0) firstNew = products.length - 1;
     added++;
     row(i, "ok", `완료 — ${prod.name.slice(0, 24)}${plan ? ` · ${plan.n}개 ${plan.tier.toLocaleString()}원${plan.warn ? " ⚠마진밖" : ""}` : ""}`);
-    await sleep(3000);  // 1688 봇 감지 회피 간격
+    await sleep(5000);  // 1688 봇 감지 회피 간격 (연속 요청 시 간헐 차단 확인됨)
   }
   renderProductList();
   if (firstNew >= 0) switchProduct(firstNew);
