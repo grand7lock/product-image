@@ -376,6 +376,13 @@
   #pi-plan-card.warn { background:#fff4f2; border-color:#e14b4a; }
   .bi-row { font-size:13px; padding:4px 0; border-bottom:1px dashed #eee; }
   .bi-row b.ok { color:#2e9e44; } .bi-row b.run { color:#0a7cff; } .bi-row b.err { color:#e14b4a; }
+  /* 어드민 */
+  .btn.adf.active { background:#111; color:#fff; }
+  .ad-card { flex:1; min-width:110px; background:#f7f9fc; border:1.5px solid #e2e6ec; border-radius:10px; padding:10px 14px; }
+  .ad-card .k { font-size:12px; color:#777; }
+  .ad-card .v { font-size:22px; font-weight:800; color:#0a63cc; margin-top:2px; }
+  #ad-users td, #ad-users th, #ad-logs td, #ad-logs th { border:1px solid #e5e7ea; padding:5px 9px; font-size:13px; text-align:left; }
+  #ad-users th, #ad-logs th { background:#f7f8fa; position:sticky; top:0; }
   #cb-preview { display:block; margin:10px auto 0; border:1.5px solid #ddd; border-radius:10px; background:#fff; }
   .btn.cbl.active { background:#111; color:#fff; }
   .opt-name { font-size:24px; font-weight:800; margin-top:14px; }
@@ -563,6 +570,7 @@
       <p class="hint" style="margin-top:8px">미리보기 섹션에 마우스를 올리면 "섹션 숨기기" 버튼이 나타납니다. 숨긴 섹션은 저장 시 제외되며, 위 버튼으로 한 번에 복원됩니다.</p>
       <button class="btn" id="btn-username">사용자 이름 변경</button>
       <span class="hint" id="username-now"></span>
+      <button class="btn" id="btn-admin" style="margin-top:6px;">관리자</button>
     </div>
   </aside>
 
@@ -906,6 +914,27 @@
     </div>
   </div>
 </div>
+<div id="admodal" class="modal">
+  <div class="mbox" style="width:860px; max-width:96vw; max-height:94vh; overflow:auto; text-align:left;">
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <div class="mtitle" style="margin:0;">사용 현황 (관리자)</div>
+      <span style="flex:1"></span>
+      <button class="btn adf" data-adf="1">오늘</button>
+      <button class="btn adf active" data-adf="7">7일</button>
+      <button class="btn adf" data-adf="30">30일</button>
+      <button class="btn adf" data-adf="36500">전체</button>
+      <select id="ad-name" style="padding:8px; border-radius:8px; border:1.5px solid #ddd; font-family:inherit;"><option value="">이름: 전체</option></select>
+      <button class="btn" id="ad-refresh">새로고침</button>
+      <button class="btn" id="ad-csv">CSV</button>
+      <button class="btn" id="ad-close">닫기</button>
+    </div>
+    <div id="ad-cards" style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;"></div>
+    <div class="sub-label" style="margin-top:14px">사용자별 집계</div>
+    <table id="ad-users" style="width:100%; border-collapse:collapse;"></table>
+    <div class="sub-label" style="margin-top:14px">최근 기록 (최신순, 500건 표시)</div>
+    <div style="max-height:44vh; overflow:auto;"><table id="ad-logs" style="width:100%; border-collapse:collapse;"></table></div>
+  </div>
+</div>
 <div id="pastemodal" class="modal">
   <div class="mbox" style="width:620px; max-width:94vw; max-height:92vh; overflow:auto;">
     <div class="mtitle">1688 상품정보 자동 기입</div>
@@ -1021,15 +1050,15 @@ const $$ = (s) => [...document.querySelectorAll(s)];
 
 /* ---------- 사용자 이름 게이트 (비밀번호 대체) + 사용 로그 ---------- */
 /* Supabase 프로젝트를 만든 뒤 아래 두 값을 채우면 사용 로그가 기록됩니다 (비어 있으면 기록 안 함, 동작에는 지장 없음) */
-const SUPA_URL = "";   // 예: https://xxxx.supabase.co
-const SUPA_KEY = "";   // anon public 키
+const SUPA_URL = "https://lsdmgreadxzofnvibnwd.supabase.co";
+const SUPA_KEY = "sb_publishable_EE6PI3vFAGeA8t4XEj9JjA_7GG-2tBD";  // 공개용 키 (RLS로 보호 — 기록만 가능, 조회 불가)
 function userName() { return localStorage.getItem("user_name") || ""; }
 function logUsage(action, detail) {
   try {
     if (!SUPA_URL || !SUPA_KEY || !userName()) return;
     fetch(`${SUPA_URL}/rest/v1/usage_log`, {
       method: "POST",
-      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      headers: { apikey: SUPA_KEY, "Content-Type": "application/json", Prefer: "return=minimal" },
       body: JSON.stringify({ name: userName(), action, detail: String(detail || "").slice(0, 300) }),
     }).catch(() => {});
   } catch (e) { /* 기록 실패해도 작업은 계속 */ }
@@ -4620,6 +4649,95 @@ $("#bi-start").addEventListener("click", async () => {
     if (el) el.addEventListener("click", () => logUsage(label, curName()));
   });
 })();
+
+/* --- 어드민 페이지: 관리자 비밀번호(서버 검증) → 사용 현황 조회 --- */
+let adState = { days: 7, rows: [], name: "" };
+async function adFetch(pw, days) {
+  const res = await fetch(`${SUPA_URL}/rest/v1/rpc/admin_logs`, {
+    method: "POST",
+    headers: { apikey: SUPA_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ pw, days }),
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  return res.json();
+}
+const AD_GROUP = (a) => {
+  if (a === "접속") return "visit";
+  if (a === "AI 문구 생성") return "copy";
+  if (a === "상세 AI 생성" || a === "대표 AI 연출" || a === "AI 재생성") return "img";
+  if (a.startsWith("1688")) return "k1688";
+  if (a.startsWith("저장") || a === "작업물 저장") return "save";
+  return "etc";
+};
+function adRender() {
+  const rows = adState.rows.filter((r) => !adState.name || r.name === adState.name);
+  const users = {};
+  for (const r of rows) {
+    const u = users[r.name] = users[r.name] || { visit: 0, copy: 0, img: 0, k1688: 0, save: 0, etc: 0 };
+    u[AD_GROUP(r.action)]++;
+  }
+  const tot = { visit: 0, copy: 0, img: 0, save: 0 };
+  Object.values(users).forEach((u) => { tot.visit += u.visit; tot.copy += u.copy; tot.img += u.img; tot.save += u.save; });
+  $("#ad-cards").innerHTML = [
+    ["사용자", Object.keys(users).length + "명"], ["접속", tot.visit + "회"],
+    ["AI 이미지 생성", tot.img + "회"], ["AI 문구", tot.copy + "회"], ["저장", tot.save + "회"],
+  ].map(([k, v]) => `<div class="ad-card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+  $("#ad-users").innerHTML = `<tr><th>이름</th><th>접속</th><th>AI 이미지</th><th>AI 문구</th><th>1688</th><th>저장</th></tr>` +
+    Object.entries(users).map(([n, u]) =>
+      `<tr><td>${n}</td><td>${u.visit}</td><td>${u.img}</td><td>${u.copy}</td><td>${u.k1688}</td><td>${u.save}</td></tr>`).join("");
+  const fmt = (ts) => { const d = new Date(ts); const p = (x) => String(x).padStart(2, "0"); return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+  $("#ad-logs").innerHTML = `<tr><th>시각</th><th>이름</th><th>행동</th><th>상세</th></tr>` +
+    rows.slice(0, 500).map((r) => `<tr><td>${fmt(r.ts)}</td><td>${r.name}</td><td>${r.action}</td><td>${r.detail || ""}</td></tr>`).join("");
+  // 이름 필터 옵션 갱신
+  const sel = $("#ad-name");
+  const cur = adState.name;
+  const names = [...new Set(adState.rows.map((r) => r.name))];
+  sel.innerHTML = `<option value="">이름: 전체</option>` + names.map((n) => `<option value="${n}"${n === cur ? " selected" : ""}>${n}</option>`).join("");
+}
+async function adLoad() {
+  let pw = localStorage.getItem("adm_pw") || "";
+  if (!pw) {
+    pw = (window.prompt("관리자 비밀번호를 입력하세요") || "").trim();
+    if (!pw) return false;
+  }
+  try {
+    const rows = await adFetch(pw, adState.days);
+    if (!rows.length && localStorage.getItem("adm_ok") !== "1") {
+      localStorage.removeItem("adm_pw");
+      toast("기록이 없거나 비밀번호가 올바르지 않습니다");
+      return false;
+    }
+    localStorage.setItem("adm_pw", pw);
+    if (rows.length) localStorage.setItem("adm_ok", "1");
+    adState.rows = rows;
+    adRender();
+    return true;
+  } catch (e) {
+    toast("조회 실패: " + e.message);
+    return false;
+  }
+}
+$("#btn-admin").addEventListener("click", async () => {
+  if (await adLoad()) $("#admodal").classList.add("open");
+});
+$$(".btn.adf").forEach((b) => b.addEventListener("click", async () => {
+  adState.days = +b.dataset.adf;
+  $$(".btn.adf").forEach((x) => x.classList.toggle("active", x === b));
+  await adLoad();
+}));
+$("#ad-name").addEventListener("change", () => { adState.name = $("#ad-name").value; adRender(); });
+$("#ad-refresh").addEventListener("click", () => adLoad());
+$("#ad-close").addEventListener("click", () => $("#admodal").classList.remove("open"));
+$("#ad-csv").addEventListener("click", () => {
+  const rows = adState.rows.filter((r) => !adState.name || r.name === adState.name);
+  const esc = (s) => `"${String(s == null ? "" : s).replace(/"/g, '""')}"`;
+  const csv = "﻿시각,이름,행동,상세\n" + rows.map((r) => [r.ts, r.name, r.action, r.detail].map(esc).join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  a.download = "사용현황.csv";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+});
 
 /* ========== 작업 저장/불러오기 + 자동 임시저장 ========== */
 function collectStateObj() {
