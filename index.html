@@ -533,7 +533,7 @@
     <div class="step">
       <h2><span>STEP 4</span>결과물 저장</h2>
       <p class="hint" style="line-height:1.7">
-        <span style="display:block">· 대표: {상품번호} {상품명} D~D5.png (1000×1000)</span>
+        <span style="display:block">· 대표: {상품번호} {상품명} D~D5.jpg (1000×1000, PNG 선택 가능)</span>
         <span style="display:block">· 상세: {상품번호} {상품명} S.jpg — 용량이 작아 이미지호스팅·모바일 로딩에 유리 (PNG 선택 가능)</span>
         <span style="display:block">· 상품정보: {상품번호} {상품명} EX.xlsx — [전체 엑셀]은 전 상품 1파일</span>
         <span style="display:block">· 대표 D 메인에는 수량 배지가 자동 표기됩니다</span>
@@ -541,7 +541,7 @@
         <span style="display:block">· 여러 파일 다운로드 허용 창이 뜨면 허용해 주세요</span>
       </p>
       <button class="btn blue" id="btn-save-all">3종 한 번에 저장 (ZIP)</button>
-      <p class="hint" style="margin-top:4px">{상품번호} {상품명}.zip — 압축을 풀면 같은 이름의 폴더 안에 대표(PNG)·상세(JPG)·상품정보 엑셀이 함께 들어 있습니다.</p>
+      <p class="hint" style="margin-top:4px">{상품번호} {상품명}.zip — 압축을 풀면 같은 이름의 폴더 안에 대표(JPG)·상세(JPG)·상품정보 엑셀이 함께 들어 있습니다.</p>
       <button class="btn primary" id="btn-save-mains-jpg">대표 JPG</button>
       <button class="btn" id="btn-save-mains">대표 PNG</button>
       <button class="btn primary" id="btn-jpg">상세 JPG</button>
@@ -3033,7 +3033,7 @@ $("#btn-png").addEventListener("click", () => exportImage("png"));
 $("#btn-jpg").addEventListener("click", () => exportImage("jpg"));
 
 /* ---------- 저장: 대표 6장 (1000x1000) ---------- */
-function dataUrlTo1000(dataUrl, qtyBadge, fmt) {
+function dataUrlTo1000(dataUrl, qtyBadge, fmt, cover) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -3041,7 +3041,7 @@ function dataUrlTo1000(dataUrl, qtyBadge, fmt) {
       c.width = 1000; c.height = 1000;
       const ctx = c.getContext("2d");
       ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 1000, 1000);
-      const s = Math.min(1000 / img.width, 1000 / img.height);
+      const s = (cover ? Math.max : Math.min)(1000 / img.width, 1000 / img.height);
       const w = img.width * s, h = img.height * s;
       ctx.drawImage(img, (1000 - w) / 2, (1000 - h) / 2, w, h);
       if (qtyBadge) {
@@ -3086,7 +3086,8 @@ async function collectMainFiles(fmt) {
   const out = [];
   for (const { el, n, i } of filled) {
     const isDMain = n === "d0" || /^o\d$/.test(n);
-    const url = await dataUrlTo1000(el.dataset.full, isDMain ? badge : "", fmt);
+    // 미리보기와 동일하게: [전체 보기 맞춤](fit-contain) 칸만 여백 포함, 나머지는 칸을 꽉 채워 저장
+    const url = await dataUrlTo1000(el.dataset.full, isDMain ? badge : "", fmt, !el.classList.contains("fit-contain"));
     let fname;
     if (rocket) {
       const opt = current.options && current.options[i] ? current.options[i].color : null;
@@ -3134,7 +3135,7 @@ $("#btn-save-all").addEventListener("click", async () => {
     const dir = zip.folder(folder);
     const b64 = (u) => u.split(",")[1];
     btn.textContent = "대표 변환 중...";
-    const mains = await collectMainFiles("png");
+    const mains = await collectMainFiles("jpg");
     mains.forEach((m) => dir.file(m.fname, b64(m.dataUrl), { base64: true }));
     btn.textContent = "상세 렌더 중...";
     const canvas = await buildCanvas();
@@ -3149,7 +3150,7 @@ $("#btn-save-all").addEventListener("click", async () => {
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
     markSaved();
-    toast(`3종 저장 완료 — ${folder}.zip (대표 ${mains.length}장 + 상세 JPG + 엑셀)`);
+    toast(`3종 저장 완료 — ${folder}.zip (대표 JPG ${mains.length}장 + 상세 JPG + 엑셀)`);
   } catch (err) {
     console.error(err);
     toast("3종 저장 실패: " + err.message);
@@ -4606,11 +4607,15 @@ $("#bi-start").addEventListener("click", async () => {
   // 작업 파일 자동 저장 (구글 드라이브 폴더)
   if (added) {
     try {
-      const st = collectStateObj();
+      const { blob } = await buildKtwBlob();
       const dt = new Date();
       const pad2 = (x) => String(x).padStart(2, "0");
       const name = `작업저장_${pad2(dt.getMonth() + 1)}${pad2(dt.getDate())}_${pad2(dt.getHours())}${pad2(dt.getMinutes())}.ktw`;
-      const r = await helperCall("/savefile", { name, data: JSON.stringify(st) });
+      let r = { ok: false };
+      if (blob.size <= 150 * 1048576) {  // 도우미 전송은 base64 JSON — 너무 크면 건너뛰고 수동 저장 안내
+        const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1] || ""); fr.onerror = rej; fr.readAsDataURL(blob); });
+        r = await helperCall("/savefile", { name, data_b64: b64 });
+      }
       prog.innerHTML += `<div class="bi-row">${r && r.ok ? `💾 <b class="ok">작업 파일 자동 저장 완료</b> → ${r.path}` : `<b class="err">자동 저장 실패</b> — STEP 5의 [작업물 저장]으로 직접 저장해 주세요`}</div>`;
     } catch (e) {
       prog.innerHTML += `<div class="bi-row"><b class="err">자동 저장 실패</b> — STEP 5의 [작업물 저장]으로 직접 저장해 주세요</div>`;
@@ -4642,7 +4647,7 @@ $("#bi-start").addEventListener("click", async () => {
     "btn-ai": "AI 문구 생성", "btn-ai-img": "상세 AI 생성", "btn-ai-mains": "대표 AI 연출", "rg-go": "AI 재생성",
     "btn-save-all": "저장 — 3종 ZIP", "btn-save-mains-jpg": "저장 — 대표 JPG", "btn-save-mains": "저장 — 대표 PNG",
     "btn-jpg": "저장 — 상세 JPG", "btn-png": "저장 — 상세 PNG",
-    "btn-save-excel": "저장 — 엑셀", "btn-save-excel-all": "저장 — 전체 엑셀", "btn-work-save": "작업물 저장",
+    "btn-save-excel": "저장 — 엑셀", "btn-save-excel-all": "저장 — 전체 엑셀",
   };
   Object.entries(LOG_BTNS).forEach(([id, label]) => {
     const el = $("#" + id);
@@ -4742,12 +4747,73 @@ $("#ad-csv").addEventListener("click", () => {
 });
 
 /* ========== 작업 저장/불러오기 + 자동 임시저장 ========== */
+/* 작업 파일 v2 (.ktw = ZIP): 이미지는 중복 없이 img/ 에 따로, 나머지는 state.json.
+   v1(한 덩어리 JSON)은 상품·이미지가 쌓이면 브라우저 문자열 한도(약 5억 자)를 넘어
+   저장이 소리 없이 실패하고 열 때도 같은 한도에 걸렸다. v1 파일은 계속 열 수 있다. */
 function collectStateObj() {
   snapshotCurrent();
   return {
     app: "ktw-generator", ver: 1, savedAt: Date.now(),
     category, curIdx, products, workspaces,
   };
+}
+const KIMG_RE = /data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+/gi;
+function packImages(obj) {
+  const map = new Map(), list = [];
+  const tok = (u) => {
+    let id = map.get(u);
+    if (id === undefined) { id = list.length; map.set(u, id); list.push(u); }
+    return `@@KIMG${id}@@`;
+  };
+  const walk = (v) => {
+    if (typeof v === "string") return (v.length > 40 && v.indexOf("data:image") >= 0) ? v.replace(KIMG_RE, tok) : v;
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") { const o = {}; for (const k of Object.keys(v)) o[k] = walk(v[k]); return o; }
+    return v;
+  };
+  return { data: walk(obj), images: list };
+}
+function unpackImages(obj, images) {
+  const walk = (v) => {
+    if (typeof v === "string") return v.indexOf("@@KIMG") >= 0 ? v.replace(/@@KIMG(\d+)@@/g, (_, i) => images[+i] || "") : v;
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") { const o = {}; for (const k of Object.keys(v)) o[k] = walk(v[k]); return o; }
+    return v;
+  };
+  return walk(obj);
+}
+function packState() {
+  const st = collectStateObj();
+  const { data, images } = packImages({ products: st.products, workspaces: st.workspaces });
+  return {
+    meta: { app: "ktw-generator", ver: 2, savedAt: st.savedAt, category: st.category, curIdx: st.curIdx,
+            products: data.products, workspaces: data.workspaces },
+    images,
+  };
+}
+async function buildKtwBlob(onProgress) {
+  const { meta, images } = packState();
+  meta.imgMime = images.map((u) => u.slice(5, u.indexOf(";")));
+  const zip = new JSZip();
+  zip.file("state.json", JSON.stringify(meta), { compression: "DEFLATE" });
+  images.forEach((u, i) => zip.file(`img/${i}`, u.slice(u.indexOf(",") + 1), { base64: true }));
+  const blob = await zip.generateAsync({ type: "blob", compression: "STORE" }, (m) => { if (onProgress) onProgress(m.percent); });
+  return { blob, count: images.length };
+}
+async function readKtwFile(file) {
+  const head = new Uint8Array(await file.slice(0, 2).arrayBuffer());
+  if (head[0] !== 0x50 || head[1] !== 0x4b) return JSON.parse(await file.text());  // v1(JSON) 파일
+  const zip = await JSZip.loadAsync(file);
+  const sf = zip.file("state.json");
+  if (!sf) throw new Error("생성기 작업 파일이 아닙니다");
+  const meta = JSON.parse(await sf.async("string"));
+  const mimes = meta.imgMime || [];
+  const images = [];
+  for (let i = 0; i < mimes.length; i++) {
+    const f = zip.file(`img/${i}`);
+    images.push(f ? `data:${mimes[i]};base64,${await f.async("base64")}` : "");
+  }
+  return unpackImages(meta, images);
 }
 function restoreStateObj(st) {
   products = st.products || [];
@@ -4763,19 +4829,35 @@ function restoreStateObj(st) {
 function hasUnsaved() {
   return products.length > 0 && (workspaces.some((w) => w && w.html && !w.saved) || (curIdx >= 0 && workspaces[curIdx] && !workspaces[curIdx].saved));
 }
-$("#btn-work-save").addEventListener("click", () => {
+let workSaving = false;
+$("#btn-work-save").addEventListener("click", async () => {
   if (!products.length) { toast("저장할 작업이 없습니다 — 먼저 엑셀을 불러와 주세요"); return; }
-  const st = collectStateObj();
-  const dt = new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  const stamp = `${pad(dt.getMonth() + 1)}${pad(dt.getDate())}_${pad(dt.getHours())}${pad(dt.getMinutes())}`;
-  const blob = new Blob([JSON.stringify(st)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `작업저장_${stamp}.ktw`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-  toast(`작업 파일을 저장했습니다 (상품 ${products.length}개) — [작업물 수정하기]로 복원`);
+  if (workSaving) return;
+  workSaving = true;
+  const btn = $("#btn-work-save");
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "작업 파일 만드는 중...";
+  try {
+    const { blob, count } = await buildKtwBlob((pct) => { btn.textContent = `작업 파일 만드는 중... ${Math.round(pct)}%`; });
+    const dt = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const stamp = `${pad(dt.getMonth() + 1)}${pad(dt.getDate())}_${pad(dt.getHours())}${pad(dt.getMinutes())}`;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `작업저장_${stamp}.ktw`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    toast(`작업 파일을 저장했습니다 (상품 ${products.length}개 · 이미지 ${count}장 · ${(blob.size / 1048576).toFixed(1)}MB) — [작업물 수정하기]로 복원`);
+    logUsage("작업물 저장", ($("#f-name") ? $("#f-name").textContent.trim().slice(0, 40) : ""));
+  } catch (err) {
+    console.error(err);
+    toast("작업 파일 저장 실패: " + ((err && err.message) || err));
+  } finally {
+    workSaving = false;
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
 });
 $("#btn-work-load").addEventListener("click", () => {
   if (hasUnsaved() && !confirm("저장하지 않은 현재 작업이 있습니다. 불러오면 덮어씁니다. 계속할까요?")) return;
@@ -4785,8 +4867,9 @@ $("#file-work").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   e.target.value = "";
   if (!file) return;
+  toast("작업 파일을 여는 중...");
   try {
-    const st = JSON.parse(await file.text());
+    const st = await readKtwFile(file);
     if (!st || st.app !== "ktw-generator" || !Array.isArray(st.products)) throw new Error("생성기 작업 파일이 아닙니다");
     if (restoreStateObj(st)) toast(`작업을 복원했습니다 (상품 ${products.length}개)`);
   } catch (err) {
@@ -4795,7 +4878,7 @@ $("#file-work").addEventListener("change", async (e) => {
   }
 });
 
-/* 자동 임시저장 (IndexedDB) — 3분 간격, 재접속 시 복구 안내 */
+/* 자동 임시저장 (IndexedDB) — 3분 간격, 재접속 시 복구 안내. v2 = 이미지 중복 제거본 */
 function idbOpen() {
   return new Promise((res, rej) => {
     const rq = indexedDB.open("ktw_gen", 1);
@@ -4811,6 +4894,7 @@ async function idbSet(val) {
     tx.objectStore("autosave").put(val, "state");
     tx.oncomplete = () => { db.close(); res(); };
     tx.onerror = () => { db.close(); rej(tx.error); };
+    tx.onabort = () => { db.close(); rej(tx.error || new Error("저장 중단")); };
   });
 }
 async function idbGet() {
@@ -4824,17 +4908,28 @@ async function idbGet() {
     });
   } catch (_) { return null; }
 }
+async function autoSaveNow() {
+  const { meta, images } = packState();
+  await idbSet({ ver: 2, meta, images });
+}
+let autoSaveWarned = false;
 setInterval(async () => {
   if (!products.length) return;
-  try { await idbSet(collectStateObj()); } catch (e) { console.warn("자동 저장 실패:", e); }
+  try { await autoSaveNow(); autoSaveWarned = false; }
+  catch (e) {
+    console.warn("자동 저장 실패:", e);
+    if (!autoSaveWarned) { autoSaveWarned = true; toast("자동 임시저장에 실패했습니다 — STEP 5 [작업물 저장]으로 파일 저장을 권장합니다"); }
+  }
 }, 180000);
 setTimeout(async () => {
   if (products.length) return;  // 이미 작업 시작했으면 묻지 않음
-  const st = await idbGet();
-  if (!st || !Array.isArray(st.products) || !st.products.length) return;
-  const dt = new Date(st.savedAt || 0);
+  const v = await idbGet();
+  const head = v && (v.ver === 2 ? v.meta : v);
+  if (!head || !Array.isArray(head.products) || !head.products.length) return;
+  const dt = new Date(head.savedAt || 0);
   const when = `${dt.getMonth() + 1}/${dt.getDate()} ${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
-  if (confirm(`자동 저장된 이전 작업이 있습니다 (${when}, 상품 ${st.products.length}개).\n복구할까요?`)) {
+  if (confirm(`자동 저장된 이전 작업이 있습니다 (${when}, 상품 ${head.products.length}개).\n복구할까요?`)) {
+    const st = v.ver === 2 ? unpackImages(v.meta, v.images || []) : v;
     if (restoreStateObj(st)) toast("자동 저장본을 복구했습니다");
   }
 }, 1200);
