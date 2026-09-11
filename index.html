@@ -73,7 +73,7 @@
   #src-thumbs .th .th-img button { position:absolute; top:2px; right:2px; width:18px; height:18px; border:none; border-radius:50%;
        background:rgba(17,17,17,.75); color:#fff; font-size:11px; line-height:1; cursor:pointer; padding:0; }
   #src-thumbs .th select { width:64px; font-size:10.5px; padding:2px 1px; margin:3px 0 0; border:1px solid #ddd; border-radius:6px; font-family:inherit; }
-  .btn.mm.active, .btn.imode.active, .btn.gmode.active, .btn.rgm.active, .btn.bsz.active { background:#111; color:#fff; }
+  .btn.mm.active, .btn.imode.active, .btn.gmode.active, .btn.rgm.active, .btn.bsz.active, .btn.pim.active { background:#111; color:#fff; }
   #dropzone { border:2.5px dashed #0a7cff; background:#f2f8ff; border-radius:12px; padding:16px 12px; text-align:center;
        font-size:14px; font-weight:800; color:#0a63cc; cursor:pointer; margin:4px 0 8px; transition:background .15s; }
   #dropzone span { display:block; font-size:11.5px; font-weight:400; color:#7aa5cf; margin-top:6px; line-height:1.5; }
@@ -345,6 +345,19 @@
   .slot:hover .cmb { opacity:1; }
   .slot-comp .cmb { top:122px; }  /* 구성 칸: 좌열 AI재생성/배경교체/되돌리기 아래 */
   body.exporting .cmb { display:none !important; }
+  /* 색상 믹스 구성 조정 */
+  .mx-box { background:#f7f9fc; border:1.5px solid #0a7cff; border-radius:10px; padding:10px 14px; margin-top:8px; text-align:left; }
+  .mx-row { display:flex; align-items:center; gap:8px; margin:6px 0; font-size:13.5px; }
+  .mx-row .mx-chip { width:16px; height:16px; border-radius:50%; border:1.5px solid #ccc; flex:none; }
+  .mx-row .mx-name { min-width:72px; font-weight:800; color:#333; }
+  .mx-row .btn { margin:0; padding:4px 12px; font-size:15px; }
+  .mx-row .mx-n { min-width:30px; text-align:center; font-size:15px; }
+  .mx-sum { margin-top:8px; font-size:13px; color:#2e7d3e; font-weight:800; }
+  #page .spec-row, #page td.k { position:relative; }
+  .mix-adj { position:absolute; right:6px; top:50%; transform:translateY(-50%); z-index:5; border:none; background:#0a7cff; color:#fff;
+             border-radius:7px; font-size:14px; font-weight:800; padding:4px 10px; cursor:pointer; opacity:0; font-family:inherit; }
+  #page section:hover .mix-adj { opacity:1; }
+  body.exporting .mix-adj { display:none !important; }
   #cb-rows { max-height:42vh; overflow:auto; text-align:left; }
   .cb-row { margin:10px 0 4px; }
   .cb-pill { display:inline-block; padding:4px 14px; border-radius:14px; font-size:13px; font-weight:800; background:#e8f1ff; color:#0a63cc; margin-bottom:6px; }
@@ -439,7 +452,13 @@
       <input type="number" id="set-rate" value="341" style="width:62px; vertical-align:middle;">
       <span style="font-size:12px; color:#777; margin-left:8px;">개당 고정비(원)</span>
       <input type="number" id="set-fixed" value="300" style="width:62px; vertical-align:middle;">
-      <p class="hint" style="margin-top:4px">개당 원가 = (상품가¥ + 배송비¥÷수량) × 환산율 + 고정비 + 밀크런. 판매가 7,900~12,900 · 마진 2,000~3,000원 기준으로 구성 수량을 자동 제안합니다.</p>
+      <div style="margin-top:4px;">
+        <span style="font-size:12px; color:#777;">판매수수료(%)</span>
+        <input type="number" id="set-fee" value="11.88" step="0.01" style="width:62px; vertical-align:middle;">
+        <span style="font-size:12px; color:#777; margin-left:8px;">입출고배송비(원)</span>
+        <input type="number" id="set-ship" value="2900" style="width:62px; vertical-align:middle;">
+      </div>
+      <p class="hint" style="margin-top:4px">개당 원가 = (상품가¥ + 배송비¥÷수량) × 환산율 + 고정비 + 밀크런. 순마진 = 판매가 − 세트 원가 − 판매가×판매수수료 − 입출고배송비(판매 1건당). 판매가 7,900~12,900 · 순마진 2,000~3,000원 기준으로 구성 수량을 자동 제안합니다.</p>
       <input type="file" id="file-excel" accept=".xlsx,.xls,.csv" hidden>
       <div id="rocket-sheet" style="display:none">
         <div class="sub-label">구글시트 불러오기 (로켓)</div>
@@ -796,7 +815,14 @@
       <button class="btn" id="sz-del">－ 추가선 삭제</button>
       <button class="btn" id="sz-off">치수 표기 안 함</button>
     </div>
-    <p class="msub" style="margin-top:6px;">파란 점 더블클릭 = 숫자 직접 입력 · 추가 치수선의 숫자도 더블클릭으로 수정</p>
+    <div style="margin-top:8px;">
+      <button class="btn" id="sz-lb-add">＋ 문구 추가</button>
+      <button class="btn" id="sz-lb-del">－ 문구 삭제</button>
+      <span style="font-size:12px; color:#888; margin:0 4px 0 12px;">문구 모양</span>
+      <button class="btn" id="sz-ls-pill">둥근 박스</button>
+      <button class="btn" id="sz-ls-text">글자만</button>
+    </div>
+    <p class="msub" style="margin-top:6px;">파란 점 드래그 = 숫자·문구 이동 · 더블클릭 = 직접 입력 (추가 치수선·문구 포함) · 엑셀 사이즈 앞 문구(예: 대형 30x20cm)는 자동 표시</p>
     <div style="margin-top:8px;">
       <button class="btn" id="sz-reset">기본 위치로</button>
       <button class="btn" id="sz-cancel">취소</button>
@@ -915,7 +941,7 @@
   </div>
 </div>
 <div id="admodal" class="modal">
-  <div class="mbox" style="width:860px; max-width:96vw; max-height:94vh; overflow:auto; text-align:left; position:relative;">
+  <div class="mbox" style="width:1020px; max-width:96vw; max-height:94vh; overflow:auto; text-align:left; position:relative;">
     <button id="ad-close" title="닫기" style="position:absolute; top:10px; right:12px; border:none; background:#eef0f3; color:#333; width:36px; height:36px; border-radius:50%; font-size:18px; font-weight:800; cursor:pointer; font-family:inherit;">✕</button>
     <div class="mtitle" style="margin:0 40px 10px 0;">사용 현황 (관리자)</div>
     <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
@@ -930,8 +956,20 @@
     <div id="ad-cards" style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;"></div>
     <div class="sub-label" style="margin-top:14px">사용자별 집계</div>
     <table id="ad-users" style="width:100%; border-collapse:collapse;"></table>
-    <div class="sub-label" style="margin-top:14px">최근 기록 (최신순, 500건 표시)</div>
+    <div class="sub-label" style="margin-top:14px">최근 기록 (최신순, 1,000건 표시)</div>
     <div style="max-height:44vh; overflow:auto;"><table id="ad-logs" style="width:100%; border-collapse:collapse;"></table></div>
+  </div>
+</div>
+<div id="mixmodal" class="modal">
+  <div class="mbox" style="width:460px; max-width:94vw; text-align:left;">
+    <div class="mtitle">구성 조정 — 색상 믹스</div>
+    <p class="msub">색상별 개수를 정하면 옵션·구성·수량이 함께 바뀝니다 (0개 = 빼기)</p>
+    <div id="mx-box" class="mx-box"></div>
+    <div id="mx-price" style="margin-top:8px; font-size:13px; color:#333;"></div>
+    <div style="margin-top:12px;">
+      <button class="btn primary" id="mx-apply">적용</button>
+      <button class="btn" id="mx-cancel">취소</button>
+    </div>
   </div>
 </div>
 <div id="pastemodal" class="modal">
@@ -961,6 +999,7 @@
         <button class="btn pim active" data-pim="keep">단색 옵션 유지</button>
         <button class="btn pim" data-pim="mix">색상 믹스 1옵션</button>
       </div>
+      <div id="pi-mix-box" class="mx-box" style="display:none;"></div>
       <div style="margin-top:12px;">
         <button class="btn primary" id="pi-apply">현재 상품에 적용</button>
         <button class="btn" id="pi-apply-new">새 상품으로 추가</button>
@@ -1656,6 +1695,18 @@ function parseSizeEntries() {
   });
 }
 
+/* 사이즈 문구 라벨 — "대형 30x20cm" → "대형", "30x20cm (소형)" → "소형". 가로·세로 같은 치수 단어는 라벨로 보지 않음 */
+const SIZE_DIM_WORD = /^(가로|세로|높이|폭|너비|길이|지름|직경|두께|깊이|사이즈|크기|size|w|h|d|l)$/i;
+function sizeLabelOf(entry) {
+  if (!entry || !entry.text || !entry.w) return "";
+  const t = entry.text;
+  const i = t.search(/\d/);
+  const pre = (i > 0 ? t.slice(0, i) : "").replace(/[\s:：(（\[\-]+$/g, "").replace(/\s*(가로|폭|너비|길이|W)$/i, "").trim();
+  if (pre && !SIZE_DIM_WORD.test(pre)) return pre;
+  const post = t.replace(/^[\s\S]*\d(?:\s*(?:cm|mm|m))?/i, "").replace(/[()\[\]（）:：]/g, " ").trim();
+  return post && !SIZE_DIM_WORD.test(post) ? post : "";
+}
+
 function updateSizeSlots() {
   const n = parseSizeEntries().length;
   const s2 = $("[data-slot=tsize2]"), s3 = $("[data-slot=tsize3]");
@@ -1739,7 +1790,7 @@ function sizeCutLayout(W, H, entry, adj, b) {
       v1: { x: bvx + g("v1x"), y: bvy1 + g("v1y") },
       v2: { x: bvx + g("v2x"), y: bvy2 + g("v2y") },
       hpos: { x: bvx - 24 + g("hdx"), y: (bvy1 + bvy2) / 2 + g("hdy") },
-      tpos: { x: (bhx1 + bhx2) / 2 + g("tdx"), y: Math.max(44, bb.y0 - 46) + g("tdy") },
+      tpos: { x: Math.round(W * 0.13) + g("tdx"), y: 56 + g("tdy") },  // 문구 라벨 기본 자리: 왼쪽 위
     });
   }
   base.kind = "w";
@@ -1777,6 +1828,28 @@ function compositeSizeCut(dataUrl, entryIdx = 0, adj = null) {
           x.fillStyle = lc; x.fillText(s, 0, 0);
           x.restore();
         };
+        // 문구 라벨 — 둥근 박스(기본) / 글자만. 치수 숫자와 구분되게
+        const lstyle = (adj && adj.lstyle) || "pill";
+        const label = (tx, ty, s, size) => {
+          if (lstyle === "text") { txt(tx, ty, s, size); return; }
+          x.save();
+          x.font = `800 ${size}px Pretendard, 'Malgun Gothic', sans-serif`;
+          const bw = x.measureText(s).width + size * 1.1, bh = size * 1.55, r = bh / 2;
+          const bx = tx - bw / 2, by = ty - bh / 2;
+          x.beginPath();
+          x.moveTo(bx + r, by);
+          x.arcTo(bx + bw, by, bx + bw, by + bh, r);
+          x.arcTo(bx + bw, by + bh, bx, by + bh, r);
+          x.arcTo(bx, by + bh, bx, by, r);
+          x.arcTo(bx, by, bx + bw, by, r);
+          x.closePath();
+          x.fillStyle = white ? "rgba(255,255,255,.94)" : "rgba(17,17,17,.88)";
+          x.fill();
+          x.fillStyle = white ? "#111" : "#fff";
+          x.textAlign = "center"; x.textBaseline = "middle";
+          x.fillText(s, tx, ty + size * 0.04);
+          x.restore();
+        };
         // 치수선: 두 끝점 사이를 잇고, 화살촉·눈금은 선 기울기를 따라 회전 (대각선 지원)
         const dimLine = (p1, p2) => {
           const dx = p2.x - p1.x, dy = p2.y - p1.y;
@@ -1795,8 +1868,8 @@ function compositeSizeCut(dataUrl, entryIdx = 0, adj = null) {
           txt(L.wpos.x, L.wpos.y, A.wtext || entry.w, Math.round(56 * fs));
           dimLine(L.v1, L.v2);
           txt(L.hpos.x, L.hpos.y, A.htext || entry.h, Math.round(50 * fs), "right");
-          const labelOnly = entry.text.replace(/[\d.\s]|x|×|\*|cm|mm|m/gi, "");
-          if (labelOnly || A.ttext) txt(L.tpos.x, L.tpos.y, A.ttext || entry.text, Math.round(44 * fs));
+          const lb = sizeLabelOf(entry);
+          if (!A.thide && (A.ttext || lb)) label(L.tpos.x, L.tpos.y, A.ttext || lb, Math.round(40 * fs));
         } else {
           txt(L.wpos.x, L.wpos.y, A.wtext || entry.text, Math.round(60 * fs));
         }
@@ -1805,6 +1878,8 @@ function compositeSizeCut(dataUrl, entryIdx = 0, adj = null) {
           dimLine({ x: ex.x1, y: ex.y1 }, { x: ex.x2, y: ex.y2 });
           if (ex.text) txt(ex.tx, ex.ty, ex.text, Math.round(50 * fs));
         }
+        // 추가 문구 (예: 대형·소형·1세트 기준)
+        for (const lx of (A.labels || [])) if (lx.text) label(lx.x, lx.y, lx.text, Math.round(40 * fs));
       }
       resolve(c.toDataURL("image/png"));
     };
@@ -2600,6 +2675,7 @@ function bindPageSlots() {
     bindSlotDnD(slot);
     ensureEmptyUI(slot);
   });
+  ensureMixBtn();
 }
 const DEFAULT_TEMPLATE = $("#page").innerHTML;
 bindPageSlots();
@@ -3756,6 +3832,8 @@ function szLwButtons() {
   $("#sz-off").textContent = st.adj.off ? "치수 표기 켜기" : "치수 표기 안 함";
   $("#sz-lc-k").classList.toggle("primary", st.adj.lc !== "w");
   $("#sz-lc-w").classList.toggle("primary", st.adj.lc === "w");
+  $("#sz-ls-pill").classList.toggle("primary", st.adj.lstyle !== "text");
+  $("#sz-ls-text").classList.toggle("primary", st.adj.lstyle === "text");
 }
 function szRender(rebuildChips) {
   const st = szState;
@@ -3768,8 +3846,7 @@ function szRender(rebuildChips) {
   const chips = [];
   if (L.kind === "wh") {
     chips.push(["num", "w", L.wpos.x, L.wpos.y], ["num", "h", L.hpos.x, L.hpos.y]);
-    const labelOnly = st.entry.text.replace(/[\d.\s]|x|×|\*|cm|mm|m/gi, "");
-    if (labelOnly || st.adj.ttext) chips.push(["num", "t", L.tpos.x, L.tpos.y]);
+    if (!st.adj.thide && (sizeLabelOf(st.entry) || st.adj.ttext)) chips.push(["num", "t", L.tpos.x, L.tpos.y]);
     chips.push(["arr", "h1", L.h1.x, L.h1.y], ["arr", "h2", L.h2.x, L.h2.y], ["arr", "v1", L.v1.x, L.v1.y], ["arr", "v2", L.v2.x, L.v2.y]);
   } else {
     chips.push(["num", "w", L.wpos.x, L.wpos.y], ["arr", "h1", L.h1.x, L.h1.y], ["arr", "h2", L.h2.x, L.h2.y]);
@@ -3777,6 +3854,7 @@ function szRender(rebuildChips) {
   (st.adj.extra || []).forEach((ex, i) => {
     chips.push(["arr", `x${i}a`, ex.x1, ex.y1], ["arr", `x${i}b`, ex.x2, ex.y2], ["num", `x${i}t`, ex.tx, ex.ty]);
   });
+  (st.adj.labels || []).forEach((lx, i) => chips.push(["num", `l${i}`, lx.x, lx.y]));
   for (const [cls, key, cx, cy] of chips) {
     const d = document.createElement("div");
     d.className = "szchip " + cls;
@@ -3795,14 +3873,22 @@ function szEditText(k) {
   let cur, set;
   if (k === "w") { cur = st.adj.wtext || st.entry.w || st.entry.text; set = (v) => { st.adj.wtext = v; }; }
   else if (k === "h") { cur = st.adj.htext || st.entry.h; set = (v) => { st.adj.htext = v; }; }
-  else if (k === "t") { cur = st.adj.ttext || st.entry.text; set = (v) => { st.adj.ttext = v; }; }
-  else {
+  else if (k === "t") {
+    cur = st.adj.ttext || sizeLabelOf(st.entry);
+    set = (v) => { if (v) { st.adj.ttext = v; delete st.adj.thide; } else { delete st.adj.ttext; st.adj.thide = true; } };
+  } else if (/^l\d+$/.test(k)) {
+    const li = +k.slice(1);
+    if (!st.adj.labels || !st.adj.labels[li]) return;
+    cur = st.adj.labels[li].text;
+    set = (v) => { if (v) st.adj.labels[li].text = v; else { st.adj.labels.splice(li, 1); if (!st.adj.labels.length) delete st.adj.labels; } };
+  } else {
     const mm = k.match(/^x(\d+)t$/);
     if (!mm || !st.adj.extra || !st.adj.extra[+mm[1]]) return;
     const ex = st.adj.extra[+mm[1]];
     cur = ex.text; set = (v) => { ex.text = v; };
   }
-  const v = window.prompt("표시할 문구를 입력하세요 (예: 18cm)", cur || "");
+  const isLabel = k === "t" || /^l\d+$/.test(k);
+  const v = window.prompt(isLabel ? "표시할 문구를 입력하세요 (예: 대형) — 비우면 문구 삭제" : "표시할 문구를 입력하세요 (예: 18cm)", cur || "");
   if (v === null) return;
   set(v.trim());
   szRender(true);
@@ -3820,7 +3906,7 @@ function szDragStart(e) {
     return;
   }
   szLastTap = { k: k0, t: now };
-  chip.setPointerCapture(e.pointerId);
+  try { chip.setPointerCapture(e.pointerId); } catch (err) { /* 캡처 불가 환경에서도 드래그는 진행 */ }
   const sx = e.clientX, sy = e.clientY;
   const ox = parseFloat(chip.style.left), oy = parseFloat(chip.style.top);
   const move = (ev) => {
@@ -3845,6 +3931,8 @@ function szDragStart(e) {
       case "v1": a.v1x = px - L0.v1.x; a.v1y = py - L0.v1.y; break;
       case "v2": a.v2x = px - L0.v2.x; a.v2y = py - L0.v2.y; break;
       default: {
+        const lm = chip.dataset.k.match(/^l(\d+)$/);
+        if (lm && a.labels && a.labels[+lm[1]]) { a.labels[+lm[1]].x = px; a.labels[+lm[1]].y = py; break; }
         const mm = chip.dataset.k.match(/^x(\d+)([abt])$/);
         if (mm && a.extra && a.extra[+mm[1]]) {
           const ex = a.extra[+mm[1]];
@@ -3866,6 +3954,27 @@ $("#sz-fs-m").addEventListener("click", () => { if (szState) { delete szState.ad
 $("#sz-fs-l").addEventListener("click", () => { if (szState) { szState.adj.fs = 1.25; szLwButtons(); szRender(false); } });
 $("#sz-lc-k").addEventListener("click", () => { if (szState) { delete szState.adj.lc; szLwButtons(); szRender(false); } });
 $("#sz-lc-w").addEventListener("click", () => { if (szState) { szState.adj.lc = "w"; szLwButtons(); szRender(false); } });
+$("#sz-ls-pill").addEventListener("click", () => { if (szState) { delete szState.adj.lstyle; szLwButtons(); szRender(false); } });
+$("#sz-ls-text").addEventListener("click", () => { if (szState) { szState.adj.lstyle = "text"; szLwButtons(); szRender(false); } });
+$("#sz-lb-add").addEventListener("click", () => {
+  const st = szState;
+  if (!st) return;
+  const v = window.prompt("추가할 문구를 입력하세요 (예: 대형, 1세트 기준)", "");
+  if (!v || !v.trim()) return;
+  st.adj.labels = st.adj.labels || [];
+  const n = st.adj.labels.length + (sizeLabelOf(st.entry) && !st.adj.thide ? 1 : 0);
+  st.adj.labels.push({ text: v.trim(), x: Math.round(st.W * 0.13), y: Math.min(st.H - 40, 56 + n * 72) });
+  szRender(true);
+  toast("문구를 추가했습니다 — 파란 점을 드래그해 위치를 옮기세요");
+});
+$("#sz-lb-del").addEventListener("click", () => {
+  const st = szState;
+  if (!st) return;
+  if (st.adj.labels && st.adj.labels.length) { st.adj.labels.pop(); if (!st.adj.labels.length) delete st.adj.labels; }
+  else if ((sizeLabelOf(st.entry) || st.adj.ttext) && !st.adj.thide) st.adj.thide = true;
+  else { toast("삭제할 문구가 없습니다"); return; }
+  szRender(true);
+});
 $("#sz-off").addEventListener("click", () => {
   if (!szState) return;
   if (szState.adj.off) delete szState.adj.off; else szState.adj.off = true;
@@ -4334,26 +4443,33 @@ const HELPER_URL = "http://127.0.0.1:8791";
 const PRICE_TIERS = [7900, 8900, 9900, 10900, 11900, 12900];
 const TIER_PRIO = { 9900: 0, 8900: 1, 10900: 1, 7900: 2, 11900: 3, 12900: 4 };
 
-["set-rate", "set-fixed"].forEach((id) => {
+["set-rate", "set-fixed", "set-fee", "set-ship"].forEach((id) => {
   const el = $("#" + id);
   const saved = localStorage.getItem(id);
   if (saved) el.value = saved;
   el.addEventListener("change", () => localStorage.setItem(id, el.value));
 });
+function numOr(v, def) { const x = parseFloat(v); return Number.isFinite(x) ? x : def; }  // 0도 유효값 (|| 쓰면 0이 기본값으로 바뀜)
 function priceSettings() {
-  return { rate: parseFloat($("#set-rate").value) || 341, fixed: parseFloat($("#set-fixed").value) || 300 };
+  return { rate: numOr($("#set-rate").value, 341), fixed: numOr($("#set-fixed").value, 300),
+           feePct: numOr($("#set-fee").value, 11.88), feeShip: numOr($("#set-ship").value, 2900) };
 }
 function tierTarget(p) { return 2000 + PRICE_TIERS.indexOf(p) * 200; }  // 7900→2000 … 12900→3000
+/* 순마진 = 판매가 − 세트 원가 − 판매가×판매수수료% − 입출고배송비(판매 1건당) */
+function planFor(n, yuan, ship, milk) {
+  const { rate, fixed, feePct, feeShip } = priceSettings();
+  const setCost = Math.round(((yuan + (ship || 0) / n) * rate + fixed + (milk || 0)) * n);
+  const net = (tier) => Math.round(tier - tier * feePct / 100 - feeShip - setCost);
+  const tier = PRICE_TIERS.find((p) => net(p) >= 2000) || PRICE_TIERS[PRICE_TIERS.length - 1];
+  const margin = net(tier);
+  return { n, setCost, tier, fee: Math.round(tier * feePct / 100), feeShip, margin, ok: margin >= 2000 && margin <= 3000 };
+}
 function calcPlans(yuan, ship, milk) {
-  const { rate, fixed } = priceSettings();
   const plans = [];
   for (let n = 1; n <= 40; n++) {
-    const unit = (yuan + (ship || 0) / n) * rate + fixed + (milk || 0);
-    const setCost = Math.round(unit * n);
-    const tier = PRICE_TIERS.find((p) => p - setCost >= 2000) || PRICE_TIERS[PRICE_TIERS.length - 1];
-    const margin = tier - setCost;
-    plans.push({ n, setCost, tier, margin, ok: margin >= 2000 && margin <= 3000 });
-    if (setCost > PRICE_TIERS[PRICE_TIERS.length - 1]) break;
+    const pl = planFor(n, yuan, ship, milk);
+    plans.push(pl);
+    if (pl.setCost > PRICE_TIERS[PRICE_TIERS.length - 1]) break;
   }
   return plans;
 }
@@ -4374,8 +4490,8 @@ async function extract1688(text) {
   const key = apiKey();
   if (!key) throw new Error("최상단에 API 키를 먼저 입력해 주세요");
   const prompt = `다음은 1688(중국 도매 사이트) 상품 페이지에서 복사한 텍스트입니다. 상품 정보를 추출해 JSON으로만 답하세요.
-형식: {"name":"한국어로 자연스럽게 번역한 상품명(수식어·중복 제거, 쿠팡 검색용, 15~30자)","option":"판매 옵션이 나뉘면 / 로 구분, 한 옵션이 여러 구성이면 + 로 (없으면 빈 문자열)","comp":"구성 요약 (예: 헤어핀 2개)","color":"색상들을 / 로 구분 (한국어)","qty":"1세트 수량 (예: 2개, 모르면 빈 문자열)","size":"사이즈 (예: 8x2.5cm — cm 단위 숫자x숫자 형식 우선)","material":"소재 (한국어)","priceYuan":최소 구매 구간의 개당 단가 숫자(위안),"shipYuan":중국 내 배송비 숫자(위안, 모르면 0)}
-규칙: 값이 없으면 빈 문자열 또는 0. 어린이·아동 관련 단어 금지. JSON 외 다른 텍스트 금지.
+형식: {"name":"한국어로 자연스럽게 번역한 상품명(수식어·중복 제거, 쿠팡 검색용, 15~30자)","option":"판매 옵션이 나뉘면 / 로 구분, 한 옵션이 여러 구성이면 + 로 (없으면 빈 문자열)","comp":"구성 요약 — 품목명과 개수","color":"색상들을 / 로 구분 (한국어)","qty":"1세트 수량 (모르면 빈 문자열)","size":"사이즈 — cm 단위 가로x세로(x높이) 형식 우선","material":"소재 (한국어)","priceYuan":최소 구매 구간의 개당 단가 숫자(위안, 모르면 0),"shipYuan":중국 내 배송비 숫자(위안, 모르면 0)}
+규칙: 반드시 아래 텍스트에 실제로 적힌 정보만 사용하세요. 텍스트에 없는 정보는 절대 추측하거나 지어내지 말고 빈 문자열 또는 0으로 두세요. 아래 텍스트가 상품 페이지 내용이 아니거나(예: 주소만 있음) 상품 정보를 찾을 수 없으면 모든 값을 비워서 답하세요. 어린이·아동 관련 단어 금지. JSON 외 다른 텍스트 금지.
 
 ${String(text).slice(0, 15000)}`;
   return geminiTextJSON(prompt, key);
@@ -4397,13 +4513,32 @@ function piRender() {
   $("#pi-yuan").value = st.d.priceYuan || "";
   $("#pi-ship").value = st.d.shipYuan || "";
   $("#pi-milk").value = st.d.milkrun || 0;
-  piMixRow();
   piCalc();
+  piMixRow();
 }
 function piMixRow() {
   const st = piState;
-  const colors = String(st.d.color || "").split("/").map((s) => s.trim()).filter((s) => s && s !== "기재예정");
+  const colors = splitColors(st.d.color);
   $("#pi-mix-row").style.display = colors.length >= 2 ? "block" : "none";
+  if (colors.length < 2 && st.mix) { st.mix = false; $$(".btn.pim").forEach((x) => x.classList.toggle("active", x.dataset.pim === "keep")); }
+  piMixSync();
+}
+/* 색상 믹스 선택 시 색상별 개수 칸 — 합계가 곧 구성 수량 */
+function piMixSync() {
+  const st = piState;
+  const box = $("#pi-mix-box");
+  if (!st || !box) return;
+  const colors = splitColors(st.d.color);
+  if (!st.mix || colors.length < 2) { box.style.display = "none"; return; }
+  const key = colors.join("/");
+  if (!st.mixCounts || st.mixKey !== key) {
+    st.mixCounts = evenCounts(colors, st.sel ? st.sel.n : colors.length);
+    st.mixKey = key;
+    if (st.plans && st.plans.length) { piCalc(); return; }
+  }
+  box.style.display = "block";
+  renderMixBox(box, colors, st.mixCounts, () => piCalc(),
+    (cnt) => `옵션 ${mixString(colors, cnt)} · 구성 ${syncCompCount(st.d.comp, mixTotal(cnt))}`);
 }
 function piCalc() {
   const st = piState;
@@ -4413,44 +4548,109 @@ function piCalc() {
   const milk = parseFloat($("#pi-milk").value) || 0;
   st.d.priceYuan = yuan; st.d.shipYuan = ship; st.d.milkrun = milk;
   const card = $("#pi-plan-card"), tbl = $("#pi-plans");
-  if (!yuan) { card.style.display = "none"; tbl.style.display = "none"; st.plans = []; st.sel = null; return; }
+  if (!yuan) { card.style.display = "none"; tbl.style.display = "none"; st.plans = []; st.sel = null; piMixSync(); return; }
   st.plans = calcPlans(yuan, ship, milk);
-  if (!st.sel || !st.plans.some((p) => p.n === st.sel.n)) st.sel = bestPlan(st.plans);
+  if (st.mix && st.mixCounts && mixTotal(st.mixCounts) > 0) st.sel = planFor(mixTotal(st.mixCounts), yuan, ship, milk);  // 믹스: 색상별 개수 합계 기준
+  else if (st.sel) st.sel = planFor(st.sel.n, yuan, ship, milk);  // 고른 수량 유지 (설정·입력이 바뀌어도)
+  else st.sel = bestPlan(st.plans);
   const s = st.sel;
   card.style.display = "block";
-  card.className = s && s.warn ? "warn" : "";
+  card.className = s && !s.ok ? "warn" : "";
   card.id = "pi-plan-card";
   card.innerHTML = s
-    ? `${s.warn ? "⚠ 마진 범위(2,000~3,000원) 밖 — 가장 가까운 조합 " : "제안: "}<b>${s.n}개 구성 · 판매가 ${s.tier.toLocaleString()}원 · 예상 마진 ${s.margin.toLocaleString()}원</b> <span style="font-weight:400; color:#666;">(세트 원가 ${s.setCost.toLocaleString()}원)</span>`
+    ? `${!s.ok ? "⚠ 순마진 범위(2,000~3,000원) 밖 — " : "제안: "}<b>${s.n}개 구성 · 판매가 ${s.tier.toLocaleString()}원 · 예상 순마진 ${s.margin.toLocaleString()}원</b> <span style="font-weight:400; color:#666;">(세트 원가 ${s.setCost.toLocaleString()}원 · 수수료 ${(s.fee + s.feeShip).toLocaleString()}원)</span>`
     : "계산 불가";
   const show = st.plans.slice(0, 8);
+  if (s && !show.some((p) => p.n === s.n)) show.push(s);
   tbl.style.display = "table";
-  tbl.innerHTML = `<tr><th>수량</th><th>세트 원가</th><th>판매가</th><th>마진</th></tr>` + show.map((p) =>
+  tbl.innerHTML = `<tr><th>수량</th><th>세트 원가</th><th>판매가</th><th>판매수수료</th><th>입출고배송비</th><th>순마진</th></tr>` + show.map((p) =>
     `<tr data-n="${p.n}" class="${s && p.n === s.n ? "sel" : (p.ok ? "" : "bad")}">
-       <td>${p.n}개</td><td>${p.setCost.toLocaleString()}원</td><td>${p.tier.toLocaleString()}원</td><td>${p.margin.toLocaleString()}원</td></tr>`).join("");
+       <td>${p.n}개</td><td>${p.setCost.toLocaleString()}원</td><td>${p.tier.toLocaleString()}원</td><td>${p.fee.toLocaleString()}원</td><td>${p.feeShip.toLocaleString()}원</td><td>${p.margin.toLocaleString()}원</td></tr>`).join("");
   $$("#pi-plans tr[data-n]").forEach((tr) => tr.addEventListener("click", () => {
-    st.sel = st.plans.find((p) => p.n === +tr.dataset.n) || st.sel;
+    st.sel = planFor(+tr.dataset.n, yuan, ship, milk);
+    if (st.mix) { const cs = splitColors(st.d.color); st.mixCounts = evenCounts(cs, st.sel.n); st.mixKey = cs.join("/"); }
     piCalc();
   }));
+  piMixSync();
 }
 ["pi-yuan", "pi-ship", "pi-milk"].forEach((id) => $("#" + id).addEventListener("input", () => { if (piState) { piState.sel = null; piCalc(); } }));
 $$(".btn.pim").forEach((b) => b.addEventListener("click", () => {
   if (!piState) return;
   piState.mix = b.dataset.pim === "mix";
   $$(".btn.pim").forEach((x) => x.classList.toggle("active", x === b));
+  piState.mixCounts = null;
+  piState.mixKey = null;
+  piCalc();
 }));
-function mixOption(colorStr, n) {
-  const colors = String(colorStr || "").split("/").map((s) => s.trim()).filter((s) => s && s !== "기재예정");
-  if (colors.length < 2 || !n) return "";
-  const cnt = colors.map(() => 0);
-  for (let i = 0; i < n; i++) cnt[i % colors.length]++;
-  return colors.filter((_, i) => cnt[i] > 0).map((c, i) => c + cnt[i]).join("+");
+/* 색상 믹스 공용 도우미 */
+function splitColors(s) { return String(s || "").split("/").map((x) => x.trim()).filter((x) => x && x !== "기재예정"); }
+function evenCounts(colors, n) {
+  const c = {};
+  colors.forEach((k) => { c[k] = 0; });
+  for (let i = 0; i < n; i++) c[colors[i % colors.length]]++;
+  return c;
+}
+function mixTotal(counts) { return Object.values(counts || {}).reduce((a, b) => a + (+b || 0), 0); }
+function mixString(colors, counts) { return colors.filter((k) => counts[k] > 0).map((k) => k + counts[k]).join("+"); }
+function parseMixCounts(opt, colors) {  // "블랙3+베이지2" → {블랙:3, 베이지:2, 핑크:0}
+  if (!opt || opt.indexOf("+") < 0) return null;
+  const c = {};
+  colors.forEach((k) => { c[k] = 0; });
+  let hit = 0;
+  opt.split("+").forEach((part) => {
+    const m = part.trim().match(/^(.*?)(\d+)\s*개?$/);
+    if (m && Object.prototype.hasOwnProperty.call(c, m[1].trim())) { c[m[1].trim()] = +m[2]; hit++; }
+  });
+  return hit ? c : null;
+}
+function syncCompCount(comp, n) {  // 구성 문구의 개수를 구성 수량에 맞춤: "헤어핀 1개" → "헤어핀 7개"
+  const c = String(comp || "").trim();
+  if (!c || c === "기재예정") return `${n}개`;
+  if (/\d+\s*개/.test(c)) return c.replace(/\d+\s*개/, `${n}개`);
+  return `${c} ${n}개`;
+}
+function colorChipBg(name) {
+  const key = Object.keys(COLOR_MAP).find((k) => name.includes(k));
+  return key ? COLOR_MAP[key] : "#e8e8e8";
+}
+function renderMixBox(box, colors, counts, onChange, summaryFn) {
+  box.innerHTML = `<div style="font-size:12.5px; font-weight:800; color:#0a63cc; margin-bottom:4px;">구성 조정 — 색상별 개수 (0개 = 빼기)</div>`
+    + colors.map((c, i) => `<div class="mx-row" data-i="${i}"><span class="mx-chip"></span><span class="mx-name"></span>`
+      + `<button type="button" class="btn mx-dec">-</button><b class="mx-n"></b><button type="button" class="btn mx-inc">+</button></div>`).join("")
+    + `<button type="button" class="btn mx-even" style="margin-top:4px;">균등 분배</button><div class="mx-sum"></div>`;
+  box.querySelectorAll(".mx-row").forEach((row) => {
+    const c = colors[+row.dataset.i];
+    row.querySelector(".mx-chip").style.background = colorChipBg(c);
+    row.querySelector(".mx-name").textContent = c;
+    row.querySelector(".mx-n").textContent = counts[c] || 0;
+  });
+  box.querySelector(".mx-sum").textContent = `합계 ${mixTotal(counts)}개` + (summaryFn ? " — " + summaryFn(counts) : "");
+  box.onclick = (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.classList.contains("mx-even")) {
+      Object.assign(counts, evenCounts(colors, Math.max(mixTotal(counts), colors.length)));
+    } else {
+      const row = b.closest(".mx-row");
+      if (!row) return;
+      const c = colors[+row.dataset.i];
+      if (b.classList.contains("mx-inc")) counts[c] = (counts[c] || 0) + 1;
+      else if (b.classList.contains("mx-dec")) {
+        if (!(counts[c] > 0)) return;
+        if (mixTotal(counts) <= 1) { toast("합계는 1개 이상이어야 합니다"); return; }
+        counts[c]--;
+      }
+    }
+    onChange(counts);
+  };
 }
 function extractToProduct(d, url) {
   const plan = d._plan || null;
+  const mix = d._mixCounts && d._colors && d._colors.length >= 2 ? mixString(d._colors, d._mixCounts) : "";
+  const n = mix ? mixTotal(d._mixCounts) : (plan ? plan.n : 0);  // 구성 수량 — 구성 문구·수량 칸에 함께 반영
   return {
-    no: "", name: d.name || "상품명", opt: d._mix && plan ? mixOption(d.color, plan.n) : (d.option || ""),
-    comp: d.comp || "", color: (d.color || "").replace(/\s*\/\s*/g, " / "), qty: plan ? plan.n + "개" : (d.qty || ""),
+    no: "", name: d.name || "상품명", opt: mix || (d.option || ""),
+    comp: n ? syncCompCount(d.comp, n) : (d.comp || ""), color: (d.color || "").replace(/\s*\/\s*/g, " / "), qty: n ? n + "개" : (d.qty || ""),
     size: d.size || "", mat: d.material || "", kc: "", kcno: "", age: "",
     url1688: url || "", priceYuan: d.priceYuan || 0, shipYuan: d.shipYuan || 0,
     milkrun: d.milkrun || 0, sellPrice: plan ? plan.tier : 0,
@@ -4460,7 +4660,7 @@ function freshWS(extra) {
   return Object.assign({ html: null, photos: [], photosFull: [], photoLabels: [], mains: {}, tags: "", saved: false, modelMode: "part", aiCopied: false, copyEdited: false }, extra || {});
 }
 window.openPasteModal = () => {
-  piState = { d: { milkrun: 0 }, plans: [], sel: null, mix: false };
+  piState = { d: { milkrun: 0 }, plans: [], sel: null, mix: false, mixCounts: null, mixKey: null, fetched: null };
   $("#pi-text").value = "";
   $("#pi-result").style.display = "none";
   $$(".btn.pim").forEach((x) => x.classList.toggle("active", x.dataset.pim === "keep"));
@@ -4470,14 +4670,32 @@ $("#btn-1688-paste").addEventListener("click", () => openPasteModal());
 $("#pi-cancel").addEventListener("click", () => { $("#pastemodal").classList.remove("open"); piState = null; });
 $("#pi-extract").addEventListener("click", async () => {
   const txt = $("#pi-text").value.trim();
-  if (txt.length < 50) { toast("1688 페이지를 Ctrl+A로 전체 복사해 붙여넣어 주세요"); return; }
+  const rest = txt.replace(/https?:\/\/\S+/gi, "").trim();
+  const urlM = txt.match(/https?:\/\/\S*1688\.com\/\S+/i);
+  if (rest.length < 30 && !urlM) { toast("1688 페이지를 Ctrl+A로 전체 복사해 붙여넣어 주세요"); return; }
   const btn = $("#pi-extract");
-  btn.disabled = true; btn.textContent = "추출 중...";
+  btn.disabled = true;
   try {
-    const d = await extract1688(txt);
+    let src = txt, fetched = null;
+    if (rest.length < 30) {
+      // 주소만 붙여넣음 — AI는 주소로 페이지를 볼 수 없어 내용을 지어낼 수 있으므로 도우미로 실제 페이지를 읽어 추출
+      btn.textContent = "페이지 읽는 중...";
+      if (!(await helperPing())) { toast("주소만으로는 상품 내용을 알 수 없습니다 — 1688 페이지 본문을 Ctrl+A·C로 복사해 붙여넣거나, 도우미를 켜고 다시 눌러 주세요"); return; }
+      const f = await helperCall("/fetch", { url: urlM[0] }).catch(() => null);
+      if (!f || !f.ok) { toast(f && f.error === "BLOCKED" ? "1688이 자동 접속을 막았습니다 — 페이지 본문을 Ctrl+A·C로 복사해 붙여넣어 주세요" : "페이지를 읽지 못했습니다 — 페이지 본문을 Ctrl+A·C로 복사해 붙여넣어 주세요"); return; }
+      src = f.text;
+      fetched = { url: urlM[0], images: f.images || [] };
+    }
+    btn.textContent = "추출 중...";
+    const d = await extract1688(src);
     if (!piState) return;
+    if (!d || !d.name) { toast("상품 정보를 찾지 못했습니다 — 1688 상품 페이지 본문이 맞는지 확인해 주세요"); return; }
     piState.d = Object.assign({ milkrun: 0 }, d);
+    if (fetched) { piState.d.url1688 = fetched.url; piState.fetched = fetched; }
+    else if (urlM) piState.d.url1688 = urlM[0];
     piState.sel = null;
+    piState.mixCounts = null;
+    piState.mixKey = null;
     piRender();
   } catch (e) {
     toast("추출 실패: " + e.message);
@@ -4488,18 +4706,22 @@ $("#pi-extract").addEventListener("click", async () => {
 function piApply(asNew) {
   const st = piState;
   if (!st || !st.d.name) { toast("먼저 [정보 추출]을 실행해 주세요"); return; }
-  st.d._plan = st.sel; st.d._mix = st.mix;
+  st.d._plan = st.sel;
+  st.d._colors = splitColors(st.d.color);
+  st.d._mixCounts = st.mix ? st.mixCounts : null;
   const prod = extractToProduct(st.d, st.d.url1688 || "");
+  const cands = st.fetched ? (st.fetched.images || []).map((im) => ({ u: im.u, kind: im.kind })) : null;
   if (asNew || !current) {
     if (products.length >= 20) { toast("상품은 최대 20개입니다"); return; }
     snapshotCurrent();
     products.push(prod);
-    workspaces.push(freshWS());
+    workspaces.push(freshWS(cands ? { candidates: cands } : undefined));
     renderProductList();
     switchProduct(products.length - 1);
     polishNameAI(current);
   } else {
     Object.assign(current, prod, { no: current.no });  // NO는 유지
+    if (cands && workspaces[curIdx] && !(workspaces[curIdx].candidates || []).length) { workspaces[curIdx].candidates = cands; renderCandidates(); }
     fillProductFields(current);
     applyMainCaptions();
     renderProductList();
@@ -4511,6 +4733,75 @@ function piApply(asNew) {
 }
 $("#pi-apply").addEventListener("click", () => piApply(false));
 $("#pi-apply-new").addEventListener("click", () => piApply(true));
+
+/* --- 색상 믹스 구성 조정: 적용 후 미리보기 옵션 줄 [구성 조정] --- */
+/* 옵션 칸(#f-opt) 옆에 버튼을 붙인다 — #f-opt 안에 넣으면 옵션 글자에 섞이므로 형제/라벨 칸에 둔다 */
+function ensureMixBtn() {
+  const v = $("#f-opt");
+  if (!v) return;
+  const host = v.tagName === "TD" ? v.parentElement.querySelector("td.k") : v.parentElement;
+  if (!host || host.querySelector(".mix-adj")) return;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "mix-adj";
+  b.textContent = "구성 조정";
+  b.setAttribute("contenteditable", "false");
+  b.setAttribute("onclick", "openMixAdjust(event)");
+  host.appendChild(b);
+}
+let mxState = null;
+window.openMixAdjust = (ev) => {
+  if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+  if (!current) { toast("먼저 상품을 불러와 주세요"); return; }
+  const colors = splitColors($("#f-color") ? $("#f-color").textContent : "");
+  if (colors.length < 2) { toast("색상이 2개 이상일 때 구성을 조정할 수 있습니다 — 색상 칸을 / 로 구분해 주세요"); return; }
+  let counts = parseMixCounts($("#f-opt") ? $("#f-opt").textContent.trim() : "", colors);
+  if (!counts) {
+    const q = parseInt((($("#f-qty") ? $("#f-qty").textContent : "") || "").replace(/[^\d]/g, ""), 10);
+    counts = evenCounts(colors, q > 0 ? q : colors.length);
+  }
+  mxState = { colors, counts };
+  mxRender();
+  $("#mixmodal").classList.add("open");
+};
+function mxRender() {
+  const st = mxState;
+  if (!st) return;
+  const compNow = $("#f-comp") ? $("#f-comp").textContent.trim() : "";
+  renderMixBox($("#mx-box"), st.colors, st.counts, () => mxRender(),
+    (cnt) => `옵션 ${mixString(st.colors, cnt)} · 구성 ${syncCompCount(compNow, mixTotal(cnt))}`);
+  const p = current || {};
+  const priceEl = $("#mx-price");
+  if (p.priceYuan) {
+    const pl = planFor(mixTotal(st.counts), p.priceYuan, p.shipYuan || 0, p.milkrun || 0);
+    priceEl.innerHTML = `판매가 <b>${pl.tier.toLocaleString()}원</b> · 예상 순마진 <b>${pl.margin.toLocaleString()}원</b>`
+      + (pl.ok ? "" : ' <span style="color:#e14b4a;">(순마진 범위 밖)</span>');
+  } else {
+    priceEl.textContent = "단가 정보가 없어 판매가는 다시 계산하지 않습니다";
+  }
+}
+$("#mx-cancel").addEventListener("click", () => { $("#mixmodal").classList.remove("open"); mxState = null; });
+$("#mx-apply").addEventListener("click", () => {
+  const st = mxState;
+  if (!st || !current) return;
+  const total = mixTotal(st.counts);
+  const opt = mixString(st.colors, st.counts);
+  const comp = syncCompCount($("#f-comp") ? $("#f-comp").textContent.trim() : "", total);
+  setField("#f-opt", opt);
+  setField("#f-qty", total + "개");
+  setField("#f-comp", comp);
+  current.opt = opt;
+  current.qty = total + "개";
+  current.comp = comp;
+  if (current.priceYuan) current.sellPrice = planFor(total, current.priceYuan, current.shipYuan || 0, current.milkrun || 0).tier;
+  updateOptionSlots();
+  applyMainCaptions();
+  refreshQtyBadges();
+  updateHeight();
+  $("#mixmodal").classList.remove("open");
+  mxState = null;
+  toast(`구성을 바꿨습니다 — ${opt} (${total}개)`);
+});
 
 /* --- 1688 이미지 후보 스트립 (ws.candidates = [{u,kind}]) --- */
 function renderCandidates() {
@@ -4593,13 +4884,13 @@ $("#bi-start").addEventListener("click", async () => {
     if (!d || !d.name) { row(i, "err", "AI 정리 실패"); continue; }
     d.milkrun = 0;
     const plan = d.priceYuan ? bestPlan(calcPlans(d.priceYuan, d.shipYuan || 0, 0)) : null;
-    d._plan = plan; d._mix = false;
+    d._plan = plan; d._mixCounts = null;
     const prod = extractToProduct(d, urls[i]);
     products.push(prod);
     workspaces.push(freshWS({ candidates: (f.images || []).map((im) => ({ u: im.u, kind: im.kind })) }));
     if (firstNew < 0) firstNew = products.length - 1;
     added++;
-    row(i, "ok", `완료 — ${prod.name.slice(0, 24)}${plan ? ` · ${plan.n}개 ${plan.tier.toLocaleString()}원${plan.warn ? " ⚠마진밖" : ""}` : ""}`);
+    row(i, "ok", `완료 — ${prod.name.slice(0, 24)}${plan ? ` · ${plan.n}개 ${plan.tier.toLocaleString()}원 · 순마진 ${plan.margin.toLocaleString()}원${plan.warn ? " ⚠범위밖" : ""}` : ""}`);
     await sleep(5000);  // 1688 봇 감지 회피 간격 (연속 요청 시 간헐 차단 확인됨)
   }
   renderProductList();
@@ -4643,15 +4934,15 @@ $("#bi-start").addEventListener("click", async () => {
     toast("사용자 이름: " + v);
   });
   const curName = () => ($("#f-name") ? $("#f-name").textContent.trim().slice(0, 40) : "");
-  const LOG_BTNS = {
-    "btn-ai": "AI 문구 생성", "btn-ai-img": "상세 AI 생성", "btn-ai-mains": "대표 AI 연출", "rg-go": "AI 재생성",
-    "btn-save-all": "저장 — 3종 ZIP", "btn-save-mains-jpg": "저장 — 대표 JPG", "btn-save-mains": "저장 — 대표 PNG",
-    "btn-jpg": "저장 — 상세 JPG", "btn-png": "저장 — 상세 PNG",
-    "btn-save-excel": "저장 — 엑셀", "btn-save-excel-all": "저장 — 전체 엑셀",
+  const LOG_BTNS = {  // [행동, 상세 끝에 붙일 저장 종류]
+    "btn-ai": ["AI 문구 생성", ""], "btn-ai-img": ["상세 AI 생성", ""], "btn-ai-mains": ["대표 AI 연출", ""], "rg-go": ["AI 재생성", ""],
+    "btn-save-all": ["저장 — 3종 ZIP", "대표·상세·엑셀 (ZIP)"], "btn-save-mains-jpg": ["저장 — 대표 JPG", "대표 JPG"], "btn-save-mains": ["저장 — 대표 PNG", "대표 PNG"],
+    "btn-jpg": ["저장 — 상세 JPG", "상세 JPG"], "btn-png": ["저장 — 상세 PNG", "상세 PNG"],
+    "btn-save-excel": ["저장 — 엑셀", "엑셀"], "btn-save-excel-all": ["저장 — 전체 엑셀", "전체 엑셀"],
   };
-  Object.entries(LOG_BTNS).forEach(([id, label]) => {
+  Object.entries(LOG_BTNS).forEach(([id, [label, kind]]) => {
     const el = $("#" + id);
-    if (el) el.addEventListener("click", () => logUsage(label, curName()));
+    if (el) el.addEventListener("click", () => logUsage(label, kind ? `${curName()} · ${kind}` : curName()));
   });
 })();
 
@@ -4692,7 +4983,7 @@ function adRender() {
       `<tr><td>${n}</td><td>${u.visit}</td><td>${u.img}</td><td>${u.copy}</td><td>${u.k1688}</td><td>${u.save}</td></tr>`).join("");
   const fmt = (ts) => { const d = new Date(ts); const p = (x) => String(x).padStart(2, "0"); return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
   $("#ad-logs").innerHTML = `<tr><th>시각</th><th>이름</th><th>행동</th><th>상세</th></tr>` +
-    rows.slice(0, 500).map((r) => `<tr><td>${fmt(r.ts)}</td><td>${r.name}</td><td>${r.action}</td><td>${r.detail || ""}</td></tr>`).join("");
+    rows.slice(0, 1000).map((r) => `<tr><td>${fmt(r.ts)}</td><td>${r.name}</td><td>${r.action}</td><td>${r.detail || ""}</td></tr>`).join("");
   // 이름 필터 옵션 갱신
   const sel = $("#ad-name");
   const cur = adState.name;
@@ -4849,7 +5140,7 @@ $("#btn-work-save").addEventListener("click", async () => {
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 60000);
     toast(`작업 파일을 저장했습니다 (상품 ${products.length}개 · 이미지 ${count}장 · ${(blob.size / 1048576).toFixed(1)}MB) — [작업물 수정하기]로 복원`);
-    logUsage("작업물 저장", ($("#f-name") ? $("#f-name").textContent.trim().slice(0, 40) : ""));
+    logUsage("작업물 저장", ($("#f-name") ? $("#f-name").textContent.trim().slice(0, 40) : "") + " · 작업 파일(.ktw)");
   } catch (err) {
     console.error(err);
     toast("작업 파일 저장 실패: " + ((err && err.message) || err));
