@@ -941,12 +941,14 @@
 <div id="edmodal" class="modal">
   <div class="mbox">
     <div class="mtitle">대표 이미지 수정</div>
-    <p class="msub">모서리 = 비율 확대·축소 · 변(상하좌우) = 늘리기 · 안쪽 드래그 = 이동</p>
+    <p class="msub">모서리 = 비율 확대·축소 · 변(상하좌우) = 늘리기 · 안쪽 드래그 = 이동 · [좌우/상하 반전]으로 뒤집기</p>
     <div id="ed-stage" style="position:relative; width:520px; height:520px; margin:0 auto; background:#fff; border:1px solid #ddd; overflow:hidden;">
       <img id="ed-img" style="position:absolute; pointer-events:none;">
       <div id="ed-box"></div>
     </div>
     <div style="margin-top:12px;">
+      <button class="btn" id="ed-flipx">좌우 반전</button>
+      <button class="btn" id="ed-flipy">상하 반전</button>
       <button class="btn" id="ed-fit">전체 보기 맞춤</button>
       <button class="btn" id="ed-reset">원래대로</button>
       <button class="btn" id="ed-cancel">취소</button>
@@ -4242,7 +4244,7 @@ window.editMainImage = (ev, btn) => {
     const st = $("#ed-stage");
     st.style.width = stageW + "px"; st.style.height = stageH + "px";
     edState = { slot, src, img: probe, rect, init: Object.assign({}, rect), containRect,
-                scale: stageW / outW, outW, outH, isTsize };
+                scale: stageW / outW, outW, outH, isTsize, flipX: false, flipY: false };
     $("#ed-img").src = src;
     buildEdHandles();
     edApplyRect();
@@ -4258,6 +4260,7 @@ function edApplyRect() {
     el.style.left = r.x * k + "px"; el.style.top = r.y * k + "px";
     el.style.width = r.w * k + "px"; el.style.height = r.h * k + "px";
   });
+  $("#ed-img").style.transform = `scale(${st.flipX ? -1 : 1}, ${st.flipY ? -1 : 1})`;   // 좌우·상하 반전
 }
 function buildEdHandles() {
   const box = $("#ed-box");
@@ -4309,8 +4312,10 @@ function edDragStart(e) {
   t.addEventListener("pointermove", move);
   t.addEventListener("pointerup", up);
 }
+$("#ed-flipx").addEventListener("click", () => { if (edState) { edState.flipX = !edState.flipX; edApplyRect(); } });
+$("#ed-flipy").addEventListener("click", () => { if (edState) { edState.flipY = !edState.flipY; edApplyRect(); } });
 $("#ed-fit").addEventListener("click", () => { if (edState) { edState.rect = Object.assign({}, edState.containRect); edApplyRect(); } });
-$("#ed-reset").addEventListener("click", () => { if (edState) { edState.rect = Object.assign({}, edState.init); edApplyRect(); } });
+$("#ed-reset").addEventListener("click", () => { if (edState) { edState.rect = Object.assign({}, edState.init); edState.flipX = false; edState.flipY = false; edApplyRect(); } });
 $("#ed-cancel").addEventListener("click", () => { $("#edmodal").classList.remove("open"); edState = null; });
 $("#ed-apply").addEventListener("click", async () => {
   const st = edState;
@@ -4319,7 +4324,13 @@ $("#ed-apply").addEventListener("click", async () => {
   c.width = st.outW; c.height = st.outH;
   const x = c.getContext("2d");
   x.fillStyle = "#fff"; x.fillRect(0, 0, st.outW, st.outH);
-  x.drawImage(st.img, st.rect.x, st.rect.y, st.rect.w, st.rect.h);
+  x.save();
+  x.translate(st.flipX ? st.outW : 0, st.flipY ? st.outH : 0);
+  x.scale(st.flipX ? -1 : 1, st.flipY ? -1 : 1);
+  const rx = st.flipX ? st.outW - st.rect.x - st.rect.w : st.rect.x;   // 반전해도 화면에서 보이던 자리 그대로
+  const ry = st.flipY ? st.outH - st.rect.y - st.rect.h : st.rect.y;
+  x.drawImage(st.img, rx, ry, st.rect.w, st.rect.h);
+  x.restore();
   const url = c.toDataURL("image/png");
   const keepOrig = st.slot.dataset.edorig || st.src;   // 최초 원본 보존
   if (st.isTsize) {
