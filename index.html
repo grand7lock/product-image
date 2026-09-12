@@ -76,8 +76,15 @@
   .btn.mm.active, .btn.imode.active, .btn.gmode.active, .btn.rgm.active, .btn.bsz.active, .btn.pim.active, .btn.pim2.active { background:#111; color:#fff; }
   .btn.lorange { background:#ffe6cc; color:#9a5a00; }
   /* STEP 1 선택 1·2·3 */
-  .picks .pick { display:flex; align-items:center; gap:6px; margin-top:7px; flex-wrap:wrap; }
-  .picks .pk { font-size:11px; color:#aaa; width:34px; flex:none; font-weight:800; }
+  .picks .pick { display:flex; align-items:center; gap:5px; margin-top:7px; flex-wrap:nowrap; }
+  .picks .pk { font-size:11px; color:#aaa; width:30px; flex:none; font-weight:800; }
+  .picks .btn { font-size:12px; padding:8px 11px; margin:0; white-space:nowrap; }
+  /* 1688 일괄 가져오기 창 안내 글씨 */
+  #bimodal .hint { font-size:11.5px; line-height:1.7; color:#8a8f95; word-break:keep-all; }
+  #bi-status { text-align:left; word-break:keep-all; line-height:1.75; font-size:12.5px; margin-right:40px; }
+  .btn.dl { background:#2e9e44; color:#fff; }
+  .btn.dl:hover { background:#278239; }
+  #bimodal .mtitle { text-align:left; }
   /* 접었다 펴는 상자 */
   .fold { border:1.5px solid #e3e8ee; border-radius:10px; background:#fbfcfe; margin-top:10px; }
   .fold .fold-h { cursor:pointer; padding:9px 12px; font-size:13px; font-weight:800; color:#444; display:flex; align-items:center; gap:7px; }
@@ -503,13 +510,13 @@
         </div>
         <div class="pick"><span class="pk">선택 2</span>
           <button class="btn" id="btn-1688-batch" style="background:#f08c1e; color:#fff;">1688 일괄 가져오기</button>
-          <button class="btn" id="btn-calc">옵션·판매가 계산</button>
+          <button class="btn" id="btn-calc">판매가 계산</button>
         </div>
         <div class="pick"><span class="pk">선택 3</span>
           <button class="btn lorange" id="btn-1688-paste">1688 개별 가져오기</button>
         </div>
       </div>
-      <p class="hint" style="margin-top:6px">일괄 가져오기 = 도우미 실행 후 URL만 붙여넣으면 상품정보·이미지 후보·판매가까지 자동 (최대 20개). 개별 가져오기 = 1688 페이지를 Ctrl+A·C로 복사해 1개씩 자동 기입. 옵션·판매가 계산 = 지금 보고 있는 상품의 구성 수량·판매가를 다시 계산.</p>
+      <p class="hint" style="margin-top:6px">일괄 가져오기 = 수집기 실행 후 URL만 붙여넣으면 상품정보·이미지 후보·판매가까지 자동 (최대 20개). 개별 가져오기 = 1688 페이지를 Ctrl+A·C로 복사해 1개씩 자동 기입. 판매가 계산 = 지금 보고 있는 상품의 구성 수량·판매가를 다시 계산.</p>
       <div class="fold" id="fold-price">
         <div class="fold-h"><span class="ar">▸</span>가격 계산 설정<span class="fold-sum" id="price-sum"></span></div>
         <div class="fold-b">
@@ -1033,7 +1040,7 @@
       </div>
       <div class="kinds">
         <label><input type="checkbox" data-k="slider"> 슬라이더 확인 필요 (사람이 밀어야 함)</label>
-        <label><input type="checkbox" data-k="block"> 1688 차단 · 슬라이더 시간 초과 · 도우미 응답 없음</label>
+        <label><input type="checkbox" data-k="block"> 1688 차단 · 슬라이더 시간 초과 · 수집기 응답 없음</label>
         <label><input type="checkbox" data-k="ai"> AI 생성 실패</label>
         <label><input type="checkbox" data-k="save"> 저장 실패</label>
         <label><input type="checkbox" data-k="report"> 일괄 가져오기 완료 리포트</label>
@@ -1103,24 +1110,24 @@
   </div>
 </div>
 <div id="bimodal" class="modal">
-  <div class="mbox" style="width:560px; max-width:94vw; max-height:92vh; overflow:auto;">
-    <div class="mtitle">1688 일괄 가져오기 (최대 20개)</div>
-    <p class="msub" id="bi-status">도우미 연결 확인 중...</p>
+  <div class="mbox" style="width:560px; max-width:94vw; max-height:92vh; overflow:auto; position:relative;">
+    <button id="bi-close" title="닫기" style="position:absolute; top:10px; right:12px; border:none; background:#eef0f3; color:#333; width:32px; height:32px; border-radius:50%; font-size:16px; font-weight:800; cursor:pointer; font-family:inherit;">✕</button>
+    <div class="mtitle" style="margin:0 40px 0 0;">1688 일괄 가져오기 (최대 20개)</div>
+    <p class="msub" id="bi-status">수집기 연결 확인 중...</p>
     <textarea id="bi-urls" rows="6" style="width:100%;" placeholder="1688 상품 주소를 한 줄에 1개씩 붙여넣기&#10;예) https://detail.1688.com/offer/123456789.html"></textarea>
     <div style="margin-top:8px; text-align:left;">
       <button class="btn blue" id="bi-start">일괄 가져오기 시작</button>
       <button class="btn" id="bi-folder">저장 폴더 변경</button>
-      <a class="btn" href="1688helper.exe" download="1688도우미.exe" style="text-decoration:none;">도우미 내려받기 (.exe)</a>
-      <button class="btn" id="bi-close">닫기</button>
+      <a class="btn dl" href="1688helper.exe" download="1688수집기.exe" style="text-decoration:none;">수집기 다운로드</a>
     </div>
-    <p class="hint" style="text-align:left; margin-top:4px">도우미가 없는 PC는 [도우미 내려받기]로 받아 더블클릭 실행 (설치 불필요) → 첫 실행 때 저장 폴더 지정 → 켜둔 채 사용<br>
-      도우미가 Edge 창을 하나 띄워 1688 페이지를 읽습니다 — <b>슬라이더(안전 확인)가 뜨면 그 창에서 한 번 밀어 주세요</b> (슬랙으로도 알림). 차단되면 즉시 멈추고 남은 주소는 입력칸에 되돌려 둡니다.</p>
+    <p class="hint" style="text-align:left; margin-top:4px">수집기가 없는 PC는 [수집기 다운로드]로 받아 더블클릭 실행 (설치 불필요) → 첫 실행 때 저장 폴더 지정 → 켜둔 채 사용<br>
+      수집기가 Edge 창을 하나 띄워 1688 페이지를 읽습니다 — <b>슬라이더(안전 확인)가 뜨면 그 창에서 한 번 밀어 주세요</b> (슬랙으로도 알림). 차단되면 즉시 멈추고 남은 주소는 입력칸에 되돌려 둡니다.</p>
     <div id="bi-progress" style="text-align:left; margin-top:10px; max-height:44vh; overflow:auto;"></div>
   </div>
 </div>
 <div id="calcmodal" class="modal">
-  <div class="mbox" style="width:560px; max-width:94vw; max-height:92vh; overflow:auto; text-align:left;">
-    <div class="mtitle">옵션·판매가 계산</div>
+  <div class="mbox" style="width:760px; max-width:96vw; max-height:92vh; overflow:auto; text-align:left;">
+    <div class="mtitle">판매가 계산</div>
     <p class="msub" id="ca-name"></p>
     <div class="ca-row">
       <span>개당 상품가(¥)</span><input type="number" id="ca-yuan" step="0.01">
@@ -4775,7 +4782,7 @@ $$(".btn.pim").forEach((b) => b.addEventListener("click", () => {
   piState.mixKey = null;
   piCalc();
 }));
-/* 색상 믹스 공용 도우미 */
+/* 색상 믹스 공용 수집기 */
 function splitColors(s) { return String(s || "").split("/").map((x) => x.trim()).filter((x) => x && x !== "기재예정"); }
 function evenCounts(colors, n) {
   const c = {};
@@ -4871,11 +4878,11 @@ $("#pi-extract").addEventListener("click", async () => {
   try {
     let src = txt, fetched = null;
     if (rest.length < 30) {
-      // 주소만 붙여넣음 — AI는 주소로 페이지를 볼 수 없어 내용을 지어낼 수 있으므로 도우미로 실제 페이지를 읽어 추출
+      // 주소만 붙여넣음 — AI는 주소로 페이지를 볼 수 없어 내용을 지어낼 수 있으므로 수집기로 실제 페이지를 읽어 추출
       btn.textContent = "페이지 읽는 중...";
-      if (!(await helperPing())) { toast("주소만으로는 상품 내용을 알 수 없습니다 — 1688 페이지 본문을 Ctrl+A·C로 복사해 붙여넣거나, 도우미를 켜고 다시 눌러 주세요"); return; }
+      if (!(await helperPing())) { toast("주소만으로는 상품 내용을 알 수 없습니다 — 1688 페이지 본문을 Ctrl+A·C로 복사해 붙여넣거나, 수집기를 켜고 다시 눌러 주세요"); return; }
       const f = await fetchWithStatus(urlM[0], "붙여넣기", (st) => {
-        if (st.state === "need_human") btn.textContent = `슬라이더 확인 — 도우미 Edge 창에서 밀어 주세요 (${hm(st.deadline)}까지)`;
+        if (st.state === "need_human") btn.textContent = `슬라이더 확인 — 수집기 Edge 창에서 밀어 주세요 (${hm(st.deadline)}까지)`;
       }).catch(() => null);
       if (!f || !f.ok) {
         const code = f ? f.error : "NO_HELPER";
@@ -4884,7 +4891,7 @@ $("#pi-extract").addEventListener("click", async () => {
         toast({
           BLOCKED: "1688이 자동 접속을 막았습니다 — 페이지 본문을 Ctrl+A·C로 복사해 붙여넣어 주세요",
           COOLDOWN: `1688 차단 냉각 중입니다${f && f.retry_after_s ? ` (약 ${Math.ceil(f.retry_after_s / 60)}분 남음)` : ""} — 그동안은 페이지 본문을 복사해 붙여넣어 주세요`,
-          NEED_HUMAN_TIMEOUT: "슬라이더를 풀지 않아 중단했습니다 — 도우미 Edge 창에서 밀고 다시 눌러 주세요",
+          NEED_HUMAN_TIMEOUT: "슬라이더를 풀지 않아 중단했습니다 — 수집기 Edge 창에서 밀고 다시 눌러 주세요",
         }[code] || "페이지를 읽지 못했습니다 — 페이지 본문을 Ctrl+A·C로 복사해 붙여넣어 주세요");
         return;
       }
@@ -5085,9 +5092,9 @@ $("#cand-strip").addEventListener("mouseout", (e) => {
 $("#cand-strip").addEventListener("scroll", candPreviewHide);
 window.addEventListener("scroll", candPreviewHide, true);
 
-/* --- 도우미 연동 + 일괄 가져오기 --- */
+/* --- 수집기 연동 + 일괄 가져오기 --- */
 async function helperCall(path, body, ms) {
-  // 도우미가 멈춰도 화면이 얼어붙지 않게 시간 제한 (조회 3초, 수집은 슬라이더 대기 10분 + 여유)
+  // 수집기가 멈춰도 화면이 얼어붙지 않게 시간 제한 (조회 3초, 수집은 슬라이더 대기 10분 + 여유)
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), ms || (body ? 690000 : 3000));
   try {
@@ -5099,7 +5106,7 @@ async function helperCall(path, body, ms) {
 async function helperPing() {
   try { const p = await helperCall("/ping"); return p && p.ok ? p : null; } catch (e) { return null; }
 }
-/* /fetch 를 기다리는 동안 2초마다 도우미 상태(Edge 창 로딩·슬라이더 대기)를 받아 화면에 표시 */
+/* /fetch 를 기다리는 동안 2초마다 수집기 상태(Edge 창 로딩·슬라이더 대기)를 받아 화면에 표시 */
 async function fetchWithStatus(url, idx, onState) {
   let done = false;
   (async () => {
@@ -5118,13 +5125,13 @@ async function biStatus() {
   const p = await helperPing();
   const el = $("#bi-status");
   if (!p) {
-    el.innerHTML = `❌ 도우미가 꺼져 있습니다 — <b>1688도우미.exe</b>를 더블클릭해 실행한 뒤 이 창을 다시 열어 주세요 (없으면 아래 [도우미 내려받기])`;
+    el.innerHTML = `❌ 수집기가 꺼져 있습니다 — <b>1688수집기.exe</b>를 더블클릭해 실행한 뒤 이 창을 다시 열어 주세요 (없으면 아래 [수집기 내려받기])`;
     return null;
   }
   const old = !(parseFloat(p.ver) >= 1.2);
   const cool = p.cooldown_until && p.cooldown_until > Date.now();
-  el.innerHTML = `✅ 도우미 연결됨 (v${escH(p.ver)}${old ? "" : p.browser ? " · Edge 창 수집" : " · 브라우저 없음 — 기본 수집"}) · 저장 폴더: <b>${escH(p.folder || "미지정 — [저장 폴더 변경]으로 지정")}</b>`
-    + (old ? `<br><b style="color:#e14b4a">구버전 도우미입니다 — 1688에 쉽게 차단됩니다. [도우미 내려받기]로 새 버전(v1.2)을 받아 교체해 주세요</b>` : "")
+  el.innerHTML = `✅ 수집기 연결됨 (v${escH(p.ver)}${old ? "" : p.browser ? " · Edge 창 수집" : " · 브라우저 없음 — 기본 수집"}) · 저장 폴더: <b>${escH(p.folder || "미지정 — [저장 폴더 변경]으로 지정")}</b>`
+    + (old ? `<br><b style="color:#e14b4a">구버전 수집기입니다 — 1688에 쉽게 차단됩니다. [수집기 내려받기]로 새 버전(v1.2)을 받아 교체해 주세요</b>` : "")
     + (cool ? `<br><b style="color:#e14b4a">1688 차단 냉각 중 — ${hm(p.cooldown_until)} 이후 다시 시도할 수 있습니다</b>` : "");
   return p;
 }
@@ -5171,7 +5178,7 @@ $("#bi-start").addEventListener("click", async () => {
     let f = null, ferr = null;
     try {
       f = await fetchWithStatus(urls[i], idx, (st) => {
-        if (st.state === "need_human") row(i, "warn", `슬라이더 확인 필요 — 도우미 Edge 창에서 밀어 주세요 (${hm(st.deadline)}까지 대기 · 슬랙 알림 보냄)`);
+        if (st.state === "need_human") row(i, "warn", `슬라이더 확인 필요 — 수집기 Edge 창에서 밀어 주세요 (${hm(st.deadline)}까지 대기 · 슬랙 알림 보냄)`);
         else if (st.state === "loading") row(i, "run", "수집 중 (Edge 창)");
       });
     } catch (e) { ferr = e; }
@@ -5187,14 +5194,14 @@ $("#bi-start").addEventListener("click", async () => {
       }
       if (code === "NEED_HUMAN_TIMEOUT") {
         stopped = "슬라이더 시간 초과";
-        row(i, "err", "슬라이더를 풀지 않아 중단 — 도우미 Edge 창에서 밀고 [이어서 가져오기]");
+        row(i, "err", "슬라이더를 풀지 않아 중단 — 수집기 Edge 창에서 밀고 [이어서 가져오기]");
         logError("슬라이더 시간 초과", `${idx}번째 · ${offerTail(urls[i])} · 완료 ${added} · 남은 ${urls.length - i}개 보관 · 생성기에서 [이어서 가져오기]`);
         stopAt = i; break;
       }
       if (code === "NO_HELPER" || code === "TIMEOUT") {
-        stopped = "도우미 응답 없음";
-        row(i, "err", "도우미 응답 없음 — 중단 (도우미 창이 켜져 있는지 확인)");
-        logError("도우미 응답 없음", `${idx}번째 · ${offerTail(urls[i])} · ${code}`);
+        stopped = "수집기 응답 없음";
+        row(i, "err", "수집기 응답 없음 — 중단 (수집기 창이 켜져 있는지 확인)");
+        logError("수집기 응답 없음", `${idx}번째 · ${offerTail(urls[i])} · ${code}`);
         stopAt = i; break;
       }
       stat.fail++;
@@ -5236,7 +5243,7 @@ $("#bi-start").addEventListener("click", async () => {
       const pad2 = (x) => String(x).padStart(2, "0");
       const name = `작업저장_${pad2(dt.getMonth() + 1)}${pad2(dt.getDate())}_${pad2(dt.getHours())}${pad2(dt.getMinutes())}.ktw`;
       let r = { ok: false, error: "TOO_LARGE" };
-      if (blob.size <= 150 * 1048576) {  // 도우미 전송은 base64 JSON — 너무 크면 건너뛰고 수동 저장 안내
+      if (blob.size <= 150 * 1048576) {  // 수집기 전송은 base64 JSON — 너무 크면 건너뛰고 수동 저장 안내
         const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1] || ""); fr.onerror = rej; fr.readAsDataURL(blob); });
         r = await helperCall("/savefile", { name, data_b64: b64 });
       }
@@ -5353,12 +5360,15 @@ function caCalc() {
   }
   card.style.display = "block";
   card.className = st.sel.ok ? "" : "warn";
-  card.innerHTML = `${st.sel.n}개 구성 · 판매가 <b>${st.sel.tier.toLocaleString()}원</b> · 예상 순마진 <b>${st.sel.margin.toLocaleString()}원</b>`
+  card.innerHTML = `${st.sel.n}개 구성 · 판매가 <b>${st.sel.tier.toLocaleString()}원</b>`
+    + `${st.sel.n > 1 ? ` · 개당 ${Math.round(st.sel.tier / st.sel.n).toLocaleString()}원` : ""}`
+    + ` · 예상 순마진 <b>${st.sel.margin.toLocaleString()}원</b>`
     + (st.sel.ok ? "" : ' <span style="font-weight:700">(목표 순마진 범위 밖)</span>');
   tbl.style.display = "table";
-  tbl.innerHTML = `<tr><th>수량</th><th>세트 원가</th><th>판매가</th><th>순마진</th><th>판정</th></tr>` +
+  tbl.innerHTML = `<tr><th>수량</th><th>세트 원가</th><th>판매가</th><th>개당 판매가</th><th>순마진</th><th>판정</th></tr>` +
     st.plans.map((p) => `<tr data-n="${p.n}" class="${st.sel && p.n === st.sel.n ? "sel" : (p.ok ? "" : "bad")}">
       <td>${p.n}개</td><td>${p.setCost.toLocaleString()}원</td><td>${p.tier.toLocaleString()}원</td>
+      <td>${Math.round(p.tier / p.n).toLocaleString()}원</td>
       <td>${p.margin.toLocaleString()}원</td><td>${p.ok ? (st.sel && p.n === st.sel.n ? "제안" : "가능") : "범위 밖"}</td></tr>`).join("");
   const cost1 = Math.round((yuan + ship / 2) * priceSettings().rate);
   note.innerHTML = `세트 원가 = (상품가 × 수량 + 배송비 ÷ 2) × 환산율 — 1개 기준 ${cost1.toLocaleString()}원. `
