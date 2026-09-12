@@ -576,6 +576,8 @@
       </div>
       <div id="cand-wrap" style="display:none; margin-top:14px;">
         <div class="sub-label" style="margin-top:0">📷 1688 이미지 후보 — 클릭하면 원본 사진으로 추가</div>
+        <a id="cand-open" class="btn" href="#" target="_blank" rel="noopener noreferrer"
+           style="display:none; text-decoration:none; font-size:12px; padding:6px 11px; margin:2px 0 8px;">🔗 1688 상품 페이지 열기</a>
         <div id="cand-strip" style="margin-bottom:6px;"></div>
       </div>
       <div id="src-thumbs" style="margin-top:14px;"></div>
@@ -669,7 +671,9 @@
       <p class="hint" style="margin-top:8px">미리보기 섹션에 마우스를 올리면 "섹션 숨기기" 버튼이 나타납니다. 숨긴 섹션은 저장 시 제외되며, 위 버튼으로 한 번에 복원됩니다.</p>
       <button class="btn" id="btn-username">사용자 이름 변경</button>
       <span class="hint" id="username-now"></span>
+      <button class="btn" id="btn-ding" style="margin-top:6px;">완료 소리 켜짐</button>
       <button class="btn" id="btn-admin" style="margin-top:6px;">관리자</button>
+      <p class="hint" style="margin-top:6px">AI 생성·재생성이 끝나면 "띵동" 소리로 알려 줍니다. 소리가 필요 없으면 위 버튼으로 끄세요 (이 PC에만 저장).</p>
     </div>
   </aside>
 
@@ -2645,6 +2649,7 @@ window.genFromEmpty = async (ev, btn) => {
   try {
     const url = await genOneImage(slotPrompt(slot.dataset.slot), key);
     await placeGenerated(slot, url);
+    dingDong();
     toast(`${slot.dataset.slot} 슬롯을 AI로 생성했습니다`);
   } catch (err) {
     console.error(err);
@@ -3187,6 +3192,7 @@ $("#btn-ai-mains").addEventListener("click", async () => {
         toast("상품이 전환되어 D 메인 결과를 적용하지 않았습니다");
       } else {
         await placeGenerated(d0, url);
+        dingDong();
         toast(`대표 완료: D 메인 AI 생성 + 상세 재사용 ${copied}장${missing.length ? ` (미채움: ${missing.join(",")} — 상세 먼저 생성하세요)` : ""}`);
       }
     } catch (err) {
@@ -3636,7 +3642,29 @@ function aiPopupProgress(title, cur, total, slotLabel) {
   $("#ai-ok").style.display = "none";
   if (!aiHidden) $("#aimodal").classList.add("open");
 }
+/* AI 생성·재생성이 끝나면 '띵동' — 버튼을 눌러 시작한 작업이라 브라우저가 소리를 허용합니다 */
+let _ac = null;
+function soundOn() { return localStorage.getItem("ding_off") !== "1"; }
+function dingDong() {
+  if (!soundOn()) return;
+  try {
+    _ac = _ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (_ac.state === "suspended") _ac.resume();
+    const t0 = _ac.currentTime;
+    [[988, 0], [740, 0.17]].forEach(([freq, at]) => {   // 띵 → 동
+      const o = _ac.createOscillator(), g = _ac.createGain();
+      o.type = "sine";
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t0 + at);
+      g.gain.exponentialRampToValueAtTime(0.22, t0 + at + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.5);
+      o.connect(g); g.connect(_ac.destination);
+      o.start(t0 + at); o.stop(t0 + at + 0.55);
+    });
+  } catch (_) { /* 소리를 못 내도 작업은 그대로 */ }
+}
 function aiPopupDone(title, sub, color) {
+  dingDong();
   aiHidden = false;
   $("#ai-icon").style.background = color || "#2E9E44";
   $("#ai-icon").textContent = "✓";
@@ -3962,6 +3990,7 @@ $("#cb-ai").addEventListener("click", async () => {
     const dEl = cbApply(st.slot, fitted);
     st.slot.dataset.edorig = url;  // 재수정은 AI 원본에서
     if (dEl) dEl.dataset.edorig = url;
+    dingDong();
     toast(`${st.parts.join("+")} 구성을 AI로 합성했습니다 (옵션 칸 + 대표 D)`);
   } catch (err) {
     console.error(err);
@@ -4388,6 +4417,7 @@ window.swapBgAI = async (ev, btn) => {
       setSlotImage(slot, url);
       if (slot.classList.contains("slot-main")) slot.classList.add("fit-contain");
     }
+    dingDong();
     toast("배경을 교체했습니다 — 마음에 안 들면 [되돌리기]");
   } catch (err) {
     console.error(err);
@@ -5057,6 +5087,11 @@ function renderCandidates() {
   if (ws && ws.candidates && ws.candidates.length) ws.candidates = cleanCands(ws.candidates);  // 예전에 저장된 후보도 정리
   const cands = (ws && ws.candidates) || [];
   wrap.style.display = cands.length ? "block" : "none";
+  const open = $("#cand-open"), u1688 = (current && current.url1688) || "";   // 1688 페이지를 새 탭에서 바로 확인
+  if (open) {
+    open.style.display = /^https?:\/\//i.test(u1688) ? "inline-block" : "none";
+    open.href = u1688 || "#";
+  }
   if (!cands.length) { strip.innerHTML = ""; return; }
   strip.innerHTML = cands.map((c, i) => {
     const on = srcFrom.indexOf(c.u) >= 0;  // 실제 원본 사진 목록을 그대로 따라감
@@ -5516,6 +5551,13 @@ async function adLoad() {
     return false;
   }
 }
+function dingBtnLabel() { const b = $("#btn-ding"); if (b) b.textContent = soundOn() ? "완료 소리 켜짐" : "완료 소리 꺼짐"; }
+dingBtnLabel();
+$("#btn-ding").addEventListener("click", () => {
+  localStorage.setItem("ding_off", soundOn() ? "1" : "0");
+  dingBtnLabel();
+  if (soundOn()) { dingDong(); toast("완료 소리를 켰습니다"); } else toast("완료 소리를 껐습니다");
+});
 $("#btn-admin").addEventListener("click", async () => {
   if (await adLoad()) { $("#admodal").classList.add("open"); slLoad(); }
 });
