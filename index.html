@@ -416,9 +416,14 @@
   #cand-prev img { display:block; width:min(600px, 92vw); height:min(600px, 76vh); object-fit:contain; background:#fafbfc; border-radius:10px; }
   #cand-prev #cand-prev-cap { text-align:center; font-size:13.5px; font-weight:800; color:#333; margin-top:7px; }
   /* 1688 붙여넣기·일괄 가져오기 */
-  #pi-table td { border:1px solid #e5e7ea; padding:5px 8px; font-size:13px; }
-  #pi-table td.k { background:#f7f8fa; font-weight:800; width:84px; white-space:nowrap; }
-  #pi-table td.v { min-width:120px; }
+  #pi-table, #ca-table { width:480px; max-width:100%; border-collapse:collapse; }
+  #ca-table { margin:10px 0 2px; }
+  #pi-table td, #ca-table td { border:1px solid #e5e7ea; padding:5px 8px; font-size:13px; }
+  #pi-table td.k, #ca-table td.k { background:#f7f8fa; font-weight:800; width:84px; white-space:nowrap; }
+  #pi-table td.v, #ca-table td.v { min-width:120px; }
+  .link1688 { display:flex; width:max-content; align-items:center; gap:4px; margin-top:4px; background:#fff3e6; color:#c25e00;
+    border:1.5px solid #f5b877; border-radius:7px; padding:3px 9px; font-size:12px; font-weight:800; text-decoration:none; white-space:nowrap; }
+  .link1688:hover { background:#f08c1e; color:#fff; border-color:#f08c1e; }
   #pi-plans { width:100%; border-collapse:collapse; margin-top:6px; }
   #pi-plans td, #pi-plans th { border:1px solid #e5e7ea; padding:4px 8px; font-size:12.5px; text-align:center; }
   #pi-plans th { background:#f7f8fa; }
@@ -1085,7 +1090,7 @@
 <div id="pastemodal" class="modal">
   <div class="mbox" style="width:620px; max-width:94vw; max-height:92vh; overflow:auto;">
     <div class="mtitle">1688 상품정보 자동 기입</div>
-    <p class="msub">1688 상품 페이지에서 <b>Ctrl+A</b>(전체 선택) → <b>Ctrl+C</b> 복사 후 아래에 붙여넣으세요 — 중국어 그대로, 번역 불필요</p>
+    <p class="msub" style="text-align:left; display:inline-block; font-size:12.5px; color:#555; line-height:1.9; margin:6px 0 10px;"><b style="color:#c25e00">방법 1)</b> 1688 수집기를 실행한 후 <b>1688 URL만</b> 입력하세요<br><b style="color:#c25e00">방법 2)</b> 1688 상품 페이지에서 <b>Ctrl+A</b>(전체 선택) → <b>Ctrl+C</b> 복사 후 아래에 붙여넣으세요</p>
     <textarea id="pi-text" rows="5" style="width:100%;" placeholder="여기에 붙여넣기 (Ctrl+V)"></textarea>
     <div style="margin-top:8px; text-align:left;">
       <button class="btn blue" id="pi-extract">정보 추출 (AI)</button>
@@ -1100,14 +1105,14 @@
       <input type="number" id="pi-yuan" step="0.01" style="width:70px;">
       <span style="font-size:12px; color:#777; margin-left:6px;">중국 배송비(¥)</span>
       <input type="number" id="pi-ship" step="0.01" style="width:70px;">
-      <div id="pi-plan-card" style="display:none;"></div>
-      <table id="pi-plans" style="display:none;"></table>
-      <div id="pi-mix-row" style="display:none; margin-top:8px;">
+      <div id="pi-mix-row" style="display:none; margin-top:10px;">
         <span style="font-size:12.5px; font-weight:800; color:#555; margin-right:6px;">색상이 여러 개일 때</span>
         <button class="btn pim active" data-pim="keep">단색 옵션 유지</button>
         <button class="btn pim" data-pim="mix">색상 믹스 1옵션</button>
       </div>
       <div id="pi-mix-box" class="mx-box" style="display:none;"></div>
+      <div id="pi-plan-card" style="display:none;"></div>
+      <table id="pi-plans" style="display:none;"></table>
       <div style="margin-top:12px;">
         <button class="btn primary" id="pi-apply">현재 상품에 적용</button>
         <button class="btn" id="pi-apply-new">새 상품으로 추가</button>
@@ -1134,12 +1139,13 @@
 <div id="calcmodal" class="modal">
   <div class="mbox" style="width:760px; max-width:96vw; max-height:92vh; overflow:auto; text-align:left;">
     <div class="mtitle">판매가 계산</div>
-    <p class="msub" id="ca-name"></p>
-    <div class="ca-row">
+    <table id="ca-table"></table>
+    <div class="sub-label" style="margin-top:12px">가격·구성 계산</div>
+    <div class="ca-row" style="margin-top:4px;">
       <span>개당 상품가(¥)</span><input type="number" id="ca-yuan" step="0.01">
       <span>중국 배송비(¥)</span><input type="number" id="ca-ship" step="0.01">
     </div>
-    <div class="ca-row"><span>색상 (/ 로 구분)</span><input type="text" id="ca-color" style="flex:1; min-width:180px;"></div>
+    <input type="hidden" id="ca-color">
     <div class="ca-row" id="ca-mix-row" style="display:none;">
       <span style="font-weight:800; color:#555;">색상이 여러 개일 때</span>
       <button class="btn pim2 active" data-pim2="keep">단색 옵션 유지</button>
@@ -4741,13 +4747,19 @@ ${String(text).slice(0, 15000)}`;
 
 /* --- 붙여넣기 창 --- */
 let piState = null;  // { d(추출값), plans, sel(선택 plan), mix, fromBatch }
+/* 옵션을 고를 때 1688 페이지를 옆 탭에 띄워 비교 — 주소가 있는 상품만 */
+function link1688Html(url) {
+  return /^https?:\/\/\S*1688\.com\//i.test(String(url || ""))
+    ? `<a class="link1688" href="${escH(url)}" target="_blank" rel="noopener noreferrer">🔗 1688 보기</a>` : "";
+}
+const PLAN_SHOW_MAX = 14900;  // 계산표는 이 판매가까지만 보여 준다 (제안 구성이 더 비싸면 그 줄은 표시)
 const PI_FIELDS = [["name", "상품명"], ["option", "상품 옵션"], ["comp", "구성"], ["color", "색상"], ["size", "사이즈"], ["material", "소재"]];
 function piRender() {
   const st = piState;
   if (!st) return;
   $("#pi-result").style.display = "block";
   $("#pi-table").innerHTML = PI_FIELDS.map(([k, label]) =>
-    `<tr><td class="k">${label}</td><td class="v" contenteditable="true" data-k="${k}"></td></tr>`).join("");
+    `<tr><td class="k">${label}${k === "name" ? link1688Html(st.d.url1688) : ""}</td><td class="v" contenteditable="true" data-k="${k}"></td></tr>`).join("");
   $$("#pi-table td.v").forEach((td) => {
     td.textContent = st.d[td.dataset.k] || "";
     td.addEventListener("input", () => { st.d[td.dataset.k] = td.textContent.trim(); piMixRow(); });
@@ -4801,12 +4813,12 @@ function piCalc() {
   card.innerHTML = s
     ? `${!s.ok ? "⚠ 순마진 범위(2,000~3,000원) 밖 — " : "제안: "}<b>${s.n}개 구성 · 판매가 ${s.tier.toLocaleString()}원 · 예상 순마진 ${s.margin.toLocaleString()}원</b> <span style="font-weight:400; color:#666;">(세트 원가 ${s.setCost.toLocaleString()}원 · 수수료 ${(s.fee + s.feeShip).toLocaleString()}원)</span>`
     : "계산 불가";
-  const show = st.plans.slice(0, 8);
+  const show = st.plans.filter((p) => p.tier <= PLAN_SHOW_MAX);
   if (s && !show.some((p) => p.n === s.n)) show.push(s);
   tbl.style.display = "table";
-  tbl.innerHTML = `<tr><th>수량</th><th>세트 원가</th><th>판매가</th><th>판매수수료</th><th>입출고배송비</th><th>순마진</th></tr>` + show.map((p) =>
+  tbl.innerHTML = `<tr><th>수량</th><th>세트 원가</th><th>판매가</th><th>개당 판매가</th><th>판매수수료</th><th>입출고배송비</th><th>순마진</th></tr>` + show.map((p) =>
     `<tr data-n="${p.n}" class="${s && p.n === s.n ? "sel" : (p.ok ? "" : "bad")}">
-       <td>${p.n}개</td><td>${p.setCost.toLocaleString()}원</td><td>${p.tier.toLocaleString()}원</td><td>${p.fee.toLocaleString()}원</td><td>${p.feeShip.toLocaleString()}원</td><td>${p.margin.toLocaleString()}원</td></tr>`).join("");
+       <td>${p.n}개</td><td>${p.setCost.toLocaleString()}원</td><td>${p.tier.toLocaleString()}원</td><td>${Math.round(p.tier / p.n).toLocaleString()}원</td><td>${p.fee.toLocaleString()}원</td><td>${p.feeShip.toLocaleString()}원</td><td>${p.margin.toLocaleString()}원</td></tr>`).join("");
   $$("#pi-plans tr[data-n]").forEach((tr) => tr.addEventListener("click", () => {
     st.sel = planFor(+tr.dataset.n, yuan, ship, milk);
     if (st.mix) { const cs = splitColors(st.d.color); st.mixCounts = evenCounts(cs, st.sel.n); st.mixKey = cs.join("/"); }
@@ -5357,7 +5369,17 @@ let caState = null;
 window.openCalcModal = () => {
   if (!current) { toast("먼저 상품을 불러와 주세요"); return; }
   caState = { mix: false, mixCounts: null, mixKey: null, sel: null, plans: [] };
-  $("#ca-name").textContent = current.name || "";
+  const fv = (sel, fb) => { const el = $(sel); const t = el ? el.textContent.trim() : ""; return t && t !== "기재예정" ? t : (fb || ""); };
+  const rows = [["name", "상품명", fv("#f-name", current.name)], ["opt", "상품 옵션", fv("#f-opt", current.opt)], ["comp", "구성", fv("#f-comp", current.comp)],
+    ["color", "색상", current.color || fv("#f-color")], ["size", "사이즈", fv("#f-size", current.size)], ["mat", "소재", fv("#f-mat", current.mat)]];
+  $("#ca-table").innerHTML = rows.map(([k, label]) =>
+    `<tr><td class="k">${label}${k === "name" ? link1688Html(current.url1688) : ""}</td><td class="v" contenteditable="true" data-k="${k}"></td></tr>`).join("");
+  caState.orig = {};
+  $$("#ca-table td.v").forEach((td, i) => {
+    td.textContent = rows[i][2];
+    caState.orig[td.dataset.k] = rows[i][2];
+    if (td.dataset.k === "color") td.addEventListener("input", () => { $("#ca-color").value = td.textContent.trim(); if (caState) { caState.sel = null; caCalc(); } });
+  });
   $("#ca-yuan").value = current.priceYuan || "";
   $("#ca-ship").value = current.shipYuan || "";
   $("#ca-color").value = current.color || "";
@@ -5412,7 +5434,7 @@ function caCalc() {
     + (st.sel.ok ? "" : ' <span style="font-weight:700">(목표 순마진 범위 밖)</span>');
   tbl.style.display = "table";
   tbl.innerHTML = `<tr><th>수량</th><th>세트 원가</th><th>판매가</th><th>개당 판매가</th><th>순마진</th><th>판정</th></tr>` +
-    st.plans.map((p) => `<tr data-n="${p.n}" class="${st.sel && p.n === st.sel.n ? "sel" : (p.ok ? "" : "bad")}">
+    st.plans.filter((p) => p.tier <= PLAN_SHOW_MAX || (st.sel && p.n === st.sel.n)).map((p) => `<tr data-n="${p.n}" class="${st.sel && p.n === st.sel.n ? "sel" : (p.ok ? "" : "bad")}">
       <td>${p.n}개</td><td>${p.setCost.toLocaleString()}원</td><td>${p.tier.toLocaleString()}원</td>
       <td>${Math.round(p.tier / p.n).toLocaleString()}원</td>
       <td>${p.margin.toLocaleString()}원</td><td>${p.ok ? (st.sel && p.n === st.sel.n ? "제안" : "가능") : "범위 밖"}</td></tr>`).join("");
@@ -5448,7 +5470,13 @@ $("#ca-apply").addEventListener("click", () => {
   const useMix = st.mix && colors.length >= 2 && st.mixCounts && mixTotal(st.mixCounts) > 0;
   const total = useMix ? mixTotal(st.mixCounts) : st.sel.n;
   const pl = planFor(total, yuan, ship);
-  const comp = syncCompCount($("#f-comp") ? $("#f-comp").textContent.trim() : "", total);
+  const tv = (k) => { const td = $(`#ca-table td.v[data-k=${k}]`); return td ? td.textContent.trim() : ""; };
+  const changed = (k) => st.orig && tv(k) !== (st.orig[k] || "");
+  if (changed("name") && tv("name")) { current.name = tv("name"); setField("#f-name", current.name); setField("#f-name2", current.name); }
+  if (changed("opt") && !useMix) { current.opt = tv("opt"); setField("#f-opt", current.opt); }
+  if (changed("size")) { current.size = tv("size"); setField("#f-size", current.size); }
+  if (changed("mat")) { current.mat = tv("mat"); setField("#f-mat", current.mat); }
+  const comp = syncCompCount(tv("comp") || ($("#f-comp") ? $("#f-comp").textContent.trim() : ""), total);
   current.priceYuan = yuan; current.shipYuan = ship; current.milkrun = 0;
   current.color = $("#ca-color").value.trim();
   setField("#f-color", current.color);
