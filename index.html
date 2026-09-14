@@ -5,8 +5,54 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>쿠팡 상품 이미지 생성기</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a7cff'/%3E%3Ccircle cx='45' cy='19' r='6' fill='%23ffe089'/%3E%3Cpath d='M11 51 27 26 39 51Z' fill='%23ffffff'/%3E%3Cpath d='M33 51 45 33 55 51Z' fill='%23cfe4ff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&family=Gowun+Dodum&family=Noto+Serif+KR:wght@400;700;900&family=Poor+Story&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fonts-archive/GmarketSans/GmarketSans.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fonts-archive/NanumSquareRound/NanumSquareRound.css">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
+  /* ---------- 상세페이지 디자인 프리셋 · 글씨체 (기본 템플릿만 색 적용, 대표 이미지는 제외) ---------- */
+  #design-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:#fff; border:2px solid #111; border-radius:10px; padding:9px 12px; margin:0 0 14px; }
+  #design-bar .lb { font-size:12.5px; font-weight:800; color:#555; margin-right:2px; }
+  #design-bar .pchip { display:inline-flex; align-items:center; gap:6px; border:1.5px solid #dfe3e8; background:#fff; border-radius:18px; padding:6px 11px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; color:#111; }
+  #design-bar .pchip i { width:13px; height:13px; border-radius:50%; background:var(--c); display:inline-block; }
+  #design-bar .pchip.on { border-color:#111; box-shadow:0 0 0 1px #111 inset; }
+  #design-bar select { font-size:12.5px; font-weight:700; padding:6px 8px; border-radius:8px; border:1.5px solid #dfe3e8; font-family:inherit; }
+  #design-bar .sep { width:1px; height:22px; background:#e3e6ea; margin:0 4px; }
+  #page[data-preset="butter"] { background:#fffcf0; }
+  #page[data-preset="butter"] .sec-hero h1, #page[data-preset="butter"] .sec-hook h2, #page[data-preset="butter"] .num-block h3, #page[data-preset="butter"] .num-block .num, #page[data-preset="butter"] section h2 { color:#4d4020; }
+  #page[data-preset="butter"] .hero-sub, #page[data-preset="butter"] .hook-body, #page[data-preset="butter"] .num-block p, #page[data-preset="butter"] .spec-row .v, #page[data-preset="butter"] .use-sub, #page[data-preset="butter"] .sec-caution li { color:#8f8466; }
+  #page[data-preset="butter"] .num-block .bar, #page[data-preset="butter"] .spec-row .k::before { background:#e3b62f; }
+  #page[data-preset="butter"] .sec-caution { background:#fbf3d4; }
+  #page[data-preset="butter"] .slot-hero.filled::before { background:rgba(255,252,240,.55); }
+  #page[data-preset="butter"] .sec-hook h2::after { content:''; display:block; width:48px; height:4px; background:#e3b62f; margin:18px auto 0; }
+  #page[data-preset="lavender"] { background:#faf8ff; }
+  #page[data-preset="lavender"] .sec-hero h1, #page[data-preset="lavender"] .sec-hook h2, #page[data-preset="lavender"] .num-block h3, #page[data-preset="lavender"] .num-block .num, #page[data-preset="lavender"] section h2 { color:#3b3160; }
+  #page[data-preset="lavender"] .hero-sub, #page[data-preset="lavender"] .hook-body, #page[data-preset="lavender"] .num-block p, #page[data-preset="lavender"] .spec-row .v, #page[data-preset="lavender"] .use-sub, #page[data-preset="lavender"] .sec-caution li { color:#857d9c; }
+  #page[data-preset="lavender"] .num-block .bar, #page[data-preset="lavender"] .spec-row .k::before { background:#9b87d6; }
+  #page[data-preset="lavender"] .sec-caution { background:#f1edfb; }
+  #page[data-preset="lavender"] .slot-hero.filled::before { background:rgba(250,248,255,.55); }
+  #page[data-preset="lavender"] .sec-hook h2::after { content:''; display:block; width:48px; height:4px; background:#9b87d6; margin:18px auto 0; }
+  #page[data-preset="deepgreen"] { background:#ffffff; }
+  #page[data-preset="deepgreen"] .sec-hero h1, #page[data-preset="deepgreen"] .sec-hook h2, #page[data-preset="deepgreen"] .num-block h3, #page[data-preset="deepgreen"] .num-block .num, #page[data-preset="deepgreen"] section h2 { color:#1f3d33; }
+  #page[data-preset="deepgreen"] .hero-sub, #page[data-preset="deepgreen"] .hook-body, #page[data-preset="deepgreen"] .num-block p, #page[data-preset="deepgreen"] .spec-row .v, #page[data-preset="deepgreen"] .use-sub, #page[data-preset="deepgreen"] .sec-caution li { color:#6b7c75; }
+  #page[data-preset="deepgreen"] .num-block .bar, #page[data-preset="deepgreen"] .spec-row .k::before { background:#2f6b55; }
+  #page[data-preset="deepgreen"] .sec-caution { background:#e8f0ec; }
+  #page[data-preset="deepgreen"] .slot-hero.filled::before { background:rgba(255,255,255,.55); }
+  #page[data-preset="deepgreen"] .sec-hook h2::after { content:''; display:block; width:48px; height:4px; background:#2f6b55; margin:18px auto 0; }
+  #page[data-preset="sky"] { background:#f6fbff; }
+  #page[data-preset="sky"] .sec-hero h1, #page[data-preset="sky"] .sec-hook h2, #page[data-preset="sky"] .num-block h3, #page[data-preset="sky"] .num-block .num, #page[data-preset="sky"] section h2 { color:#1f4a73; }
+  #page[data-preset="sky"] .hero-sub, #page[data-preset="sky"] .hook-body, #page[data-preset="sky"] .num-block p, #page[data-preset="sky"] .spec-row .v, #page[data-preset="sky"] .use-sub, #page[data-preset="sky"] .sec-caution li { color:#6f8499; }
+  #page[data-preset="sky"] .num-block .bar, #page[data-preset="sky"] .spec-row .k::before { background:#5aa6e0; }
+  #page[data-preset="sky"] .sec-caution { background:#e8f3fc; }
+  #page[data-preset="sky"] .slot-hero.filled::before { background:rgba(246,251,255,.55); }
+  #page[data-preset="sky"] .sec-hook h2::after { content:''; display:block; width:48px; height:4px; background:#5aa6e0; margin:18px auto 0; }
+  #page[data-font="nanumgothic"], #page[data-font="nanumgothic"] * { font-family:'Nanum Gothic', 'Malgun Gothic', sans-serif !important; }
+  #page[data-font="gowun"], #page[data-font="gowun"] * { font-family:'Gowun Dodum', 'Malgun Gothic', sans-serif !important; }
+  #page[data-font="gmarket"], #page[data-font="gmarket"] * { font-family:'Gmarket Sans', 'Malgun Gothic', sans-serif !important; }
+  #page[data-font="nsround"], #page[data-font="nsround"] * { font-family:'Nanum Square Round', 'Malgun Gothic', sans-serif !important; }
+  #page[data-font="notoserif"], #page[data-font="notoserif"] * { font-family:'Noto Serif KR', 'Malgun Gothic', sans-serif !important; }
+  #page[data-font="poorstory"], #page[data-font="poorstory"] * { font-family:'Poor Story', 'Malgun Gothic', sans-serif !important; }
   html, body { height:100%; }
   body { font-family:'Pretendard Variable', Pretendard, 'Noto Sans KR', 'Malgun Gothic', sans-serif; background:#ececec; color:#111; }
   #app { display:flex; height:100vh; }
@@ -704,6 +750,10 @@
           <span class="chip"><svg viewBox="0 0 24 24" fill="none"><path d="M5 11a2.5 2.5 0 0 1 2.5 2.5V15h9v-1.5A2.5 2.5 0 0 1 21 11h-.2A2.8 2.8 0 0 0 18 8.2V8a3 3 0 0 0-3-3H9a3 3 0 0 0-3 3v.2A2.8 2.8 0 0 0 3.2 11H5z" fill="#6F95D8"/><path d="M4.5 11.2a2 2 0 0 1 2 2V15h11v-1.8a2 2 0 0 1 2-2 2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-3.8a2 2 0 0 1 2-2z" fill="#93B3EA"/><path d="M6.5 19v1.4M17.5 19v1.4" stroke="#3F62A8" stroke-width="1.7" stroke-linecap="round"/></svg></span>홈인테리어<span class="soon">오픈 예정</span></button>
         <button data-cat="로켓">
           <span class="chip"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3c3.2 1.6 5 4.6 5 8.2 0 2-.5 3.8-1.4 5.3H8.4A10.6 10.6 0 0 1 7 11.2C7 7.6 8.8 4.6 12 3z" fill="#E86A5A"/><circle cx="12" cy="10" r="2" fill="#fff"/><path d="M8.3 14.5 6 18l2.8-.8M15.7 14.5 18 18l-2.8-.8" fill="#D14B3C"/><path d="M11 17.5h2L12 21l-1-3.5z" fill="#F2A93B"/></svg></span>로켓 이미지</button>
+      </div>
+      <div id="design-bar">
+        <span class="lb" id="design-preset-lb">디자인 프리셋</span><span id="design-chips"><button type="button" class="pchip" data-preset="mono" style="--c:#111111"><i></i>모노톤</button><button type="button" class="pchip" data-preset="butter" style="--c:#e3b62f"><i></i>버터 옐로</button><button type="button" class="pchip" data-preset="lavender" style="--c:#9b87d6"><i></i>라벤더</button><button type="button" class="pchip" data-preset="deepgreen" style="--c:#2f6b55"><i></i>딥 그린</button><button type="button" class="pchip" data-preset="sky" style="--c:#5aa6e0"><i></i>스카이 블루</button></span>
+        <span class="sep" id="design-sep"></span><span class="lb">글씨체</span><select id="design-font"><option value="nanumgothic">나눔고딕</option><option value="gowun">고운돋움</option><option value="gmarket">G마켓 산스</option><option value="nsround">나눔스퀘어라운드</option><option value="notoserif">본명조</option><option value="poorstory">푸어스토리</option></select>
       </div>
 
       <div class="pane-label">상세 이미지</div>
@@ -2078,6 +2128,7 @@ function loadTemplateFor(cat) {
   $("#page").innerHTML = (cat === TOY_CAT) ? TOY_TEMPLATE : (cat === ROCKET_CAT ? ROCKET_TEMPLATE : DEFAULT_TEMPLATE);
   $("#page").setAttribute("style", "");
   bindPageSlots();
+  if (typeof applyDesign === "function") applyDesign(designPreset, designFont);
 }
 function templateKindOf(cat) { return cat === TOY_CAT ? "toy" : (cat === ROCKET_CAT ? "rocket" : "default"); }
 function currentTemplateKind() { return isToy() ? "toy" : (isRocket() ? "rocket" : "default"); }
@@ -2126,7 +2177,40 @@ function snapshotCurrent() {
   });
   ws.cat = category;
   ws.pageStyle = $("#page").getAttribute("style") || "";
+  ws.preset = designPreset;
+  ws.font = designFont;
 }
+
+
+/* ---------- 상세페이지 디자인 프리셋 · 글씨체 — 상품마다 ws.preset / ws.font 로 기억 ---------- */
+const DESIGN_PRESETS = ["mono", "butter", "lavender", "deepgreen", "sky"];
+const DESIGN_FONTS = ["nanumgothic", "gowun", "gmarket", "nsround", "notoserif", "poorstory"];
+let designPreset = "mono", designFont = "nanumgothic";
+function applyDesign(preset, font) {
+  designPreset = DESIGN_PRESETS.includes(preset) ? preset : "mono";
+  designFont = DESIGN_FONTS.includes(font) ? font : "nanumgothic";
+  const kind = typeof currentTemplateKind === "function" ? currentTemplateKind() : "default";
+  const page = $("#page");
+  page.dataset.preset = kind === "default" ? designPreset : "mono";   // 문구·완구·로켓은 사진 색 자동 — 글씨체만
+  page.dataset.font = designFont;
+  const showChips = kind === "default";
+  ["#design-preset-lb", "#design-chips", "#design-sep"].forEach((sel) => { const el = $(sel); if (el) el.style.display = showChips ? "" : "none"; });
+  $$("#design-bar .pchip").forEach((b) => b.classList.toggle("on", b.dataset.preset === designPreset));
+  const fs = $("#design-font");
+  if (fs) fs.value = designFont;
+  if (curIdx >= 0 && workspaces[curIdx]) { workspaces[curIdx].preset = designPreset; workspaces[curIdx].font = designFont; }
+  if (typeof updateHeight === "function") setTimeout(updateHeight, 300);
+}
+$$("#design-bar .pchip").forEach((b) => b.addEventListener("click", () => {
+  applyDesign(b.dataset.preset, designFont);
+  if (curIdx >= 0 && workspaces[curIdx]) workspaces[curIdx].saved = false;
+}));
+$("#design-font").addEventListener("change", (e) => {
+  applyDesign(designPreset, e.target.value);
+  if (curIdx >= 0 && workspaces[curIdx]) workspaces[curIdx].saved = false;
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (typeof updateHeight === "function") updateHeight(); });
+});
+applyDesign("mono", "nanumgothic");
 
 function switchProduct(i) {
   if (i === curIdx || i < 0 || i >= products.length) return;
@@ -2134,6 +2218,7 @@ function switchProduct(i) {
   curIdx = i;
   current = products[i];
   const ws = workspaces[i];
+  const wsPreset = ws.preset || "mono", wsFont = ws.font || "nanumgothic";   // 템플릿을 새로 깔 때 앞 상품 설정이 덮어쓰지 않게 먼저 받아 둔다
   if (ws.cat) setCategory(ws.cat, true);
   setModelMode(ws.modelMode || "part", true);
   if (ws.html) {
@@ -2176,6 +2261,7 @@ function switchProduct(i) {
     applyMainCaptions();
     polishNameAI(current);
   }
+  applyDesign(wsPreset, wsFont);
   renderProductList();
   updateHeight();
 }
@@ -3284,6 +3370,7 @@ async function buildCanvas() {
   await new Promise((r) => setTimeout(r, 100));
   let canvas;
   try {
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;   // 고른 글씨체가 다 받아진 뒤 캡처
     canvas = await html2canvas(page, { scale: 1, backgroundColor: "#ffffff", useCORS: true, logging: false });
   } finally {
     parent.insertBefore(page, next);
