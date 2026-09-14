@@ -12,13 +12,18 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   /* ---------- 상세페이지 디자인 프리셋 · 글씨체 (기본 템플릿만 색 적용, 대표 이미지는 제외) ---------- */
-  #design-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:#fff; border:2px solid #111; border-radius:10px; padding:9px 12px; margin:0 0 14px; }
+  #design-bar { background:#fff; border:2px solid #111; border-radius:10px; padding:10px 14px; margin:0 0 14px; }
+  #design-bar .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  #design-bar .row + .row { margin-top:8px; padding-top:8px; border-top:1px dashed #e3e6ea; }
+  #design-bar .row .lb { width:78px; flex:none; }
+  #design-chips, #design-fonts { display:flex; gap:8px; flex-wrap:wrap; }
+  #design-bar .fchip { border:1.5px solid #dfe3e8; background:#fff; border-radius:18px; padding:6px 13px; font-size:13.5px; font-weight:700; cursor:pointer; color:#111; }
+  #design-bar .fchip.on { border-color:#111; box-shadow:0 0 0 1px #111 inset; }
   #design-bar .lb { font-size:12.5px; font-weight:800; color:#555; margin-right:2px; }
   #design-bar .pchip { display:inline-flex; align-items:center; gap:6px; border:1.5px solid #dfe3e8; background:#fff; border-radius:18px; padding:6px 11px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; color:#111; }
   #design-bar .pchip i { width:13px; height:13px; border-radius:50%; background:var(--c); display:inline-block; }
   #design-bar .pchip.on { border-color:#111; box-shadow:0 0 0 1px #111 inset; }
-  #design-bar select { font-size:12.5px; font-weight:700; padding:6px 8px; border-radius:8px; border:1.5px solid #dfe3e8; font-family:inherit; }
-  #design-bar .sep { width:1px; height:22px; background:#e3e6ea; margin:0 4px; }
+
   #page[data-preset="butter"] { background:#fffcf0; }
   #page[data-preset="butter"] .sec-hero h1, #page[data-preset="butter"] .sec-hook h2, #page[data-preset="butter"] .num-block h3, #page[data-preset="butter"] .num-block .num, #page[data-preset="butter"] section h2 { color:#4d4020; }
   #page[data-preset="butter"] .hero-sub, #page[data-preset="butter"] .hook-body, #page[data-preset="butter"] .num-block p, #page[data-preset="butter"] .spec-row .v, #page[data-preset="butter"] .use-sub, #page[data-preset="butter"] .sec-caution li { color:#8f8466; }
@@ -752,8 +757,8 @@
           <span class="chip"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3c3.2 1.6 5 4.6 5 8.2 0 2-.5 3.8-1.4 5.3H8.4A10.6 10.6 0 0 1 7 11.2C7 7.6 8.8 4.6 12 3z" fill="#E86A5A"/><circle cx="12" cy="10" r="2" fill="#fff"/><path d="M8.3 14.5 6 18l2.8-.8M15.7 14.5 18 18l-2.8-.8" fill="#D14B3C"/><path d="M11 17.5h2L12 21l-1-3.5z" fill="#F2A93B"/></svg></span>로켓 이미지</button>
       </div>
       <div id="design-bar">
-        <span class="lb" id="design-preset-lb">디자인 프리셋</span><span id="design-chips"><button type="button" class="pchip" data-preset="mono" style="--c:#111111"><i></i>모노톤</button><button type="button" class="pchip" data-preset="butter" style="--c:#e3b62f"><i></i>버터 옐로</button><button type="button" class="pchip" data-preset="lavender" style="--c:#9b87d6"><i></i>라벤더</button><button type="button" class="pchip" data-preset="deepgreen" style="--c:#2f6b55"><i></i>딥 그린</button><button type="button" class="pchip" data-preset="sky" style="--c:#5aa6e0"><i></i>스카이 블루</button></span>
-        <span class="sep" id="design-sep"></span><span class="lb">글씨체</span><select id="design-font"><option value="nanumgothic">나눔고딕</option><option value="gowun">고운돋움</option><option value="gmarket">G마켓 산스</option><option value="nsround">나눔스퀘어라운드</option><option value="notoserif">본명조</option><option value="poorstory">푸어스토리</option></select>
+        <div class="row" id="design-preset-row"><span class="lb">디자인 프리셋</span><span id="design-chips"><button type="button" class="pchip" data-preset="mono" style="--c:#111111"><i></i>모노톤</button><button type="button" class="pchip" data-preset="butter" style="--c:#e3b62f"><i></i>버터 옐로</button><button type="button" class="pchip" data-preset="lavender" style="--c:#9b87d6"><i></i>라벤더</button><button type="button" class="pchip" data-preset="deepgreen" style="--c:#2f6b55"><i></i>딥 그린</button><button type="button" class="pchip" data-preset="sky" style="--c:#5aa6e0"><i></i>스카이 블루</button></span></div>
+        <div class="row" id="design-font-row"><span class="lb">글씨체</span><span id="design-fonts"><button type="button" class="fchip" data-font="nanumgothic" style="font-family:'Nanum Gothic', 'Malgun Gothic', sans-serif">나눔고딕</button><button type="button" class="fchip" data-font="gowun" style="font-family:'Gowun Dodum', 'Malgun Gothic', sans-serif">고운돋움</button><button type="button" class="fchip" data-font="gmarket" style="font-family:'Gmarket Sans', 'Malgun Gothic', sans-serif">G마켓 산스</button><button type="button" class="fchip" data-font="nsround" style="font-family:'Nanum Square Round', 'Malgun Gothic', sans-serif">나눔스퀘어라운드</button><button type="button" class="fchip" data-font="notoserif" style="font-family:'Noto Serif KR', 'Malgun Gothic', sans-serif">본명조</button><button type="button" class="fchip" data-font="poorstory" style="font-family:'Poor Story', 'Malgun Gothic', sans-serif">푸어스토리</button></span></div>
       </div>
 
       <div class="pane-label">상세 이미지</div>
@@ -2194,10 +2199,11 @@ function applyDesign(preset, font) {
   page.dataset.preset = kind === "default" ? designPreset : "mono";   // 문구·완구·로켓은 사진 색 자동 — 글씨체만
   page.dataset.font = designFont;
   const showChips = kind === "default";
-  ["#design-preset-lb", "#design-chips", "#design-sep"].forEach((sel) => { const el = $(sel); if (el) el.style.display = showChips ? "" : "none"; });
+  const pr = $("#design-preset-row"), fr = $("#design-font-row");
+  if (pr) pr.style.display = showChips ? "" : "none";
+  if (fr) fr.style.cssText = showChips ? "" : "margin-top:0; padding-top:0; border-top:none;";
   $$("#design-bar .pchip").forEach((b) => b.classList.toggle("on", b.dataset.preset === designPreset));
-  const fs = $("#design-font");
-  if (fs) fs.value = designFont;
+  $$("#design-bar .fchip").forEach((b) => b.classList.toggle("on", b.dataset.font === designFont));
   if (curIdx >= 0 && workspaces[curIdx]) { workspaces[curIdx].preset = designPreset; workspaces[curIdx].font = designFont; }
   if (typeof updateHeight === "function") setTimeout(updateHeight, 300);
 }
@@ -2205,11 +2211,11 @@ $$("#design-bar .pchip").forEach((b) => b.addEventListener("click", () => {
   applyDesign(b.dataset.preset, designFont);
   if (curIdx >= 0 && workspaces[curIdx]) workspaces[curIdx].saved = false;
 }));
-$("#design-font").addEventListener("change", (e) => {
-  applyDesign(designPreset, e.target.value);
+$$("#design-bar .fchip").forEach((b) => b.addEventListener("click", () => {
+  applyDesign(designPreset, b.dataset.font);
   if (curIdx >= 0 && workspaces[curIdx]) workspaces[curIdx].saved = false;
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (typeof updateHeight === "function") updateHeight(); });
-});
+}));
 applyDesign("mono", "nanumgothic");
 
 function switchProduct(i) {
