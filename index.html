@@ -3475,35 +3475,56 @@ function wsFields(i) {
 const EXCEL_HEADER = ["NO", "상품명", "상품 구성", "색상", "수량", "사이즈", "소재", "1688URL", "1688옵션명", "1688구매 수량",
   "옵션1원가", "옵션2원가", "옵션3원가", "1688배송비", "검색태그(20개)", "판매가"];
 /* 옵션1~3원가: 같은 가격끼리 묶어 '금액x옵션 수' — 가격이 4가지 이상이면 3번째 칸에 나머지를 + 로 전부 */
-function optPriceCols(p) {
-  const prices = (Array.isArray(p.optPrices) ? p.optPrices : []).map(Number).filter((v) => v > 0);
-  if (!prices.length) return [p.priceYuan ? +p.priceYuan : "", "", ""];   // 옵션별 가격 없음(예전 상품) → 개당 상품가만
+function priceCols(prices) {
   const groups = [];
-  prices.forEach((v) => { const g = groups.find((x) => x.v === v); if (g) g.c++; else groups.push({ v, c: 1 }); });
+  prices.filter((v) => v > 0).forEach((v) => { const g = groups.find((x) => x.v === v); if (g) g.c++; else groups.push({ v, c: 1 }); });
   const lab = (g) => (g.c > 1 ? `${g.v}x${g.c}` : g.v);
   if (groups.length <= 3) return [0, 1, 2].map((k) => (groups[k] ? lab(groups[k]) : ""));
   return [lab(groups[0]), lab(groups[1]), groups.slice(2).map((g) => String(lab(g))).join("+")];
 }
-/* 1688구매 수량: 세트 1개에 옵션별로 사야 하는 개수 — 색상 믹스는 색상별 개수, 단색 옵션은 옵션마다 구성 수량 */
-function buyQtyStr(f, p) {
-  const opt = f.opt && f.opt !== "기재예정" ? f.opt : "";
-  if (opt.indexOf("+") >= 0) {
-    const nums = opt.split("+").map((x) => { const m = x.trim().match(/(\d+)\s*개?$/); return m ? m[1] : ""; });
-    if (nums.every(Boolean)) return nums.join("/");
-  }
+/* 1688 옵션 짝 목록 — AI가 준 짝, 없으면 수집기 옵션 사진 이름(중국어)을 사전으로 한글화해 짝으로 */
+function optMapOf(p) {
+  if (Array.isArray(p.optMap) && p.optMap.length) return p.optMap;
+  return String(p.optCn || "").split("/").map((x) => x.trim()).filter(Boolean).map((cn) => ({ cn, ko: optKo(cn), price: 0 }));
+}
+const normOpt = (x) => String(x || "").replace(/\s+/g, "").toLowerCase();
+function matchOpt(map, name) {
+  const k = normOpt(name);
+  if (!k) return null;
+  return map.find((m) => normOpt(m.ko) === k) || map.find((m) => normOpt(m.cn) === k) || map.find((m) => normOpt(optKo(m.cn)) === k)
+    || map.find((m) => m.ko && (normOpt(m.ko).includes(k) || k.includes(normOpt(m.ko)))) || null;
+}
+/* 실제로 파는 옵션(상품 구성) 기준 — 옵션명·구매 수량·가격이 같은 순서. 판매가 계산·구성 조정·미리보기 수정이 그대로 반영된다 */
+function sold1688(f, p) {
   const n = parseInt(String(f.qty || p.qty || "").replace(/[^\d]/g, ""), 10) || 0;
-  if (!n) return "";
-  const k = (p.optCn ? p.optCn.split("/").filter((x) => x.trim()).length : 0) || (opt ? opt.split("/").filter((x) => x.trim()).length : 0) || 1;
-  return Array(k).fill(n).join("/");
+  const opt = f.opt && f.opt !== "기재예정" ? f.opt : "";
+  const col = f.color && f.color !== "기재예정" ? f.color : "";
+  let items;
+  if (opt.indexOf("+") >= 0) {   // 색상 믹스: 핑크3+블루2
+    items = opt.split("+").map((x) => { const m = x.trim().match(/^(.*?)(\d+)\s*개?$/); return m ? { name: m[1].trim(), n: +m[2] } : { name: x.trim(), n: 0 }; });
+  } else {                        // 단색 옵션: 옵션마다 구성 수량
+    items = (opt || col).split("/").map((x) => x.trim()).filter(Boolean).map((name) => ({ name, n }));
+  }
+  const map = optMapOf(p);
+  if (!items.length) items = [{ name: "", n }];
+  if (items.length === 1 && map.length === 1) items[0].m = map[0];   // 옵션 하나짜리 상품
+  const names = [], qtys = [], prices = [];
+  items.forEach((it) => {
+    const m = it.m || matchOpt(map, it.name);
+    if (map.length) names.push(m ? m.cn : (it.name ? it.name + "(?)" : ""));
+    qtys.push(it.n || "");
+    prices.push((m && m.price) || +p.priceYuan || 0);
+  });
+  return { names: names.filter(Boolean).join("/"), qty: qtys.some(Boolean) ? qtys.join("/") : "", cols: priceCols(prices) };
 }
 function excelRow(i) {
   const f = wsFields(i);
   const p = products[i] || {};
   const optOut = f.opt === "기재예정" ? "" : (f.opt || "");
   const is1688 = !!p.url1688;   // 엑셀로 올린 상품은 1688 칸을 비워 둔다
-  const pc = is1688 ? optPriceCols(p) : ["", "", ""];
+  const so = is1688 ? sold1688(f, p) : { names: "", qty: "", cols: ["", "", ""] };
   return [p.no || "", f.name, optOut, f.color, f.qty, f.size, f.mat,
-          p.url1688 || "", is1688 ? p.optCn || "" : "", is1688 ? buyQtyStr(f, p) : "", pc[0], pc[1], pc[2],
+          p.url1688 || "", so.names, so.qty, so.cols[0], so.cols[1], so.cols[2],
           is1688 ? (p.shipYuan || "") : "", f.tags, p.sellPrice || ""];
 }
 function buildExcelWB(rows) {
@@ -4773,7 +4794,7 @@ async function extract1688(text) {
   const key = apiKey();
   if (!key) throw new Error("최상단에 API 키를 먼저 입력해 주세요");
   const prompt = `다음은 1688(중국 도매 사이트) 상품 페이지에서 복사한 텍스트입니다. 상품 정보를 추출해 JSON으로만 답하세요.
-형식: {"name":"한국어로 자연스럽게 번역한 상품명(수식어·중복 제거, 쿠팡 검색용, 15~30자)","option":"판매 옵션이 나뉘면 / 로 구분, 한 옵션이 여러 구성이면 + 로 (없으면 빈 문자열)","comp":"구성 요약 — 품목명과 개수","color":"색상들을 / 로 구분 (한국어)","qty":"1세트 수량 (모르면 빈 문자열)","size":"사이즈 — cm 단위 가로x세로(x높이) 형식 우선","material":"소재 (한국어)","priceYuan":최소 구매 구간의 개당 단가 숫자(위안, 모르면 0),"shipYuan":중국 내 배송비 숫자(위안, 모르면 0),"optionCn":"1688 판매 옵션(SKU) 이름을 중국어 원문 그대로 / 로 구분 — 번역 금지 (없으면 빈 문자열)","optionPrices":[optionCn 과 같은 순서로 옵션별 개당 가격 숫자(위안) — 옵션별 가격이 안 보이면 빈 배열]}
+형식: {"name":"한국어로 자연스럽게 번역한 상품명(수식어·중복 제거, 쿠팡 검색용, 15~30자)","option":"판매 옵션이 나뉘면 / 로 구분, 한 옵션이 여러 구성이면 + 로 (없으면 빈 문자열)","comp":"구성 요약 — 품목명과 개수","color":"색상들을 / 로 구분 (한국어)","qty":"1세트 수량 (모르면 빈 문자열)","size":"사이즈 — cm 단위 가로x세로(x높이) 형식 우선","material":"소재 (한국어)","priceYuan":최소 구매 구간의 개당 단가 숫자(위안, 모르면 0),"shipYuan":중국 내 배송비 숫자(위안, 모르면 0),"optionPairs":[1688 판매 옵션(SKU)마다 {"cn":"옵션 이름 중국어 원문 그대로(번역 금지)","ko":"그 옵션의 한국어 이름 — option·color 에 적은 표기와 글자까지 똑같이","price":그 옵션의 개당 가격 숫자(위안, 모르면 0)} — 1688 페이지 순서대로 전부, 옵션이 없으면 빈 배열]}
 규칙: 반드시 아래 텍스트에 실제로 적힌 정보만 사용하세요. 텍스트에 없는 정보는 절대 추측하거나 지어내지 말고 빈 문자열 또는 0으로 두세요. 아래 텍스트가 상품 페이지 내용이 아니거나(예: 주소만 있음) 상품 정보를 찾을 수 없으면 모든 값을 비워서 답하세요. 어린이·아동 관련 단어 금지. JSON 외 다른 텍스트 금지.
 
 ${String(text).slice(0, 15000)}`;
@@ -4948,8 +4969,10 @@ function extractToProduct(d, url) {
     size: d.size || "", mat: d.material || "", kc: "", kcno: "", age: "",
     url1688: url || "", priceYuan: d.priceYuan || 0, shipYuan: d.shipYuan || 0,
     milkrun: d.milkrun || 0, sellPrice: plan ? plan.tier : 0,
-    optCn: String(d.optionCn || "").trim(),
-    optPrices: (Array.isArray(d.optionPrices) ? d.optionPrices : []).map(Number).filter((v) => v > 0),
+    optMap: (Array.isArray(d.optionPairs) ? d.optionPairs : [])
+      .map((o) => ({ cn: String((o && o.cn) || "").trim(), ko: String((o && o.ko) || "").trim(), price: +(o && o.price) || 0 }))
+      .filter((o) => o.cn),
+    optCn: String(d.optionCn || "").trim(),   // 옵션 짝을 못 받았을 때 수집기 옵션 사진 이름(중국어)
   };
 }
 function freshWS(extra) {
@@ -4999,7 +5022,7 @@ $("#pi-extract").addEventListener("click", async () => {
     if (!piState) return;
     if (!d || !d.name) { toast("상품 정보를 찾지 못했습니다 — 1688 상품 페이지 본문이 맞는지 확인해 주세요"); return; }
     piState.d = Object.assign({ milkrun: 0 }, d);
-    if (fetched) { piState.d.url1688 = fetched.url; piState.fetched = fetched; if (!piState.d.optionCn) piState.d.optionCn = optCnFromImages(fetched.images); }
+    if (fetched) { piState.d.url1688 = fetched.url; piState.fetched = fetched; if (!(Array.isArray(piState.d.optionPairs) && piState.d.optionPairs.length)) piState.d.optionCn = optCnFromImages(fetched.images); }
     else if (urlM) piState.d.url1688 = urlM[0];
     piState.sel = null;
     piState.mixCounts = null;
@@ -5316,7 +5339,7 @@ $("#bi-start").addEventListener("click", async () => {
     try { d = await extract1688(f.text); } catch (e) { d = null; }
     if (!d || !d.name) { stat.ai++; row(i, "err", "AI 정리 실패 — [1688 붙여넣기]로 처리"); continue; }
     d.milkrun = 0;
-    if (!d.optionCn) d.optionCn = optCnFromImages(f.images);
+    if (!(Array.isArray(d.optionPairs) && d.optionPairs.length)) d.optionCn = optCnFromImages(f.images);
     const plan = d.priceYuan ? bestPlan(calcPlans(d.priceYuan, d.shipYuan || 0, 0)) : null;
     d._plan = plan; d._mixCounts = null;
     const prod = extractToProduct(d, urls[i]);
