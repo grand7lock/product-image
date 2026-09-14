@@ -76,6 +76,10 @@
   .btn.mm.active, .btn.imode.active, .btn.gmode.active, .btn.rgm.active, .btn.bsz.active, .btn.pim.active, .btn.pim2.active { background:#111; color:#fff; }
   .btn.lorange { background:#ffe6cc; color:#9a5a00; }
   /* STEP 1 선택 1·2·3 */
+  .work-row { display:flex; align-items:center; gap:8px; margin:4px 0 12px; padding:9px 10px; background:#f3f8ff; border:1.5px dashed #9cc4f5; border-radius:10px; }
+  .work-row .btn.work4 { margin:0; white-space:nowrap; font-size:12px; padding:8px 11px; background:#e8f1ff; color:#0a63cc; border:1.5px solid #9cc4f5; }
+  .work-row .btn.work4:hover { background:#0a7cff; color:#fff; }
+  .work-row span { font-size:12px; color:#555; line-height:1.5; }
   .picks .pick { display:flex; align-items:center; gap:5px; margin-top:7px; flex-wrap:nowrap; }
   .picks .pk { font-size:11px; color:#aaa; width:30px; flex:none; font-weight:800; }
   .picks .btn { font-size:12px; padding:8px 11px; margin:0; white-space:nowrap; }
@@ -508,6 +512,10 @@
         <span style="display:block">· 여러 개면 아래 목록에서 선택 — 상품별 작업 상태 자동 보존</span>
         <span style="display:block">· 상품명은 대충 적어도 AI가 다듬어 줍니다</span>
       </p>
+      <div class="work-row">
+        <button class="btn work4" id="btn-work-load2">작업물 불러오기</button>
+        <span>저장해 둔 작업 이어서 하기<br>새 상품은 아래 선택 1·2·3</span>
+      </div>
       <div class="picks">
         <div class="pick"><span class="pk">선택 1</span>
           <button class="btn primary" id="btn-excel">엑셀 업로드</button>
@@ -3464,17 +3472,44 @@ function wsFields(i) {
   return { name: cleanName(p.name), opt: p.opt || "", color: p.color, qty: p.qty, size: p.size, mat: p.mat, comp: p.comp, tags: "" };
 }
 
-const EXCEL_HEADER = ["NO", "상품명", "상품 옵션", "색상", "수량", "사이즈", "소재", "구성", "검색태그(20개)", "1688URL", "개당 상품가(위안)", "중국 배송비(위안)", "밀크런 비용", "판매가"];
+const EXCEL_HEADER = ["NO", "상품명", "상품 구성", "색상", "수량", "사이즈", "소재", "1688URL", "1688옵션명", "1688구매 수량",
+  "옵션1원가", "옵션2원가", "옵션3원가", "1688배송비", "검색태그(20개)", "판매가"];
+/* 옵션1~3원가: 같은 가격끼리 묶어 '금액x옵션 수' — 가격이 4가지 이상이면 3번째 칸에 나머지를 + 로 전부 */
+function optPriceCols(p) {
+  const prices = (Array.isArray(p.optPrices) ? p.optPrices : []).map(Number).filter((v) => v > 0);
+  if (!prices.length) return [p.priceYuan ? +p.priceYuan : "", "", ""];   // 옵션별 가격 없음(예전 상품) → 개당 상품가만
+  const groups = [];
+  prices.forEach((v) => { const g = groups.find((x) => x.v === v); if (g) g.c++; else groups.push({ v, c: 1 }); });
+  const lab = (g) => (g.c > 1 ? `${g.v}x${g.c}` : g.v);
+  if (groups.length <= 3) return [0, 1, 2].map((k) => (groups[k] ? lab(groups[k]) : ""));
+  return [lab(groups[0]), lab(groups[1]), groups.slice(2).map((g) => String(lab(g))).join("+")];
+}
+/* 1688구매 수량: 세트 1개에 옵션별로 사야 하는 개수 — 색상 믹스는 색상별 개수, 단색 옵션은 옵션마다 구성 수량 */
+function buyQtyStr(f, p) {
+  const opt = f.opt && f.opt !== "기재예정" ? f.opt : "";
+  if (opt.indexOf("+") >= 0) {
+    const nums = opt.split("+").map((x) => { const m = x.trim().match(/(\d+)\s*개?$/); return m ? m[1] : ""; });
+    if (nums.every(Boolean)) return nums.join("/");
+  }
+  const n = parseInt(String(f.qty || p.qty || "").replace(/[^\d]/g, ""), 10) || 0;
+  if (!n) return "";
+  const k = (p.optCn ? p.optCn.split("/").filter((x) => x.trim()).length : 0) || (opt ? opt.split("/").filter((x) => x.trim()).length : 0) || 1;
+  return Array(k).fill(n).join("/");
+}
 function excelRow(i) {
   const f = wsFields(i);
   const p = products[i] || {};
   const optOut = f.opt === "기재예정" ? "" : (f.opt || "");
-  return [p.no || "", f.name, optOut, f.color, f.qty, f.size, f.mat, f.comp, f.tags,
-          p.url1688 || "", p.priceYuan || "", p.shipYuan || "", p.milkrun || "", p.sellPrice || ""];
+  const is1688 = !!p.url1688;   // 엑셀로 올린 상품은 1688 칸을 비워 둔다
+  const pc = is1688 ? optPriceCols(p) : ["", "", ""];
+  return [p.no || "", f.name, optOut, f.color, f.qty, f.size, f.mat,
+          p.url1688 || "", is1688 ? p.optCn || "" : "", is1688 ? buyQtyStr(f, p) : "", pc[0], pc[1], pc[2],
+          is1688 ? (p.shipYuan || "") : "", f.tags, p.sellPrice || ""];
 }
 function buildExcelWB(rows) {
   const ws = XLSX.utils.aoa_to_sheet([EXCEL_HEADER, ...rows]);
-  ws["!cols"] = [{ wch: 8.1 }, { wch: 41.1 }, { wch: 14 }, { wch: 12.6 }];
+  ws["!cols"] = [{ wch: 8.1 }, { wch: 41.1 }, { wch: 22 }, { wch: 18 }, { wch: 6 }, { wch: 12 }, { wch: 10 }, { wch: 30 },
+    { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 40 }, { wch: 9 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "상품정보");
   return wb;
@@ -4738,7 +4773,7 @@ async function extract1688(text) {
   const key = apiKey();
   if (!key) throw new Error("최상단에 API 키를 먼저 입력해 주세요");
   const prompt = `다음은 1688(중국 도매 사이트) 상품 페이지에서 복사한 텍스트입니다. 상품 정보를 추출해 JSON으로만 답하세요.
-형식: {"name":"한국어로 자연스럽게 번역한 상품명(수식어·중복 제거, 쿠팡 검색용, 15~30자)","option":"판매 옵션이 나뉘면 / 로 구분, 한 옵션이 여러 구성이면 + 로 (없으면 빈 문자열)","comp":"구성 요약 — 품목명과 개수","color":"색상들을 / 로 구분 (한국어)","qty":"1세트 수량 (모르면 빈 문자열)","size":"사이즈 — cm 단위 가로x세로(x높이) 형식 우선","material":"소재 (한국어)","priceYuan":최소 구매 구간의 개당 단가 숫자(위안, 모르면 0),"shipYuan":중국 내 배송비 숫자(위안, 모르면 0)}
+형식: {"name":"한국어로 자연스럽게 번역한 상품명(수식어·중복 제거, 쿠팡 검색용, 15~30자)","option":"판매 옵션이 나뉘면 / 로 구분, 한 옵션이 여러 구성이면 + 로 (없으면 빈 문자열)","comp":"구성 요약 — 품목명과 개수","color":"색상들을 / 로 구분 (한국어)","qty":"1세트 수량 (모르면 빈 문자열)","size":"사이즈 — cm 단위 가로x세로(x높이) 형식 우선","material":"소재 (한국어)","priceYuan":최소 구매 구간의 개당 단가 숫자(위안, 모르면 0),"shipYuan":중국 내 배송비 숫자(위안, 모르면 0),"optionCn":"1688 판매 옵션(SKU) 이름을 중국어 원문 그대로 / 로 구분 — 번역 금지 (없으면 빈 문자열)","optionPrices":[optionCn 과 같은 순서로 옵션별 개당 가격 숫자(위안) — 옵션별 가격이 안 보이면 빈 배열]}
 규칙: 반드시 아래 텍스트에 실제로 적힌 정보만 사용하세요. 텍스트에 없는 정보는 절대 추측하거나 지어내지 말고 빈 문자열 또는 0으로 두세요. 아래 텍스트가 상품 페이지 내용이 아니거나(예: 주소만 있음) 상품 정보를 찾을 수 없으면 모든 값을 비워서 답하세요. 어린이·아동 관련 단어 금지. JSON 외 다른 텍스트 금지.
 
 ${String(text).slice(0, 15000)}`;
@@ -4897,6 +4932,12 @@ function renderMixBox(box, colors, counts, onChange, summaryFn) {
     onChange(counts);
   };
 }
+/* AI가 옵션명을 못 뽑았으면 수집기가 읽은 옵션 사진의 이름(중국어 원문)으로 채운다 */
+function optCnFromImages(images) {
+  const labs = [];
+  (images || []).forEach((im) => { const l = String((im && im.kind === "옵션" && im.label) || "").trim(); if (l && !labs.includes(l)) labs.push(l); });
+  return labs.join("/");
+}
 function extractToProduct(d, url) {
   const plan = d._plan || null;
   const mix = d._mixCounts && d._colors && d._colors.length >= 2 ? mixString(d._colors, d._mixCounts) : "";
@@ -4907,6 +4948,8 @@ function extractToProduct(d, url) {
     size: d.size || "", mat: d.material || "", kc: "", kcno: "", age: "",
     url1688: url || "", priceYuan: d.priceYuan || 0, shipYuan: d.shipYuan || 0,
     milkrun: d.milkrun || 0, sellPrice: plan ? plan.tier : 0,
+    optCn: String(d.optionCn || "").trim(),
+    optPrices: (Array.isArray(d.optionPrices) ? d.optionPrices : []).map(Number).filter((v) => v > 0),
   };
 }
 function freshWS(extra) {
@@ -4956,7 +4999,7 @@ $("#pi-extract").addEventListener("click", async () => {
     if (!piState) return;
     if (!d || !d.name) { toast("상품 정보를 찾지 못했습니다 — 1688 상품 페이지 본문이 맞는지 확인해 주세요"); return; }
     piState.d = Object.assign({ milkrun: 0 }, d);
-    if (fetched) { piState.d.url1688 = fetched.url; piState.fetched = fetched; }
+    if (fetched) { piState.d.url1688 = fetched.url; piState.fetched = fetched; if (!piState.d.optionCn) piState.d.optionCn = optCnFromImages(fetched.images); }
     else if (urlM) piState.d.url1688 = urlM[0];
     piState.sel = null;
     piState.mixCounts = null;
@@ -5273,6 +5316,7 @@ $("#bi-start").addEventListener("click", async () => {
     try { d = await extract1688(f.text); } catch (e) { d = null; }
     if (!d || !d.name) { stat.ai++; row(i, "err", "AI 정리 실패 — [1688 붙여넣기]로 처리"); continue; }
     d.milkrun = 0;
+    if (!d.optionCn) d.optionCn = optCnFromImages(f.images);
     const plan = d.priceYuan ? bestPlan(calcPlans(d.priceYuan, d.shipYuan || 0, 0)) : null;
     d._plan = plan; d._mixCounts = null;
     const prod = extractToProduct(d, urls[i]);
@@ -5798,6 +5842,7 @@ $("#btn-work-save").addEventListener("click", async () => {
     btn.textContent = orig;
   }
 });
+$("#btn-work-load2").addEventListener("click", () => $("#btn-work-load").click());  // STEP 1 위쪽에서도 같은 기능
 $("#btn-work-load").addEventListener("click", () => {
   if (hasUnsaved() && !confirm("저장하지 않은 현재 작업이 있습니다. 불러오면 덮어씁니다. 계속할까요?")) return;
   $("#file-work").click();
