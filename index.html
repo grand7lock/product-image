@@ -12,6 +12,23 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   /* ---------- 상세페이지 디자인 프리셋 · 글씨체 (기본 템플릿만 색 적용, 대표 이미지는 제외) ---------- */
+  #cn-grid { margin:10px 0 2px; border:2px solid #f5b877; background:#fffaf3; border-radius:10px; padding:10px 12px 12px; }
+  #cn-grid .hd { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  #cn-grid .t { font-size:13.5px; font-weight:800; color:#c25e00; }
+  #cn-grid .s { font-size:11.5px; color:#777; }
+  #cn-grid .sp { flex:1; }
+  #cn-grid .mini { border:1.5px solid #e6d3bd; background:#fff; border-radius:7px; font-size:11.5px; font-weight:700; padding:4px 9px; color:#8a5a2b; cursor:pointer; font-family:inherit; }
+  #cn-table { width:100%; border-collapse:collapse; margin-top:8px; }
+  #cn-table th { font-size:11.5px; color:#8a5a2b; background:#fdf0e1; border:1px solid #efdcc6; padding:5px 6px; font-weight:800; }
+  #cn-table td { border:1px solid #efdcc6; padding:4px 5px; background:#fff; font-size:12.5px; }
+  #cn-table td.ko { font-weight:700; color:#333; white-space:nowrap; width:130px; }
+  #cn-table input { width:100%; border:1.5px solid #e9dccb; border-radius:6px; padding:4px 6px; font-size:13px; font-family:'Microsoft YaHei','Malgun Gothic',sans-serif; }
+  #cn-table input::placeholder { color:#b9a893; }
+  #cn-table td.res { font-family:'Microsoft YaHei','Malgun Gothic',sans-serif; color:#2e7d3e; font-weight:700; white-space:nowrap; }
+  #cn-table td.res .ai { color:#9a8a76; font-weight:400; }
+  #cn-table td.res .warn { color:#e14b4a; }
+  #cn-paste textarea { width:100%; height:84px; margin-top:8px; border:1.5px solid #e6d3bd; border-radius:8px; padding:7px 8px; font-size:13.5px; font-family:'Microsoft YaHei','Malgun Gothic',sans-serif; }
+  .cn-desc { font-size:12px; color:#555; margin:5px 2px 0; line-height:1.6; }
   #design-bar { background:#fff; border:2px solid #111; border-radius:10px; padding:10px 14px; margin:0 0 14px; }
   #design-bar .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   #design-bar .row + .row { margin-top:8px; padding-top:8px; border-top:1px dashed #e3e6ea; }
@@ -1203,6 +1220,14 @@
   <div class="mbox" style="width:760px; max-width:96vw; max-height:92vh; overflow:auto; text-align:left;">
     <div class="mtitle">판매가 계산</div>
     <table id="ca-table"></table>
+    <div id="cn-grid">
+      <div class="hd"><span class="t">1688 옵션명 (중국어)</span><span class="s">1688 페이지에서 단계별 옵션 이름을 복사해 칸마다 붙여넣기 · 비워 두면 AI가 찾은 이름</span><span class="sp"></span>
+        <button type="button" class="mini" id="cn-lv-add">＋ 단계 추가</button><button type="button" class="mini" id="cn-lv-del">－ 단계 빼기</button><button type="button" class="mini" id="cn-paste-tg">한꺼번에 붙여넣기</button></div>
+      <table id="cn-table"></table>
+      <div id="cn-paste" style="display:none"><textarea id="cn-paste-ta" placeholder="한 줄 = 상품 옵션 1개 · 단계 사이는 &gt; 또는 Tab&#10;예) 牛皮纸款 &gt; 小号 &gt; 2个装"></textarea>
+        <button type="button" class="mini" id="cn-paste-go">표에 채우기</button></div>
+    </div>
+    <p class="cn-desc">1688옵션명: 한 옵션 안의 단계는 &gt;로, 옵션끼리는 지금처럼 /로 이어집니다. <span style="color:#999">· 칸에 붙여넣고 Enter = 아래 줄 같은 칸에 같은 이름</span></p>
     <div class="sub-label" style="margin-top:12px">가격·구성 계산</div>
     <div class="ca-row" style="margin-top:4px;">
       <span>개당 상품가(¥)</span><input type="number" id="ca-yuan" step="0.01">
@@ -3603,8 +3628,12 @@ function sold1688(f, p) {
   if (items.length === 1 && map.length === 1) items[0].m = map[0];   // 옵션 하나짜리 상품
   const names = [], qtys = [], prices = [];
   items.forEach((it) => {
-    const m = it.m || matchOpt(map, it.name);
-    if (map.length) names.push(m ? m.cn : (it.name ? it.name + "(?)" : ""));
+    const man = p.optCnManual && p.optCnManual[it.name];
+    const manName = Array.isArray(man) ? man.filter(Boolean).join(">") : "";   // 단계는 > · 옵션끼리는 /
+    const m = it.m || matchOpt(map, it.name)
+      || (manName ? map.find((o) => normOpt(o.cn) === normOpt(manName) || normOpt(o.cn) === normOpt(man[0])) : null);
+    if (manName) names.push(manName);
+    else if (map.length) names.push(m ? m.cn : (it.name ? it.name + "(?)" : ""));
     qtys.push(it.n || "");
     prices.push((m && m.price) || +p.priceYuan || 0);
   });
@@ -5539,7 +5568,13 @@ window.openCalcModal = () => {
     td.textContent = rows[i][2];
     caState.orig[td.dataset.k] = rows[i][2];
     if (td.dataset.k === "color") td.addEventListener("input", () => { $("#ca-color").value = td.textContent.trim(); if (caState) { caState.sel = null; caCalc(); } });
+    if (td.dataset.k === "opt" || td.dataset.k === "color") td.addEventListener("input", () => cnGridRender());
   });
+  caState.cn = JSON.parse(JSON.stringify(current.optCnManual || {}));
+  caState.cnLevels = Math.min(3, Math.max(1, current.optCnLevels || 0, ...Object.values(caState.cn).map((v) => (v || []).length)));
+  $("#cn-paste").style.display = "none";
+  $("#cn-table").innerHTML = "";   // 앞 상품에서 입력하던 칸이 새 상품 값으로 저장되지 않게
+  cnGridRender();
   $("#ca-yuan").value = current.priceYuan || "";
   $("#ca-ship").value = current.shipYuan || "";
   $("#ca-color").value = current.color || "";
@@ -5617,6 +5652,77 @@ $("#ca-plans").addEventListener("click", (e) => {
   caState.mixCounts = null;
   caCalc();
 });
+
+/* ---------- 판매가 계산 창: 1688 옵션명(중국어) 직접 입력 — 상품 옵션마다 줄, 1688 단계마다 칸 (최대 3) ---------- */
+function caOptNames() {
+  const tv = (k) => { const td = $(`#ca-table td.v[data-k=${k}]`); return td ? td.textContent.trim() : ""; };
+  const opt = tv("opt"), col = tv("color");
+  const raw = opt && opt !== "기재예정" ? opt : (col && col !== "기재예정" ? col : "");
+  let names;
+  if (raw.indexOf("+") >= 0) names = raw.split("+").map((x) => x.trim().replace(/\s*\d+\s*개?$/, "").trim());
+  else names = raw.split("/").map((x) => x.trim());
+  names = names.filter(Boolean).filter((x, i, a) => a.indexOf(x) === i);
+  return names.length ? names : [""];
+}
+function cnGridSave() {
+  const st = caState;
+  if (!st) return;
+  $$("#cn-table tr[data-ko]").forEach((tr) => { st.cn[tr.dataset.ko] = [...tr.querySelectorAll("input")].map((i) => i.value.trim()); });
+}
+function cnGridRender() {
+  const st = caState;
+  if (!st || !$("#cn-table")) return;
+  cnGridSave();
+  const L = st.cnLevels || 1;
+  const map = current ? optMapOf(current) : [];
+  $("#cn-table").innerHTML = `<tr><th>상품 옵션 (쿠팡)</th>${[1, 2, 3].slice(0, L).map((n) => `<th>${n}단계</th>`).join("")}<th>엑셀에 들어갈 이름</th></tr>`
+    + caOptNames().map((ko) => {
+      const vals = st.cn[ko] || [];
+      const ai = ko ? matchOpt(map, ko) : (map.length === 1 ? map[0] : null);
+      return `<tr data-ko="${escH(ko)}"><td class="ko">${escH(ko || "(옵션 없음)")}</td>`
+        + Array.from({ length: L }, (_, j) => `<td><input data-j="${j}" value="${escH(vals[j] || "")}" placeholder="${j === 0 && ai ? escH(ai.cn) : ""}"></td>`).join("")
+        + `<td class="res"></td></tr>`;
+    }).join("");
+  $("#cn-lv-add").disabled = L >= 3;
+  $("#cn-lv-del").disabled = L <= 1;
+  cnGridResult();
+}
+function cnGridResult() {
+  $$("#cn-table tr[data-ko]").forEach((tr) => {
+    const ins = [...tr.querySelectorAll("input")];
+    const vals = ins.map((i) => i.value.trim()).filter(Boolean);
+    const ph = ins[0] ? ins[0].placeholder : "";
+    tr.querySelector("td.res").innerHTML = vals.length ? escH(vals.join(">"))
+      : (ph ? `<span class="ai">${escH(ph)} (AI)</span>` : `<span class="warn">(?)</span>`);
+  });
+}
+$("#cn-table").addEventListener("input", cnGridResult);
+$("#cn-table").addEventListener("keydown", (e) => {
+  const inp = e.target.closest("input");
+  if (!inp || e.key !== "Enter" || e.isComposing) return;
+  e.preventDefault();
+  const tr = inp.closest("tr"), next = tr.nextElementSibling;
+  if (!next) return;
+  const t = next.querySelector(`input[data-j="${inp.dataset.j}"]`);
+  if (t) { t.value = inp.value; t.focus(); t.select(); cnGridResult(); }
+});
+$("#cn-lv-add").addEventListener("click", () => { if (caState && caState.cnLevels < 3) { caState.cnLevels++; cnGridRender(); } });
+$("#cn-lv-del").addEventListener("click", () => { if (caState && caState.cnLevels > 1) { cnGridSave(); caState.cnLevels--; Object.values(caState.cn).forEach((v) => v.splice(caState.cnLevels)); cnGridRender(); } });
+$("#cn-paste-tg").addEventListener("click", () => { const b = $("#cn-paste"); b.style.display = b.style.display === "none" ? "block" : "none"; if (b.style.display === "block") $("#cn-paste-ta").focus(); });
+$("#cn-paste-go").addEventListener("click", () => {
+  const st = caState;
+  if (!st) return;
+  const lines = $("#cn-paste-ta").value.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+    .map((l) => l.split(/\t|>/).map((x) => x.trim()).filter(Boolean).slice(0, 3));
+  if (!lines.length) { toast("붙여넣을 옵션명이 없습니다"); return; }
+  const names = caOptNames();
+  names.forEach((ko, i) => { if (lines[i]) st.cn[ko] = lines[i]; });
+  st.cnLevels = Math.min(3, Math.max(st.cnLevels || 1, ...lines.map((l) => l.length)));
+  $("#cn-table").innerHTML = "";   // 입력칸 값으로 덮어쓰지 않게 비운 뒤 다시 그림
+  cnGridRender();
+  $("#cn-paste").style.display = "none";
+  if (lines.length < names.length) toast(`옵션 ${names.length}개 중 ${lines.length}줄만 채웠습니다 — 빈 줄은 (?)`);
+});
 $("#btn-calc").addEventListener("click", () => openCalcModal());
 $("#ca-close").addEventListener("click", () => { $("#calcmodal").classList.remove("open"); caState = null; });
 $("#ca-apply").addEventListener("click", () => {
@@ -5649,6 +5755,14 @@ $("#ca-apply").addEventListener("click", () => {
   refreshQtyBadges();
   renderProductList();
   updateHeight();
+  const cnOut = {};
+  $$("#cn-table tr[data-ko]").forEach((tr) => {
+    const v = [...tr.querySelectorAll("input")].map((i) => i.value.trim());
+    while (v.length && !v[v.length - 1]) v.pop();
+    if (v.some(Boolean)) cnOut[tr.dataset.ko] = v;
+  });
+  current.optCnManual = cnOut;
+  current.optCnLevels = st.cnLevels || 1;
   $("#calcmodal").classList.remove("open");
   caState = null;
   toast(`적용했습니다 — ${total}개 구성 · 판매가 ${(current.sellPrice || 0).toLocaleString()}원`);
