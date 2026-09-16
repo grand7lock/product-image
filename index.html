@@ -5818,7 +5818,7 @@ $("#cn-table").addEventListener("keydown", (e) => {
   if (t) { t.value = inp.value; t.focus(); t.select(); cnGridResult(); }
 });
 $("#cn-lv-add").addEventListener("click", () => { if (caState && caState.cnLevels < 3) { caState.cnLevels++; cnGridRender(); } });
-$("#cn-lv-del").addEventListener("click", () => { if (caState && caState.cnLevels > 1) { cnGridSave(); caState.cnLevels--; Object.values(caState.cn).forEach((v) => v.splice(caState.cnLevels)); cnGridRender(); } });
+$("#cn-lv-del").addEventListener("click", () => { if (caState && caState.cnLevels > 1) { cnGridSave(); caState.cnLevels--; Object.values(caState.cn).forEach((v) => { const arr = Array.isArray(v) ? v : (v && v.cn); if (Array.isArray(arr)) arr.splice(caState.cnLevels); }); cnGridRender(); } });
 $("#cn-paste-tg").addEventListener("click", () => { const b = $("#cn-paste"); b.style.display = b.style.display === "none" ? "block" : "none"; if (b.style.display === "block") $("#cn-paste-ta").focus(); });
 $("#cn-paste-go").addEventListener("click", () => {
   const st = caState;
