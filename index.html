@@ -21,7 +21,11 @@
   #cn-table { width:100%; border-collapse:collapse; margin-top:8px; }
   #cn-table th { font-size:11.5px; color:#8a5a2b; background:#fdf0e1; border:1px solid #efdcc6; padding:5px 6px; font-weight:800; }
   #cn-table td { border:1px solid #efdcc6; padding:4px 5px; background:#fff; font-size:12.5px; }
-  #cn-table td.ko { font-weight:700; color:#333; white-space:nowrap; width:130px; }
+  #cn-table td.ko { font-weight:700; color:#333; white-space:nowrap; width:120px; }
+  #cn-table th.num, #cn-table td.num { width:86px; text-align:center; }
+  #cn-table td.num input { text-align:center; }
+  #cn-table td.auto { background:#f3f9f4; color:#2e7d3e; font-weight:800; text-align:center; width:86px; }
+  #cn-grid .sum { margin-top:7px; font-size:11.5px; color:#c25e00; font-weight:700; }
   #cn-table input { width:100%; border:1.5px solid #e9dccb; border-radius:6px; padding:4px 6px; font-size:13px; font-family:'Microsoft YaHei','Malgun Gothic',sans-serif; }
   #cn-table input::placeholder { color:#b9a893; }
   #cn-table td.res { font-family:'Microsoft YaHei','Malgun Gothic',sans-serif; color:#2e7d3e; font-weight:700; white-space:nowrap; }
@@ -1224,10 +1228,12 @@
       <div class="hd"><span class="t">1688 옵션명 (중국어)</span><span class="s">1688 페이지에서 단계별 옵션 이름을 복사해 칸마다 붙여넣기 · 비워 두면 AI가 찾은 이름</span><span class="sp"></span>
         <button type="button" class="mini" id="cn-lv-add">＋ 단계 추가</button><button type="button" class="mini" id="cn-lv-del">－ 단계 빼기</button><button type="button" class="mini" id="cn-paste-tg">한꺼번에 붙여넣기</button></div>
       <table id="cn-table"></table>
+      <div class="sum" id="cn-sum"></div>
       <div id="cn-paste" style="display:none"><textarea id="cn-paste-ta" placeholder="한 줄 = 상품 옵션 1개 · 단계 사이는 &gt; 또는 Tab&#10;예) 牛皮纸款 &gt; 小号 &gt; 2个装"></textarea>
         <button type="button" class="mini" id="cn-paste-go">표에 채우기</button></div>
     </div>
-    <p class="cn-desc">1688옵션명: 한 옵션 안의 단계는 &gt;로, 옵션끼리는 지금처럼 /로 이어집니다. <span style="color:#999">· 칸에 붙여넣고 Enter = 아래 줄 같은 칸에 같은 이름</span></p>
+    <p class="cn-desc">입수 = 1688 1개(묶음)에 들어 있는 개수 (6개입이면 6 · 낱개면 1). 1688 구매 수량 = 올림(구성 수량 ÷ 입수)이고, 세트 원가도 묶음 단위로 계산합니다.<br>
+      1688옵션명: 한 옵션 안의 단계는 &gt;로, 옵션끼리는 지금처럼 /로 이어집니다. <span style="color:#999">· 칸에 붙여넣고 Enter = 아래 줄 같은 칸에 같은 이름</span></p>
     <div class="sub-label" style="margin-top:12px">가격·구성 계산</div>
     <div class="ca-row" style="margin-top:4px;">
       <span>개당 상품가(¥)</span><input type="number" id="ca-yuan" step="0.01">
@@ -3629,13 +3635,14 @@ function sold1688(f, p) {
   const names = [], qtys = [], prices = [];
   items.forEach((it) => {
     const man = p.optCnManual && p.optCnManual[it.name];
-    const manName = Array.isArray(man) ? man.filter(Boolean).join(">") : "";   // 단계는 > · 옵션끼리는 /
+    const info = man ? cnInfo(man) : { cn: [], price: "", pack: "" };
+    const manName = info.cn.filter(Boolean).join(">");   // 단계는 > · 옵션끼리는 /
     const m = it.m || matchOpt(map, it.name)
-      || (manName ? map.find((o) => normOpt(o.cn) === normOpt(manName) || normOpt(o.cn) === normOpt(man[0])) : null);
+      || (manName ? map.find((o) => normOpt(o.cn) === normOpt(manName) || normOpt(o.cn) === normOpt(info.cn[0])) : null);
     if (manName) names.push(manName);
     else if (map.length) names.push(m ? m.cn : (it.name ? it.name + "(?)" : ""));
-    qtys.push(it.n || "");
-    prices.push((m && m.price) || +p.priceYuan || 0);
+    qtys.push(it.n ? buyUnits(it.n, info.pack) : "");   // 1688 구매 수량 = 올림(구성 수량 ÷ 입수)
+    prices.push(+info.price || (m && m.price) || +p.priceYuan || 0);   // 직접 넣은 원가가 우선
   });
   return { names: names.filter(Boolean).join("/"), qty: qtys.some(Boolean) ? qtys.join("/") : "", cols: priceCols(prices) };
 }
@@ -4878,11 +4885,14 @@ function priceSettings() {
            feePct: numOr($("#set-fee").value, 11.88), feeShip: numOr($("#set-ship").value, 2900) };
 }
 function tierTarget(p) { const [lo, hi] = marginBand(p); return Math.round((lo + hi) / 2); }
-/* 세트 원가 = (상품가¥ × 수량 + 배송비¥ ÷ 2) × 환산율 — 배송비·고정비는 수량과 무관하게 세트당 1번
+/* 세트 원가 = (상품가¥ × 1688 구매 묶음 수 + 배송비¥ ÷ 2) × 환산율 — 배송비·고정비는 수량과 무관하게 세트당 1번
+   1688 입수(pack) = 1688 1개에 들어 있는 개수 (6개입이면 6) → 구매 묶음 수 = 올림(구성 수량 ÷ 입수)
    순마진 = 판매가 − 세트 원가 − 고정비 − 판매가×판매수수료% − 입출고배송비 */
-function planFor(n, yuan, ship) {
+function packOf(pack) { const k = Math.round(numOr(pack, 1)); return k >= 1 ? k : 1; }
+function buyUnits(n, pack) { return Math.ceil((n || 0) / packOf(pack)); }
+function planFor(n, yuan, ship, pack) {
   const { rate, fixed, feePct, feeShip } = priceSettings();
-  const setCost = Math.round(((yuan || 0) * n + (ship || 0) / 2) * rate);
+  const setCost = Math.round(((yuan || 0) * buyUnits(n, pack) + (ship || 0) / 2) * rate);
   const net = (tier) => Math.round(tier - setCost - fixed - tier * feePct / 100 - feeShip);
   const tier = PRICE_TIERS.find((p) => net(p) >= marginBand(p)[0]) || null;   // 2만 원 미만에서 못 맞추면 제외
   if (!tier) return { n, setCost, fixed, tier: null, fee: 0, feeShip, margin: null, ok: false, over: true };
@@ -4890,10 +4900,10 @@ function planFor(n, yuan, ship) {
   const margin = net(tier);
   return { n, setCost, fixed, tier, fee: Math.round(tier * feePct / 100), feeShip, margin, ok: margin >= lo && margin <= hi, over: false };
 }
-function calcPlans(yuan, ship) {
+function calcPlans(yuan, ship, pack) {
   const plans = [];
   for (let n = 1; n <= 40; n++) {
-    const pl = planFor(n, yuan, ship);
+    const pl = planFor(n, yuan, ship, pack);
     if (pl.over) break;   // 이 수량부터는 판매가가 2만 원 이상이어야 해서 제안하지 않음
     plans.push(pl);
   }
@@ -5610,9 +5620,10 @@ function caCalc() {
     caMixSync();
     return;
   }
-  st.plans = calcPlans(yuan, ship);
-  if (st.mix && st.mixCounts && mixTotal(st.mixCounts) > 0) st.sel = planFor(mixTotal(st.mixCounts), yuan, ship);
-  else if (st.sel && st.sel.n) st.sel = planFor(st.sel.n, yuan, ship);
+  const eff = cnEff();
+  st.plans = calcPlans(eff.yuan, ship, eff.pack);
+  if (st.mix && st.mixCounts && mixTotal(st.mixCounts) > 0) st.sel = planFor(mixTotal(st.mixCounts), eff.yuan, ship, eff.pack);
+  else if (st.sel && st.sel.n) st.sel = planFor(st.sel.n, eff.yuan, ship, eff.pack);
   else st.sel = bestPlan(st.plans);
   if (!st.sel || st.sel.over) {
     card.style.display = "block"; card.className = "warn";
@@ -5633,10 +5644,22 @@ function caCalc() {
       <td>${p.n}개</td><td>${p.setCost.toLocaleString()}원</td><td>${p.tier.toLocaleString()}원</td>
       <td>${Math.round(p.tier / p.n).toLocaleString()}원</td>
       <td>${p.margin.toLocaleString()}원</td><td>${p.ok ? (st.sel && p.n === st.sel.n ? "제안" : "가능") : "범위 밖"}</td></tr>`).join("");
-  const cost1 = Math.round((yuan + ship / 2) * priceSettings().rate);
-  note.innerHTML = `세트 원가 = (상품가 × 수량 + 배송비 ÷ 2) × 환산율 — 1개 기준 ${cost1.toLocaleString()}원. `
-    + `고정비·배송비는 세트당 1번만. 판매가가 2만 원 이상이 되는 수량부터는 제안하지 않습니다.`;
+  const cost1 = Math.round((eff.yuan + ship / 2) * priceSettings().rate);
+  note.innerHTML = `세트 원가 = (상품가 × <b>1688 구매 묶음 수</b> + 배송비 ÷ 2) × 환산율 — 1묶음 기준 ${cost1.toLocaleString()}원`
+    + (eff.pack > 1 ? ` · 입수 ${eff.pack}개` : "")
+    + (eff.yuan !== (parseFloat($("#ca-yuan").value) || 0) ? ` · 원가 ¥${eff.yuan}${eff.mixed ? " (옵션 중 가장 비싼 값 기준)" : ""}` : "")
+    + `. 고정비·배송비는 세트당 1번만. 판매가가 2만 원 이상이 되는 수량부터는 제안하지 않습니다.`;
   caMixSync();
+  cnCountSync();
+}
+/* 구성 수량이 바뀌면 격자의 1688 구매 수량도 다시 계산 */
+function cnCountSync() {
+  if (!caState || !$("#cn-table")) return;
+  const rows = $$("#cn-table tr[data-ko]");
+  if (!rows.length) return;
+  const counts = cnCounts(rows.map((tr) => tr.dataset.ko));
+  rows.forEach((tr, i) => { tr.dataset.n = counts[i] || 0; });
+  cnGridResult(true);
 }
 ["ca-yuan", "ca-ship", "ca-color"].forEach((id) => $("#" + id).addEventListener("input", () => { caState.sel = null; caCalc(); }));
 $$(".btn.pim2").forEach((b) => b.addEventListener("click", () => {
@@ -5664,10 +5687,51 @@ function caOptNames() {
   names = names.filter(Boolean).filter((x, i, a) => a.indexOf(x) === i);
   return names.length ? names : [""];
 }
+function cnInfo(v) {   // 예전 저장본(배열)도 읽는다
+  if (Array.isArray(v)) return { cn: v.slice(), price: "", pack: "" };
+  return { cn: (v && v.cn) ? v.cn.slice() : [], price: (v && v.price) || "", pack: (v && v.pack) || "" };
+}
 function cnGridSave() {
   const st = caState;
   if (!st) return;
-  $$("#cn-table tr[data-ko]").forEach((tr) => { st.cn[tr.dataset.ko] = [...tr.querySelectorAll("input")].map((i) => i.value.trim()); });
+  $$("#cn-table tr[data-ko]").forEach((tr) => {
+    st.cn[tr.dataset.ko] = {
+      cn: [...tr.querySelectorAll("input.lv")].map((i) => i.value.trim()),
+      price: (tr.querySelector("input.pr") || {}).value || "",
+      pack: (tr.querySelector("input.pk") || {}).value || "",
+    };
+  });
+}
+/* 옵션별 구성 수량 — 색상 믹스면 색상별 개수, 단색 옵션이면 옵션마다 구성 수량 */
+function cnCounts(names) {
+  const st = caState;
+  const td = $("#ca-table td.v[data-k=opt]");
+  const opt = td ? td.textContent.trim() : "";
+  const total = st && st.sel ? st.sel.n : 0;
+  if (st && st.mix && st.mixCounts) return names.map((ko) => st.mixCounts[ko] || 0);
+  if (opt.indexOf("+") >= 0) {
+    return names.map((ko) => {
+      const m = opt.split("+").map((x) => x.trim()).find((x) => x.startsWith(ko));
+      const g = m && m.match(/(\d+)\s*개?$/);
+      return g ? +g[1] : total;
+    });
+  }
+  return names.map(() => total);   // 단색 옵션: 옵션 하나가 곧 한 세트
+}
+/* 계산에 쓸 대표 원가·입수 — 옵션마다 다르면 가장 비싼 원가 · 가장 작은 입수 (보수적으로) */
+function cnEff() {
+  const st = caState;
+  const yuan = parseFloat($("#ca-yuan").value) || 0;
+  if (!st) return { yuan, pack: 1, mixed: false };
+  const trs = $$("#cn-table tr[data-ko]");
+  const rows = trs.length
+    ? trs.map((tr) => ({ price: (tr.querySelector("input.pr") || {}).value || (tr.querySelector("input.pr") || {}).placeholder || "",
+                         pack: (tr.querySelector("input.pk") || {}).value || "" }))
+    : Object.values(st.cn || {}).map(cnInfo);   // 빈 칸은 AI 값(안내 글자)으로 계산
+  const prices = rows.map((r) => parseFloat(r.price)).filter((x) => x > 0);
+  const packs = rows.map((r) => parseFloat(r.pack)).filter((x) => x >= 1);
+  return { yuan: prices.length ? Math.max(...prices) : yuan, pack: packs.length ? Math.min(...packs) : 1,
+           mixed: prices.length > 1 && Math.min(...prices) !== Math.max(...prices) };
 }
 function cnGridRender() {
   const st = caState;
@@ -5675,28 +5739,44 @@ function cnGridRender() {
   cnGridSave();
   const L = st.cnLevels || 1;
   const map = current ? optMapOf(current) : [];
-  $("#cn-table").innerHTML = `<tr><th>상품 옵션 (쿠팡)</th>${[1, 2, 3].slice(0, L).map((n) => `<th>${n}단계</th>`).join("")}<th>엑셀에 들어갈 이름</th></tr>`
-    + caOptNames().map((ko) => {
-      const vals = st.cn[ko] || [];
+  const names = caOptNames();
+  const counts = cnCounts(names);
+  $("#cn-table").innerHTML = `<tr><th>상품 옵션 (쿠팡)</th>${[1, 2, 3].slice(0, L).map((n) => `<th>${n}단계</th>`).join("")}`
+    + `<th class="num">1688 원가(¥)</th><th class="num">입수<br><span style="font-weight:400">1688 1개에 몇 개</span></th><th class="num">1688 구매 수량</th><th>엑셀에 들어갈 이름</th></tr>`
+    + names.map((ko, i) => {
+      const info = cnInfo(st.cn[ko]);
       const ai = ko ? matchOpt(map, ko) : (map.length === 1 ? map[0] : null);
-      return `<tr data-ko="${escH(ko)}"><td class="ko">${escH(ko || "(옵션 없음)")}</td>`
-        + Array.from({ length: L }, (_, j) => `<td><input data-j="${j}" value="${escH(vals[j] || "")}" placeholder="${j === 0 && ai ? escH(ai.cn) : ""}"></td>`).join("")
-        + `<td class="res"></td></tr>`;
+      return `<tr data-ko="${escH(ko)}" data-n="${counts[i] || 0}"><td class="ko">${escH(ko || "(옵션 없음)")}</td>`
+        + Array.from({ length: L }, (_, j) => `<td><input class="lv" data-j="${j}" value="${escH(info.cn[j] || "")}" placeholder="${j === 0 && ai ? escH(ai.cn) : ""}"></td>`).join("")
+        + `<td class="num"><input class="pr" value="${escH(info.price)}" placeholder="${ai && ai.price ? ai.price : (current.priceYuan || "")}"></td>`
+        + `<td class="num"><input class="pk" value="${escH(info.pack)}" placeholder="1"></td>`
+        + `<td class="auto"></td><td class="res"></td></tr>`;
     }).join("");
   $("#cn-lv-add").disabled = L >= 3;
   $("#cn-lv-del").disabled = L <= 1;
   cnGridResult();
 }
-function cnGridResult() {
+function cnGridResult(skipCalc) {
+  let sum = 0, packed = false;
+  if (!skipCalc) cnGridSave();   // 입력한 원가·입수를 계산에 바로 반영
   $$("#cn-table tr[data-ko]").forEach((tr) => {
-    const ins = [...tr.querySelectorAll("input")];
-    const vals = ins.map((i) => i.value.trim()).filter(Boolean);
-    const ph = ins[0] ? ins[0].placeholder : "";
+    const lvs = [...tr.querySelectorAll("input.lv")];
+    const vals = lvs.map((i) => i.value.trim()).filter(Boolean);
+    const ph = lvs[0] ? lvs[0].placeholder : "";
     tr.querySelector("td.res").innerHTML = vals.length ? escH(vals.join(">"))
       : (ph ? `<span class="ai">${escH(ph)} (AI)</span>` : `<span class="warn">(?)</span>`);
+    const n = +tr.dataset.n || 0;
+    const pk = tr.querySelector("input.pk");
+    const units = n ? buyUnits(n, pk ? pk.value : 1) : 0;
+    tr.querySelector("td.auto").textContent = units || "";
+    if (pk && packOf(pk.value) > 1) packed = true;
+    sum += units;
   });
+  const sm = $("#cn-sum");
+  if (sm) sm.textContent = packed && sum ? `1688에서는 모두 ${sum}묶음만 주문하면 됩니다 (구성 수량 ÷ 입수, 올림)` : "";
+  if (!skipCalc && caState) caCalc();
 }
-$("#cn-table").addEventListener("input", cnGridResult);
+$("#cn-table").addEventListener("input", () => cnGridResult());   // 이벤트 객체가 skipCalc 로 넘어가지 않게
 $("#cn-table").addEventListener("keydown", (e) => {
   const inp = e.target.closest("input");
   if (!inp || e.key !== "Enter" || e.isComposing) return;
@@ -5757,9 +5837,11 @@ $("#ca-apply").addEventListener("click", () => {
   updateHeight();
   const cnOut = {};
   $$("#cn-table tr[data-ko]").forEach((tr) => {
-    const v = [...tr.querySelectorAll("input")].map((i) => i.value.trim());
+    const v = [...tr.querySelectorAll("input.lv")].map((i) => i.value.trim());
     while (v.length && !v[v.length - 1]) v.pop();
-    if (v.some(Boolean)) cnOut[tr.dataset.ko] = v;
+    const price = (tr.querySelector("input.pr") || {}).value.trim() || "";
+    const pack = (tr.querySelector("input.pk") || {}).value.trim() || "";
+    if (v.some(Boolean) || price || pack) cnOut[tr.dataset.ko] = { cn: v, price: price, pack: pack };
   });
   current.optCnManual = cnOut;
   current.optCnLevels = st.cnLevels || 1;
