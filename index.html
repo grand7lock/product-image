@@ -992,7 +992,7 @@
 <div id="szmodal" class="modal">
   <div class="mbox">
     <div class="mtitle">치수 위치·화살표 편집</div>
-    <p class="msub">파란 점 = 치수 숫자 이동 · 주황 점 = 화살표 끝점 — 360° 어디로든 이동 (대각선 치수 가능)</p>
+    <p class="msub">파란 점 = 치수 숫자 이동 · 주황 점 = 화살표 끝점 — 360° 어디로든 이동 (대각선 치수 가능) · 대각선이면 글자도 따라 기울어집니다</p>
     <div id="sz-stage" style="position:relative; margin:0 auto; background:#f6f6f6; overflow:hidden;"><img id="sz-img" style="display:block;"></div>
     <div style="margin-top:10px;">
       <span style="font-size:12px; color:#888; margin-right:4px;">화살표 굵기</span>
@@ -1005,6 +1005,9 @@
       <span style="font-size:12px; color:#888; margin:0 4px 0 12px;">선 색</span>
       <button class="btn" id="sz-lc-k">검정</button>
       <button class="btn" id="sz-lc-w">흰색</button>
+      <span style="font-size:12px; color:#888; margin:0 4px 0 12px;">글자 기울이기</span>
+      <button class="btn" id="sz-rot-on">자동</button>
+      <button class="btn" id="sz-rot-off">끄기</button>
     </div>
     <div style="margin-top:8px;">
       <button class="btn" id="sz-add">＋ 치수선 추가</button>
@@ -2103,9 +2106,20 @@ function compositeSizeCut(dataUrl, entryIdx = 0, adj = null) {
         const lc = white ? "#fff" : "#111";
         const line = (x1, y1, x2, y2) => { x.strokeStyle = lc; x.lineWidth = P.lw; x.beginPath(); x.moveTo(x1, y1); x.lineTo(x2, y2); x.stroke(); };
         const arrow = (px, py, dx, dy) => { x.fillStyle = lc; x.beginPath(); x.moveTo(px, py); x.lineTo(px + dx * P.ah - dy * P.aw, py + dy * P.ah + dx * P.aw); x.lineTo(px + dx * P.ah + dy * P.aw, py + dy * P.ah - dx * P.aw); x.closePath(); x.fill(); };
-        const txt = (tx, ty, s, size, align) => {
+        // 치수 글자 기울기 — 치수선이 대각선이면 글자도 따라 돈다 (adj.rot === "off" 면 안 돌림)
+        const rotOn = !(adj && adj.rot === "off");
+        const lineAng = (p1, p2, vertical) => {
+          if (!rotOn) return 0;
+          let a = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+          if (a > Math.PI / 2) a -= Math.PI;
+          if (a < -Math.PI / 2) a += Math.PI;   // 글자가 뒤집히지 않게 좌우로 읽는 방향만
+          if (vertical && Math.abs(Math.abs(a) - Math.PI / 2) < 0.44) return 0;   // 세로에 가까운 치수선은 지금처럼 가로 글자
+          return Math.abs(a) < 0.1 ? 0 : a;   // 6도 미만은 그대로
+        };
+        const txt = (tx, ty, s, size, align, rot) => {
           x.save();
           x.translate(tx, ty);
+          if (rot) x.rotate(rot);
           x.font = `800 ${size}px Pretendard, 'Malgun Gothic', sans-serif`;
           x.textAlign = align || "center"; x.textBaseline = "middle";
           x.lineJoin = "round";
@@ -2152,18 +2166,18 @@ function compositeSizeCut(dataUrl, entryIdx = 0, adj = null) {
         const A = adj || {};
         dimLine(L.h1, L.h2);
         if (L.kind === "wh") {
-          txt(L.wpos.x, L.wpos.y, A.wtext || entry.w, Math.round(56 * fs));
+          txt(L.wpos.x, L.wpos.y, A.wtext || entry.w, Math.round(56 * fs), null, lineAng(L.h1, L.h2));
           dimLine(L.v1, L.v2);
-          txt(L.hpos.x, L.hpos.y, A.htext || entry.h, Math.round(50 * fs), "right");
+          txt(L.hpos.x, L.hpos.y, A.htext || entry.h, Math.round(50 * fs), "right", lineAng(L.v1, L.v2, true));
           const lb = sizeLabelOf(entry);
           if (!A.thide && (A.ttext || lb)) label(L.tpos.x, L.tpos.y, A.ttext || lb, Math.round(40 * fs));
         } else {
-          txt(L.wpos.x, L.wpos.y, A.wtext || entry.text, Math.round(60 * fs));
+          txt(L.wpos.x, L.wpos.y, A.wtext || entry.text, Math.round(60 * fs), null, lineAng(L.h1, L.h2));
         }
         // 추가 치수선 (사용자 수동 추가)
         for (const ex of (A.extra || [])) {
           dimLine({ x: ex.x1, y: ex.y1 }, { x: ex.x2, y: ex.y2 });
-          if (ex.text) txt(ex.tx, ex.ty, ex.text, Math.round(50 * fs));
+          if (ex.text) txt(ex.tx, ex.ty, ex.text, Math.round(50 * fs), null, lineAng({ x: ex.x1, y: ex.y1 }, { x: ex.x2, y: ex.y2 }));
         }
         // 추가 문구 (예: 대형·소형·1세트 기준)
         for (const lx of (A.labels || [])) if (lx.text) label(lx.x, lx.y, lx.text, Math.round(40 * fs));
@@ -4289,6 +4303,8 @@ function szLwButtons() {
   $("#sz-lc-w").classList.toggle("primary", st.adj.lc === "w");
   $("#sz-ls-pill").classList.toggle("primary", st.adj.lstyle !== "text");
   $("#sz-ls-text").classList.toggle("primary", st.adj.lstyle === "text");
+  $("#sz-rot-on").classList.toggle("primary", st.adj.rot !== "off");
+  $("#sz-rot-off").classList.toggle("primary", st.adj.rot === "off");
 }
 function szRender(rebuildChips) {
   const st = szState;
@@ -4409,6 +4425,8 @@ $("#sz-fs-m").addEventListener("click", () => { if (szState) { delete szState.ad
 $("#sz-fs-l").addEventListener("click", () => { if (szState) { szState.adj.fs = 1.25; szLwButtons(); szRender(false); } });
 $("#sz-lc-k").addEventListener("click", () => { if (szState) { delete szState.adj.lc; szLwButtons(); szRender(false); } });
 $("#sz-lc-w").addEventListener("click", () => { if (szState) { szState.adj.lc = "w"; szLwButtons(); szRender(false); } });
+$("#sz-rot-on").addEventListener("click", () => { if (szState) { delete szState.adj.rot; szLwButtons(); szRender(false); } });
+$("#sz-rot-off").addEventListener("click", () => { if (szState) { szState.adj.rot = "off"; szLwButtons(); szRender(false); } });
 $("#sz-ls-pill").addEventListener("click", () => { if (szState) { delete szState.adj.lstyle; szLwButtons(); szRender(false); } });
 $("#sz-ls-text").addEventListener("click", () => { if (szState) { szState.adj.lstyle = "text"; szLwButtons(); szRender(false); } });
 $("#sz-lb-add").addEventListener("click", () => {
