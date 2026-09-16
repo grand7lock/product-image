@@ -519,6 +519,7 @@
   #cand-filter button { border:1.5px solid #dfe3e8; background:#fff; border-radius:16px; padding:4px 11px; font-size:11.5px; font-weight:700; color:#333; cursor:pointer; font-family:inherit; }
   #cand-filter button.on { border-color:#111; box-shadow:0 0 0 1px #111 inset; }
   #cand-filter .cnt { color:#888; font-weight:600; margin-left:3px; }
+  #cand-filter .cand-warn { align-self:center; font-size:11.5px; font-weight:700; color:#c0392b; }
   .link1688 { display:flex; width:max-content; align-items:center; gap:4px; margin-top:4px; background:#fff3e6; color:#c25e00;
     border:1.5px solid #f5b877; border-radius:7px; padding:3px 9px; font-size:12px; font-weight:800; text-decoration:none; white-space:nowrap; }
   .link1688:hover { background:#f08c1e; color:#fff; border-color:#f08c1e; }
@@ -5327,7 +5328,8 @@ function renderCandidates() {
   cands.forEach((c) => { cnt[kindOf(c)]++; });
   if (candKind !== "전체" && !cnt[candKind]) candKind = "전체";
   $("#cand-filter").innerHTML = [["전체", cands.length]].concat(["옵션", "대표", "상세"].filter((k) => cnt[k]).map((k) => [k, cnt[k]]))
-    .map(([k, n]) => `<button type="button" data-kind="${k}" class="${candKind === k ? "on" : ""}">${k}<span class="cnt">${n}</span></button>`).join("");
+    .map(([k, n]) => `<button type="button" data-kind="${k}" class="${candKind === k ? "on" : ""}">${k}<span class="cnt">${n}</span></button>`).join("")
+    + (!cnt["상세"] ? `<span class="cand-warn">상세 사진 0장 — 수집기가 v${HELPER_VER} 인지 확인해 주세요 ([1688 일괄 가져오기] 창 맨 위)</span>` : "");
   strip.innerHTML = cands.map((c, i) => {
     if (candKind !== "전체" && kindOf(c) !== candKind) return "";
     const on = srcFrom.indexOf(c.u) >= 0;  // 실제 원본 사진 목록을 그대로 따라감
@@ -5409,6 +5411,7 @@ async function fetchWithStatus(url, idx, onState) {
   try { return await helperCall("/fetch", { url, user: userName(), idx }); }
   finally { done = true; }
 }
+const HELPER_VER = 1.5;   // 이 앱이 기대하는 수집기 버전 (낮으면 갱신 안내)
 let biRunning = false;
 async function biStatus() {
   const p = await helperPing();
@@ -5417,10 +5420,13 @@ async function biStatus() {
     el.innerHTML = `❌ 수집기가 꺼져 있습니다 — 바탕화면 <b>1688수집기</b> 아이콘을 더블클릭해 실행한 뒤 이 창을 다시 열어 주세요 (없으면 아래 [수집기 다운로드])`;
     return null;
   }
-  const old = !(parseFloat(p.ver) >= 1.2);
+  const v = parseFloat(p.ver) || 0;
+  const old = v < 1.2;
+  const notLatest = v < HELPER_VER;   // 사진 후보 정리가 들어간 버전
   const cool = p.cooldown_until && p.cooldown_until > Date.now();
   el.innerHTML = `✅ 수집기 연결됨 (v${escH(p.ver)}${old ? "" : p.browser ? " · Edge 창 수집" : " · 브라우저 없음 — 기본 수집"}) · 저장 폴더: <b>${escH(p.folder || "미지정 — [저장 폴더 변경]으로 지정")}</b>`
     + (old ? `<br><b style="color:#e14b4a">구버전 수집기입니다 — 1688에 쉽게 차단됩니다. [수집기 다운로드]로 새 버전을 받아 교체해 주세요</b>` : "")
+    + (!old && notLatest ? `<br><b style="color:#e14b4a">수집기가 v${escH(p.ver)}입니다 — 아래 [수집기 다운로드]로 <span style="text-decoration:underline">v${HELPER_VER}</span>를 받아 바꿔 주세요. 결제·등급 아이콘이 사진 후보에 섞이고 상세 사진이 빠지던 문제를 고친 버전입니다 (압축을 풀어 기존 폴더에 덮어쓰기 → 수집기 창을 닫았다 다시 실행)</b>` : "")
     + (cool ? `<br><b style="color:#e14b4a">1688 차단 냉각 중 — ${hm(p.cooldown_until)} 이후 다시 시도할 수 있습니다</b>` : "");
   return p;
 }
