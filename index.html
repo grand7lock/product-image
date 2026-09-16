@@ -497,6 +497,18 @@
   #pi-table td, #ca-table td { border:1px solid #e5e7ea; padding:5px 8px; font-size:13px; }
   #pi-table td.k, #ca-table td.k { background:#f7f8fa; font-weight:800; width:84px; white-space:nowrap; }
   #pi-table td.v, #ca-table td.v { min-width:120px; }
+  /* 새 기능 말풍선 — 접속 2번까지 */
+  .ntip { position:fixed; z-index:9999; max-width:280px; background:#14213d; color:#fff; border-radius:12px; padding:10px 12px 9px;
+          box-shadow:0 8px 24px rgba(0,0,0,.28); font-size:12.5px; line-height:1.55; font-family:inherit; }
+  .ntip b.new { display:inline-block; background:#ff6a3d; color:#fff; font-size:10.5px; font-weight:800; border-radius:8px; padding:1px 7px; margin-right:6px; vertical-align:1px; }
+  .ntip .tt { font-weight:800; font-size:13px; }
+  .ntip .ft { display:flex; justify-content:space-between; align-items:center; margin-top:7px; font-size:11px; color:#aab4c6; gap:8px; }
+  .ntip .ok { background:#fff; color:#14213d; border:none; border-radius:7px; font-size:11.5px; font-weight:800; padding:3px 10px; cursor:pointer; font-family:inherit; }
+  .ntip::after { content:''; position:absolute; width:12px; height:12px; background:#14213d; transform:rotate(45deg); }
+  .ntip.l::after { left:-6px; top:20px; }
+  .ntip.t::after { top:-6px; left:26px; }
+  .ntip.b::after { bottom:-6px; left:26px; }
+  .ntip-ring { outline:3px solid #ff6a3d !important; outline-offset:3px; border-radius:10px; }
   #cand-filter { display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 8px; }
   #cand-filter button { border:1.5px solid #dfe3e8; background:#fff; border-radius:16px; padding:4px 11px; font-size:11.5px; font-weight:700; color:#333; cursor:pointer; font-family:inherit; }
   #cand-filter button.on { border-color:#111; box-shadow:0 0 0 1px #111 inset; }
@@ -6273,6 +6285,88 @@ setTimeout(async () => {
   $("#rs-drop").onclick = async () => { close(); await idbDel(); toast("자동 저장본을 지웠습니다"); };
   $("#restmodal").classList.add("open");
 }, 1200);
+
+
+/* ---------- 새 기능 말풍선 — 이 브라우저에서 접속 2번까지, 기능마다 따로 ([알겠어요] = 끝) ---------- */
+const TIPS = [
+  { id: "workload", sel: ".work-row", side: "l", t: "작업물 불러오기",
+    b: "저장해 둔 작업 파일(.ktw)을 여기서 바로 열어 이어서 작업하세요." },
+  { id: "calc2", sel: "#btn-calc", side: "l", t: "판매가 계산이 새로워졌어요",
+    b: "상품 정보 표 · [1688 보기] · 1688 옵션명(중국어) · 원가 · 입수 칸이 생겼습니다." },
+  { id: "design", sel: "#design-bar", side: "t", t: "디자인 프리셋 · 글씨체",
+    b: "상세페이지 색과 글씨체를 버튼으로 골라 보세요. 상품마다 따로 기억됩니다." },
+  { id: "cngrid", sel: "#cn-grid", side: "b", t: "1688 옵션명 · 원가 · 입수",
+    b: "중국어 옵션명을 복사해 넣고, 6개입이면 입수에 6을 넣으세요. 1688 구매 수량이 묶음 수로 바뀌고 엑셀에도 그대로 들어갑니다." },
+  { id: "candkind", sel: "#cand-filter", side: "l", t: "이미지 후보 종류 고르기",
+    b: "옵션 · 대표 · 상세 사진을 종류별로 볼 수 있습니다. 수집기를 새로 받으면 아이콘이 섞이지 않습니다." },
+  { id: "excelcols", sel: "#btn-save-all", side: "l", t: "상품정보 엑셀 열이 바뀌었어요",
+    b: "1688옵션명 · 1688구매 수량 · 옵션1~3원가 · 1688배송비가 새로 들어갑니다." },
+];
+const TIP_MAX_VISITS = 2;
+let tipVisits = 0, tipNow = null;
+try {
+  tipVisits = parseInt(localStorage.getItem("tip_visits") || "0", 10) || 0;
+  if (!sessionStorage.getItem("tip_visit_counted")) {   // 새로고침은 같은 접속으로 센다
+    tipVisits += 1;
+    localStorage.setItem("tip_visits", String(tipVisits));
+    sessionStorage.setItem("tip_visit_counted", "1");
+  }
+} catch (_) { tipVisits = 99; }
+const tipDone = (id) => { try { return localStorage.getItem("tip_done_" + id) === "1" || sessionStorage.getItem("tip_hide_" + id) === "1"; } catch (_) { return true; } };
+function tipClose(id, forever) {
+  try { sessionStorage.setItem("tip_hide_" + id, "1"); if (forever) localStorage.setItem("tip_done_" + id, "1"); } catch (_) {}
+  if (tipNow && tipNow.id === id) {
+    if (tipNow.el) tipNow.el.remove();
+    const t = $(tipNow.sel);
+    if (t) t.classList.remove("ntip-ring");
+    tipNow = null;
+  }
+  setTimeout(tipTick, 150);
+}
+function tipVisible(el) {
+  if (!el || !el.offsetParent) return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0 && r.top < innerHeight - 40 && r.bottom > 60;
+}
+function tipPlace() {
+  if (!tipNow) return;
+  const el = $(tipNow.sel), box = tipNow.el;
+  if (!el || !box) return;
+  if (!tipVisible(el)) { box.style.display = "none"; return; }
+  box.style.display = "block";
+  const r = el.getBoundingClientRect();
+  let left = r.right + 14, top = r.top - 4;
+  if (tipNow.side === "t") { left = r.left; top = r.bottom + 12; }
+  if (tipNow.side === "b") { left = r.left; top = r.top - box.offsetHeight - 12; }
+  left = Math.max(8, Math.min(left, innerWidth - box.offsetWidth - 8));
+  top = Math.max(8, Math.min(top, innerHeight - box.offsetHeight - 8));
+  box.style.left = left + "px";
+  box.style.top = top + "px";
+}
+function tipTick() {
+  if (tipVisits > TIP_MAX_VISITS) return;
+  if (tipNow) { tipPlace(); return; }
+  const next = TIPS.find((t) => !tipDone(t.id) && tipVisible($(t.sel)));
+  if (!next) return;
+  const el = $(next.sel);
+  const box = document.createElement("div");
+  box.className = "ntip " + next.side;
+  box.innerHTML = `<div class="tt"><b class="new">NEW</b>${escH(next.t)}</div><div>${escH(next.b)}</div>`
+    + `<div class="ft"><span>${TIP_MAX_VISITS}번 접속할 때까지 보여요</span><button type="button" class="ok">알겠어요</button></div>`;
+  document.body.appendChild(box);
+  el.classList.add("ntip-ring");
+  tipNow = { id: next.id, sel: next.sel, side: next.side, el: box };
+  box.querySelector(".ok").addEventListener("click", () => tipClose(next.id, true));
+  tipPlace();
+}
+document.addEventListener("click", (e) => {   // 말풍선 밖을 누르면 이번 접속 동안만 닫기
+  if (!tipNow || !tipNow.el) return;
+  if (tipNow.el.contains(e.target) || (e.target.closest && e.target.closest(tipNow.sel))) return;
+  tipClose(tipNow.id, false);
+}, true);
+["scroll", "resize"].forEach((ev) => window.addEventListener(ev, () => tipPlace(), true));
+setInterval(tipTick, 800);
+setTimeout(tipTick, 1200);
 
 /* ---------- 날개 배너 ---------- */
 $("#wing-top").addEventListener("click", () => $("#preview-wrap").scrollTo({ top: 0, behavior: "smooth" }));
