@@ -5093,7 +5093,9 @@ function parseMixCounts(opt, colors) {  // "블랙3+베이지2" → {블랙:3, �
 function syncCompCount(comp, n) {  // 구성 문구의 개수를 구성 수량에 맞춤: "헤어핀 1개" → "헤어핀 7개"
   const c = String(comp || "").trim();
   if (!c || c === "기재예정") return `${n}개`;
-  if (/\d+\s*개/.test(c)) return c.replace(/\d+\s*개/, `${n}개`);
+  const hits = c.match(/\d+\s*개/g) || [];
+  if (hits.length > 1) return c;   // "제기 1개+공 1개+주머니 1개"처럼 구성품마다 적어 둔 문구는 그대로 둔다
+  if (hits.length === 1) return c.replace(/\d+\s*개/, `${n}개`);
   return `${c} ${n}개`;
 }
 function colorChipBg(name) {
@@ -5630,7 +5632,8 @@ window.openCalcModal = () => {
   caState = { mix: false, mixCounts: null, mixKey: null, sel: null, plans: [] };
   const fv = (sel, fb) => { const el = $(sel); const t = el ? el.textContent.trim() : ""; return t && t !== "기재예정" ? t : (fb || ""); };
   const rows = [["name", "상품명", fv("#f-name", current.name)], ["opt", "상품 옵션", fv("#f-opt", current.opt)], ["comp", "구성", fv("#f-comp", current.comp)],
-    ["color", "색상", current.color || fv("#f-color")], ["size", "사이즈", fv("#f-size", current.size)], ["mat", "소재", fv("#f-mat", current.mat)]];
+    ["color", "색상", fv("#f-color", current.color)], ["size", "사이즈", fv("#f-size", current.size)], ["mat", "소재", fv("#f-mat", current.mat)]];
+  const rv = (k) => { const r = rows.find((x) => x[0] === k); return r ? r[2] : ""; };
   $("#ca-table").innerHTML = rows.map(([k, label]) =>
     `<tr><td class="k">${label}${k === "name" ? link1688Html(current.url1688) : ""}</td><td class="v" contenteditable="true" data-k="${k}"></td></tr>`).join("");
   caState.orig = {};
@@ -5642,13 +5645,17 @@ window.openCalcModal = () => {
   });
   caState.cn = JSON.parse(JSON.stringify(current.optCnManual || {}));
   caState.cnLevels = Math.min(3, Math.max(1, current.optCnLevels || 0, ...Object.values(caState.cn).map((v) => (v || []).length)));
+  caState.cnKeys = (current.optCnOrder || Object.keys(caState.cn)).slice();   // 옵션 이름이 바뀌어도 순서대로 물려받기
   $("#cn-paste").style.display = "none";
   $("#cn-table").innerHTML = "";   // 앞 상품에서 입력하던 칸이 새 상품 값으로 저장되지 않게
-  cnGridRender();
   $("#ca-yuan").value = current.priceYuan || "";
   $("#ca-ship").value = current.shipYuan || "";
-  $("#ca-color").value = current.color || "";
-  $$(".btn.pim2").forEach((x) => x.classList.toggle("active", x.dataset.pim2 === "keep"));
+  $("#ca-color").value = rv("color");   // 표를 그리기 전에 (앞 상품 색상이 남지 않게)
+  const mcolors = splitColors(rv("color"));
+  const mcounts = mcolors.length >= 2 ? parseMixCounts(rv("opt"), mcolors) : null;   // 옵션이 '블랙1+화이트1' 이면 믹스로 켠 상태 복원
+  if (mcounts) { caState.mix = true; caState.mixCounts = mcounts; caState.mixKey = mcolors.join("/"); }
+  $$(".btn.pim2").forEach((x) => x.classList.toggle("active", x.dataset.pim2 === (caState.mix ? "mix" : "keep")));
+  cnGridRender();
   caCalc();
   $("#calcmodal").classList.add("open");
 };
@@ -5836,6 +5843,7 @@ function cnGridRender() {
   const L = st.cnLevels || 1;
   const map = current ? optMapOf(current) : [];
   const tree = caOptTree();
+  cnCarryOver(st, tree);
   const anySet = tree.some((o) => o.set && o.parts.length > 1);
   const multi = tree.length > 1;
   let html = `<tr><th>${anySet ? "상품 옵션 · 구성품" : "상품 옵션"}</th>${[1, 2, 3].slice(0, L).map((n) => `<th>${n}단계</th>`).join("")}`
@@ -5868,6 +5876,23 @@ function cnGridRender() {
   $("#cn-lv-add").disabled = L >= 3;
   $("#cn-lv-del").disabled = L <= 1;
   cnGridResult();
+}
+/* 옵션 이름을 바꿔도 넣어 둔 1688 옵션명이 날아가지 않게 — 줄 수가 같으면 순서대로 물려받는다 */
+function cnCarryOver(st, tree) {
+  const keys = [];
+  tree.forEach((o) => o.parts.forEach((pt) => keys.push(pt.key)));
+  const has = (k) => { const i = cnInfo(st.cn[k]); return i.cn.some(Boolean) || i.price || i.pack; };
+  const carried = st.cnCarriedKeys instanceof Set ? st.cnCarriedKeys : new Set();
+  if (st.cnKeys && st.cnKeys.length === keys.length) {
+    keys.forEach((k, i) => {
+      const old = st.cnKeys[i];
+      if (!old || old === k || keys.indexOf(old) >= 0) return;   // 그대로이거나 다른 줄이 쓰는 이름이면 두기
+      if (!has(k) && has(old)) { st.cn[k] = JSON.parse(JSON.stringify(st.cn[old])); carried.add(k); }
+    });
+  }
+  st.cnKeys = keys;
+  st.cnCarriedKeys = new Set([...carried].filter((k) => keys.indexOf(k) >= 0));   // 지금 표에 있는 줄만 (이름을 되돌리면 안내도 사라짐)
+  st.cnCarried = st.cnCarriedKeys.size > 0;
 }
 function cnGridResult(skipCalc) {
   if (!$("#cn-table")) return;
@@ -5910,7 +5935,10 @@ function cnGridResult(skipCalc) {
     }
   });
   const sm = $("#cn-sum");
-  if (sm) sm.textContent = msg || (packed && buyAll ? `1688에서는 모두 ${buyAll}묶음만 주문하면 됩니다 (구성 수량 ÷ 입수, 올림)` : "");
+  if (sm) {
+    const note = msg || (packed && buyAll ? `1688에서는 모두 ${buyAll}묶음만 주문하면 됩니다 (구성 수량 ÷ 입수, 올림)` : "");
+    sm.innerHTML = (caState && caState.cnCarried ? `<span style="color:#0a63cc">옵션 이름이 바뀌어 이전 1688 옵션명을 순서대로 가져왔습니다 — 다르면 그 칸을 비우세요</span>${note ? "<br>" : ""}` : "") + escH(note);
+  }
   if (!skipCalc && caState) caCalc();
 }
 /* 구성 수량이 바뀌면 격자의 1688 구매 수량도 다시 계산 */
@@ -5988,7 +6016,8 @@ $("#ca-apply").addEventListener("click", () => {
     const price = cnVal(tr, "pr"), pack = cnVal(tr, "pk"), cnt = cnVal(tr, "ct");
     if (v.some(Boolean) || price || pack || cnt) cnOut[tr.dataset.key] = { cn: v, price: price, pack: pack, cnt: cnt };
   });
-  current.optCnManual = cnOut;
+  current.optCnManual = Object.assign({}, current.optCnManual, cnOut);   // 예전 옵션 이름 값도 남겨 둔다 (이름을 되돌리면 복구)
+  current.optCnOrder = $$("#cn-table tr[data-key]").map((tr) => tr.dataset.key);
   current.optCnLevels = st.cnLevels || 1;
   $("#calcmodal").classList.remove("open");
   caState = null;
