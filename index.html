@@ -1184,8 +1184,8 @@
 </div>
 <div id="mixmodal" class="modal">
   <div class="mbox" style="width:460px; max-width:94vw; text-align:left;">
-    <div class="mtitle">구성 조정 — 색상 믹스</div>
-    <p class="msub">색상별 개수를 정하면 옵션·구성·수량이 함께 바뀝니다 (0개 = 빼기)</p>
+    <div class="mtitle">구성 조정 — 한 세트에 담을 옵션</div>
+    <p class="msub">옵션별 개수를 정하면 옵션·구성·수량이 함께 바뀝니다 (0개 = 빼기)</p>
     <div id="mx-box" class="mx-box"></div>
     <div id="mx-price" style="margin-top:8px; font-size:13px; color:#333;"></div>
     <div style="margin-top:12px;">
@@ -1254,9 +1254,10 @@
     </div>
     <input type="hidden" id="ca-color">
     <div class="ca-row" id="ca-mix-row" style="display:none;">
-      <span style="font-weight:800; color:#555;">색상이 여러 개일 때</span>
-      <button class="btn pim2 active" data-pim2="keep">단색 옵션 유지</button>
-      <button class="btn pim2" data-pim2="mix">색상 믹스 1옵션</button>
+      <span style="font-weight:800; color:#555;">옵션이 여러 개일 때</span>
+      <button class="btn pim2 active" data-pim2="keep">옵션 따로 판매</button>
+      <button class="btn pim2" data-pim2="mix">여러 옵션 한 세트로</button>
+      <span style="font-size:11.5px; color:#888;">색상·무늬·사이즈 무엇이든 상품 옵션에 / 로 나열돼 있으면 묶을 수 있습니다</span>
     </div>
     <div id="ca-mix-box" class="mx-box" style="display:none; margin-top:8px;"></div>
     <div id="ca-card" style="display:none;"></div>
@@ -5008,6 +5009,17 @@ function piRender() {
 }
 /* 색상 믹스 공용 수집기 */
 function splitColors(s) { return String(s || "").split("/").map((x) => x.trim()).filter((x) => x && x !== "기재예정"); }
+/* 한 세트로 묶을 수 있는 이름 목록 — 상품 옵션(/로 나열)이 먼저, 없으면 색상. 이미 묶여 있으면(A1+B1) 그 구성품 이름 */
+function optNames(optText, colorText) {
+  const o = String(optText || "").trim();
+  const base = o && o !== "기재예정" ? o : String(colorText || "").trim();
+  if (!base || base === "기재예정") return [];
+  const list = base.split("/").map((x) => x.trim()).filter(Boolean);
+  if (list.length === 1 && list[0].indexOf("+") >= 0) {
+    return list[0].split("+").map((x) => x.trim().replace(/\s*\d+\s*개?$/, "").trim()).filter(Boolean);
+  }
+  return list.filter((x, i, a) => a.indexOf(x) === i);
+}
 function evenCounts(colors, n) {
   const c = {};
   colors.forEach((k) => { c[k] = 0; });
@@ -5040,7 +5052,7 @@ function colorChipBg(name) {
   return key ? COLOR_MAP[key] : "#e8e8e8";
 }
 function renderMixBox(box, colors, counts, onChange, summaryFn) {
-  box.innerHTML = `<div style="font-size:12.5px; font-weight:800; color:#0a63cc; margin-bottom:4px;">구성 조정 — 색상별 개수 (0개 = 빼기)</div>`
+  box.innerHTML = `<div style="font-size:12.5px; font-weight:800; color:#0a63cc; margin-bottom:4px;">구성 조정 — 옵션별 개수 (0개 = 빼기)</div>`
     + colors.map((c, i) => `<div class="mx-row" data-i="${i}"><span class="mx-chip"></span><span class="mx-name"></span>`
       + `<button type="button" class="btn mx-dec">-</button><b class="mx-n"></b><button type="button" class="btn mx-inc">+</button></div>`).join("")
     + `<button type="button" class="btn mx-even" style="margin-top:4px;">균등 분배</button><div class="mx-sum"></div>`;
@@ -5158,7 +5170,7 @@ function piApply(asNew) {
   st.d.priceYuan = parseFloat($("#ca-yuan").value) || 0;
   st.d.shipYuan = parseFloat($("#ca-ship").value) || 0;
   st.d._plan = st.sel;
-  st.d._colors = splitColors(st.d.color);
+  st.d._colors = optNames(st.d.option, st.d.color);
   st.d._mixCounts = st.mix ? st.mixCounts : null;
   const prod = Object.assign(extractToProduct(st.d, st.d.url1688 || ""), cnCollect());   // 1688 옵션명·원가·입수도 함께
   const cands = st.fetched ? cleanCands((st.fetched.images || []).map((im) => ({ u: im.u, kind: im.kind, label: im.label || "" }))) : null;
@@ -5205,8 +5217,8 @@ let mxState = null;
 window.openMixAdjust = (ev) => {
   if (ev) { ev.preventDefault(); ev.stopPropagation(); }
   if (!current) { toast("먼저 상품을 불러와 주세요"); return; }
-  const colors = splitColors($("#f-color") ? $("#f-color").textContent : "");
-  if (colors.length < 2) { toast("색상이 2개 이상일 때 구성을 조정할 수 있습니다 — 색상 칸을 / 로 구분해 주세요"); return; }
+  const colors = optNames($("#f-opt") ? $("#f-opt").textContent : "", $("#f-color") ? $("#f-color").textContent : "");
+  if (colors.length < 2) { toast("옵션이 2개 이상일 때 구성을 조정할 수 있습니다 — 상품 옵션(없으면 색상) 칸을 / 로 구분해 주세요"); return; }
   let counts = parseMixCounts($("#f-opt") ? $("#f-opt").textContent.trim() : "", colors);
   if (!counts) {
     const q = parseInt((($("#f-qty") ? $("#f-qty").textContent : "") || "").replace(/[^\d]/g, ""), 10);
@@ -5621,8 +5633,8 @@ window.openCalcModal = () => {
   $("#ca-yuan").value = current.priceYuan || "";
   $("#ca-ship").value = current.shipYuan || "";
   $("#ca-color").value = rv("color");   // 표를 그리기 전에 (앞 상품 색상이 남지 않게)
-  const mcolors = splitColors(rv("color"));
-  const mcounts = mcolors.length >= 2 ? parseMixCounts(rv("opt"), mcolors) : null;   // 옵션이 '블랙1+화이트1' 이면 믹스로 켠 상태 복원
+  const mcolors = optNames(rv("opt"), rv("color"));
+  const mcounts = mcolors.length >= 2 ? parseMixCounts(rv("opt"), mcolors) : null;   // 옵션이 '블랙1+화이트1' 이면 묶은 상태로 복원
   if (mcounts) { caState.mix = true; caState.mixCounts = mcounts; caState.mixKey = mcolors.join("/"); }
   $$(".btn.pim2").forEach((x) => x.classList.toggle("active", x.dataset.pim2 === (caState.mix ? "mix" : "keep")));
   cnGridRender();
@@ -5632,13 +5644,14 @@ window.openCalcModal = () => {
 function caMixSync() {
   const st = cnState(), box = $("#ca-mix-box");
   if (!st || !box) return;
-  const colors = splitColors($("#ca-color").value);
+  const h = cnHost();
+  const colors = optNames(h.opt, h.color);   // 색상이 아니라 상품 옵션 기준 (옵션명이 색상으로 덮이지 않게)
   $("#ca-mix-row").style.display = colors.length >= 2 ? "flex" : "none";
   if (colors.length < 2 && st.mix) { st.mix = false; $$(".btn.pim2").forEach((x) => x.classList.toggle("active", x.dataset.pim2 === "keep")); }
   if (!st.mix || colors.length < 2) { box.style.display = "none"; return; }
   const key = colors.join("/");
   if (!st.mixCounts || st.mixKey !== key) {
-    st.mixCounts = evenCounts(colors, st.sel ? st.sel.n : colors.length);
+    st.mixCounts = evenCounts(colors, Math.max(colors.length, st.sel ? st.sel.n : 0));   // 기본은 옵션마다 1개씩
     st.mixKey = key;
   }
   box.style.display = "block";
@@ -5719,10 +5732,10 @@ function caOptTree() {
   const st = cnState();
   const h = cnHost();
   const total = st && st.sel ? st.sel.n : 0;
-  const colors = splitColors($("#ca-color").value);
+  const colors = optNames(h.opt, h.color);
   let tree;
   if (st && st.mix && st.mixCounts && colors.length >= 2 && colors.some((k) => st.mixCounts[k] > 0)) {
-    tree = [{ name: mixString(colors, st.mixCounts), set: true, mix: true,   // 색상 믹스도 구성품을 묶은 옵션 1개
+    tree = [{ name: mixString(colors, st.mixCounts), set: true, mix: true,   // 묶은 옵션도 구성품을 가진 옵션 1개
              parts: colors.filter((k) => st.mixCounts[k] > 0).map((k) => ({ name: k, n: st.mixCounts[k], fixed: true })) }];
   } else {
     const opt = h.opt, col = h.color;
@@ -5836,7 +5849,7 @@ function cnGridRender() {
     const isSet = o.set && o.parts.length > 1;
     const badge = `<span class="onum">옵션 ${oi + 1}</span>`;
     if (isSet) html += `<tr class="optHead" data-oh="${oi}"><td colspan="${cols}">${badge}${escH(o.name)} — 옵션 1개 · 구성품 ${o.parts.length}가지`
-      + `${o.mix ? " (색상 믹스)" : ""}</td></tr>`;
+      + `${o.mix ? " (한 세트로 묶음)" : ""}</td></tr>`;
     o.parts.forEach((pt) => {
       const info = cnInfo(st.cn[pt.key]);
       const ai = pt.name ? matchOpt(map, pt.name) : (map.length === 1 ? map[0] : null);
@@ -5905,7 +5918,7 @@ function cnGridResult(skipCalc) {
       names.push(vals.length ? vals.join(">") : (ph || pt.name));
     });
     const hd = $(`#cn-table tr.optHead[data-oh="${oi}"]`);
-    if (hd) hd.querySelector("td").innerHTML = `<span class="onum">옵션 ${oi + 1}</span>${escH(o.name)} — 옵션 1개 · 구성품 ${o.parts.length}가지${o.mix ? " (색상 믹스)" : ""}`;
+    if (hd) hd.querySelector("td").innerHTML = `<span class="onum">옵션 ${oi + 1}</span>${escH(o.name)} — 옵션 1개 · 구성품 ${o.parts.length}가지${o.mix ? " (한 세트로 묶음)" : ""}`;
     const tot = $(`#cn-table tr[data-tot="${oi}"]`);
     if (tot) {
       const buySum = buys.reduce((x, y) => x + y, 0);
@@ -5967,12 +5980,12 @@ $("#ca-apply").addEventListener("click", () => {
   const ship = parseFloat($("#ca-ship").value) || 0;
   if (!yuan) { toast("개당 상품가(¥)를 넣어 주세요"); return; }
   if (!st.sel || st.sel.over) { toast("판매가 2만 원 미만으로 가능한 구성이 없습니다"); return; }
-  const colors = splitColors($("#ca-color").value);
+  const tv = (k) => { const td = $(`#ca-table td.v[data-k=${k}]`); return td ? td.textContent.trim() : ""; };
+  const colors = optNames(tv("opt"), $("#ca-color").value);
   const useMix = st.mix && colors.length >= 2 && st.mixCounts && mixTotal(st.mixCounts) > 0;
   const eff = cnEff();
   const total = useMix ? mixTotal(st.mixCounts) : (eff.set && eff.n ? eff.n : st.sel.n);
   const pl = planFor(total, eff.yuan, ship, eff.pack);
-  const tv = (k) => { const td = $(`#ca-table td.v[data-k=${k}]`); return td ? td.textContent.trim() : ""; };
   const changed = (k) => st.orig && tv(k) !== (st.orig[k] || "");
   if (changed("name") && tv("name")) { current.name = tv("name"); setField("#f-name", current.name); setField("#f-name2", current.name); }
   if (changed("opt") && !useMix) { current.opt = tv("opt"); setField("#f-opt", current.opt); }
