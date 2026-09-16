@@ -5843,11 +5843,15 @@ function cnEff() {
 function cnYuanLabel(eff) {
   const el = $("#ca-yuan"), lb = $("#ca-yuan-lb"), tag = $("#ca-sumtag");
   const setMode = eff.set && !eff.fallback;
-  if (lb) lb.textContent = setMode ? "세트 1개 원가(¥)" : "개당 상품가(¥)";
-  if (!tag) return;
-  tag.textContent = setMode ? `구성품 합계 ¥${eff.sum}` : (eff.mixed ? "옵션 중 가장 비싼 값" : "");
-  tag.style.display = tag.textContent ? "inline-block" : "none";
-  if (setMode && el && document.activeElement !== el && (parseFloat(el.value) || 0) !== eff.sum) el.value = eff.sum;
+  const use = setMode ? eff.sum : eff.yuan;          // 계산에 실제로 쓰는 값
+  const own = setMode || !eff.fallback;              // 표의 옵션 원가에서 나온 값인가
+  if (lb) lb.textContent = setMode ? "세트 1개 원가(¥)" : (eff.pack > 1 ? "1688 1개(묶음) 가격(¥)" : "개당 상품가(¥)");
+  if (tag) {
+    tag.textContent = setMode ? `구성품 합계 ¥${eff.sum}` : (own ? (eff.mixed ? "옵션 중 가장 비싼 값" : "표의 1688 원가 기준") : "");
+    tag.style.display = tag.textContent ? "inline-block" : "none";
+  }
+  // 표에 원가가 있으면 칸에도 그 값을 보여 준다 (칸 숫자와 계산이 어긋나 보이지 않게)
+  if (own && el && document.activeElement !== el && Math.abs((parseFloat(el.value) || 0) - use) > 0.0001) el.value = Math.round(use * 10000) / 10000;
 }
 function cnGridRender() {
   const st = cnState();
