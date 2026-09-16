@@ -25,6 +25,12 @@
   #cn-table th.num, #cn-table td.num { width:86px; text-align:center; }
   #cn-table td.num input { text-align:center; }
   #cn-table td.auto { background:#f3f9f4; color:#2e7d3e; font-weight:800; text-align:center; width:86px; }
+  #cn-table tr.optHead td { background:#fdf0e1; color:#8a5a2b; font-weight:800; font-size:12px; }
+  #cn-table td.sub { font-weight:700; color:#333; white-space:nowrap; padding-left:16px; }
+  #cn-table tr.optTot td { background:#f7fbf8; color:#2e7d3e; font-weight:800; }
+  #cn-table td.cnt { text-align:center; font-weight:700; color:#555; }
+  #cn-table .onum { display:inline-block; background:#eef2f8; color:#5a6a80; font-size:10.5px; font-weight:800; border-radius:6px; padding:1px 6px; margin-right:5px; }
+  #ca-sumtag { font-size:11.5px; font-weight:800; color:#2e7d3e; background:#f3f9f4; border:1.5px solid #bfe3c6; border-radius:7px; padding:3px 8px; }
   #cn-grid .sum { margin-top:7px; font-size:11.5px; color:#c25e00; font-weight:700; }
   #cn-table input { width:100%; border:1.5px solid #e9dccb; border-radius:6px; padding:4px 6px; font-size:13px; font-family:'Microsoft YaHei','Malgun Gothic',sans-serif; }
   #cn-table input::placeholder { color:#b9a893; }
@@ -1250,10 +1256,11 @@
         <button type="button" class="mini" id="cn-paste-go">표에 채우기</button></div>
     </div>
     <p class="cn-desc">입수 = 1688 1개(묶음)에 들어 있는 개수 (6개입이면 6 · 낱개면 1). 1688 구매 수량 = 올림(구성 수량 ÷ 입수)이고, 세트 원가도 묶음 단위로 계산합니다.<br>
+      상품 옵션에서 <b>＋</b>로 이으면 그 자체가 <b>옵션 1개</b>(구성품 묶음), <b>/</b>로 나누면 <b>서로 다른 옵션</b>입니다. (예: 5cm+8cm+13cm = 1옵션 · 화이트/크라프트 = 2옵션)<br>
       1688옵션명: 한 옵션 안의 단계는 &gt;로, 옵션끼리는 지금처럼 /로 이어집니다. <span style="color:#999">· 칸에 붙여넣고 Enter = 아래 줄 같은 칸에 같은 이름</span></p>
     <div class="sub-label" style="margin-top:12px">가격·구성 계산</div>
     <div class="ca-row" style="margin-top:4px;">
-      <span>개당 상품가(¥)</span><input type="number" id="ca-yuan" step="0.01">
+      <span id="ca-yuan-lb">개당 상품가(¥)</span><input type="number" id="ca-yuan" step="0.01"><span id="ca-sumtag" style="display:none"></span>
       <span>중국 배송비(¥)</span><input type="number" id="ca-ship" step="0.01">
     </div>
     <input type="hidden" id="ca-color">
@@ -3635,33 +3642,55 @@ function matchOpt(map, name) {
   return map.find((m) => normOpt(m.ko) === k) || map.find((m) => normOpt(m.cn) === k) || map.find((m) => normOpt(optKo(m.cn)) === k)
     || map.find((m) => m.ko && (normOpt(m.ko).includes(k) || k.includes(normOpt(m.ko)))) || null;
 }
-/* 실제로 파는 옵션(상품 구성) 기준 — 옵션명·구매 수량·가격이 같은 순서. 판매가 계산·구성 조정·미리보기 수정이 그대로 반영된다 */
+/* 실제로 파는 옵션(상품 구성) 기준 — "/" 는 옵션끼리, "+" 는 한 옵션 안의 구성품 */
 function sold1688(f, p) {
   const n = parseInt(String(f.qty || p.qty || "").replace(/[^\d]/g, ""), 10) || 0;
   const opt = f.opt && f.opt !== "기재예정" ? f.opt : "";
   const col = f.color && f.color !== "기재예정" ? f.color : "";
-  let items;
-  if (opt.indexOf("+") >= 0) {   // 색상 믹스: 핑크3+블루2
-    items = opt.split("+").map((x) => { const m = x.trim().match(/^(.*?)(\d+)\s*개?$/); return m ? { name: m[1].trim(), n: +m[2] } : { name: x.trim(), n: 0 }; });
-  } else {                        // 단색 옵션: 옵션마다 구성 수량
-    items = (opt || col).split("/").map((x) => x.trim()).filter(Boolean).map((name) => ({ name, n }));
-  }
+  const raw = opt || col;
   const map = optMapOf(p);
-  if (!items.length) items = [{ name: "", n }];
-  if (items.length === 1 && map.length === 1) items[0].m = map[0];   // 옵션 하나짜리 상품
-  const names = [], qtys = [], prices = [];
-  items.forEach((it) => {
-    const man = p.optCnManual && p.optCnManual[it.name];
-    const info = man ? cnInfo(man) : { cn: [], price: "", pack: "" };
-    const manName = info.cn.filter(Boolean).join(">");   // 단계는 > · 옵션끼리는 /
-    const m = it.m || matchOpt(map, it.name)
-      || (manName ? map.find((o) => normOpt(o.cn) === normOpt(manName) || normOpt(o.cn) === normOpt(info.cn[0])) : null);
-    if (manName) names.push(manName);
-    else if (map.length) names.push(m ? m.cn : (it.name ? it.name + "(?)" : ""));
-    qtys.push(it.n ? buyUnits(it.n, info.pack) : "");   // 1688 구매 수량 = 올림(구성 수량 ÷ 입수)
-    prices.push(+info.price || (m && m.price) || +p.priceYuan || 0);   // 직접 넣은 원가가 우선
+  const man = p.optCnManual || {};
+  const optStrs = raw.split("/").map((x) => x.trim()).filter(Boolean).filter((x, i, a2) => a2.indexOf(x) === i);
+  const tree = (optStrs.length ? optStrs : [""]).map((os) => {
+    if (os.indexOf("+") < 0) return { name: os, parts: [{ name: os, n }] };
+    const parts = os.split("+").map((x) => {
+      const t = x.trim();
+      const m = t.match(/^(.*?)(\d+)\s*개?$/);
+      return m && m[1].trim() ? { name: m[1].trim(), n: +m[2] } : { name: t, n: 1 };
+    }).filter((pt) => pt.name);
+    return parts.length > 1 ? { name: os, set: true, parts } : { name: os, parts: [{ name: os, n }] };
   });
-  return { names: names.filter(Boolean).join("/"), qty: qtys.some(Boolean) ? qtys.join("/") : "", cols: priceCols(prices) };
+  const used = {};
+  tree.forEach((o, oi) => o.parts.forEach((pt) => {
+    pt.key = used[pt.name] ? pt.name + "#" + (oi + 1) : pt.name;
+    used[pt.key] = 1;
+  }));
+  const names = [], qtys = [], prices = [];
+  tree.forEach((o) => {
+    const isSet = o.set && o.parts.length > 1;
+    const oNames = [], oBuys = [];
+    let cost = 0, one = 0;
+    o.parts.forEach((pt) => {
+      const info = cnInfo(man[pt.key] || man[pt.name]);
+      const manName = info.cn.filter(Boolean).join(">");   // 한 옵션 안의 단계는 >
+      const m = matchOpt(map, pt.name)
+        || (manName ? map.find((x) => normOpt(x.cn) === normOpt(manName) || normOpt(x.cn) === normOpt(info.cn[0])) : null)
+        || (tree.length === 1 && o.parts.length === 1 && map.length === 1 ? map[0] : null);
+      if (manName) oNames.push(manName);
+      else if (map.length) oNames.push(m ? m.cn : (pt.name ? pt.name + "(?)" : ""));
+      const cnt = (+info.cnt || pt.n) || 0;
+      const units = cnt ? buyUnits(cnt, info.pack) : 0;
+      const price = +info.price || (m && m.price) || +p.priceYuan || 0;   // 직접 넣은 원가가 우선
+      oBuys.push(units || "");
+      cost += price * units;
+      one = one || price;
+    });
+    const nm = oNames.filter(Boolean).join("+");
+    if (nm) names.push(nm);
+    if (oBuys.some(Boolean)) qtys.push(oBuys.join("+"));
+    prices.push(isSet ? Math.round(cost * 100) / 100 : one);   // 묶은 옵션은 합계 · 따로 팔리는 옵션은 1688 단가
+  });
+  return { names: names.join("/"), qty: qtys.join("/"), cols: priceCols(prices) };
 }
 function excelRow(i) {
   const f = wsFields(i);
@@ -5645,15 +5674,17 @@ function caCalc() {
   const yuan = parseFloat($("#ca-yuan").value) || 0;
   const ship = parseFloat($("#ca-ship").value) || 0;
   const card = $("#ca-card"), tbl = $("#ca-plans"), note = $("#ca-note");
-  if (!yuan) {
+  const eff = cnEff();
+  cnYuanLabel(eff);
+  if (!eff.yuan) {
     card.style.display = "none"; tbl.style.display = "none"; st.plans = []; st.sel = null;
     note.textContent = "개당 상품가(¥)를 넣으면 구성 수량별 판매가·순마진을 계산합니다.";
     caMixSync();
     return;
   }
-  const eff = cnEff();
   st.plans = calcPlans(eff.yuan, ship, eff.pack);
   if (st.mix && st.mixCounts && mixTotal(st.mixCounts) > 0) st.sel = planFor(mixTotal(st.mixCounts), eff.yuan, ship, eff.pack);
+  else if (eff.set && eff.n && st.selBy !== "user") st.sel = planFor(eff.n, eff.yuan, ship, eff.pack);   // 구성품을 묶은 옵션은 구성품 개수 합이 곧 구성 수량
   else if (st.sel && st.sel.n) st.sel = planFor(st.sel.n, eff.yuan, ship, eff.pack);
   else st.sel = bestPlan(st.plans);
   if (!st.sel || st.sel.over) {
@@ -5676,93 +5707,127 @@ function caCalc() {
       <td>${Math.round(p.tier / p.n).toLocaleString()}원</td>
       <td>${p.margin.toLocaleString()}원</td><td>${p.ok ? (st.sel && p.n === st.sel.n ? "제안" : "가능") : "범위 밖"}</td></tr>`).join("");
   const cost1 = Math.round((eff.yuan + ship / 2) * priceSettings().rate);
-  note.innerHTML = `세트 원가 = (상품가 × <b>1688 구매 묶음 수</b> + 배송비 ÷ 2) × 환산율 — 1묶음 기준 ${cost1.toLocaleString()}원`
-    + (eff.pack > 1 ? ` · 입수 ${eff.pack}개` : "")
-    + (eff.yuan !== (parseFloat($("#ca-yuan").value) || 0) ? ` · 원가 ¥${eff.yuan}${eff.mixed ? " (옵션 중 가장 비싼 값 기준)" : ""}` : "")
-    + `. 고정비·배송비는 세트당 1번만. 판매가가 2만 원 이상이 되는 수량부터는 제안하지 않습니다.`;
+  const tail = `. 고정비·배송비는 세트당 1번만. 판매가가 2만 원 이상이 되는 수량부터는 제안하지 않습니다.`;
+  note.innerHTML = (eff.set
+    ? `세트 원가 = (구성품 원가 합계 <b>¥${eff.sum}</b> + 배송비 ÷ 2) × 환산율 — 구성 ${eff.n}개 한 세트 ${Math.round((eff.sum + ship / 2) * priceSettings().rate).toLocaleString()}원`
+    : `세트 원가 = (상품가 × <b>1688 구매 묶음 수</b> + 배송비 ÷ 2) × 환산율 — 1묶음 기준 ${cost1.toLocaleString()}원`
+      + (eff.pack > 1 ? ` · 입수 ${eff.pack}개` : "")
+      + (eff.yuan !== (parseFloat($("#ca-yuan").value) || 0) ? ` · 원가 ¥${eff.yuan}${eff.mixed ? " (옵션 중 가장 비싼 값 기준)" : ""}` : "")) + tail;
   caMixSync();
   cnCountSync();
 }
-/* 구성 수량이 바뀌면 격자의 1688 구매 수량도 다시 계산 */
-function cnCountSync() {
-  if (!caState || !$("#cn-table")) return;
-  const rows = $$("#cn-table tr[data-ko]");
-  if (!rows.length) return;
-  const counts = cnCounts(rows.map((tr) => tr.dataset.ko));
-  rows.forEach((tr, i) => { tr.dataset.n = counts[i] || 0; });
-  cnGridResult(true);
-}
-["ca-yuan", "ca-ship", "ca-color"].forEach((id) => $("#" + id).addEventListener("input", () => { caState.sel = null; caCalc(); }));
+["ca-yuan", "ca-ship", "ca-color"].forEach((id) => $("#" + id).addEventListener("input", () => { caState.sel = null; caState.selBy = null; caCalc(); }));
 $$(".btn.pim2").forEach((b) => b.addEventListener("click", () => {
   if (!caState) return;
   caState.mix = b.dataset.pim2 === "mix";
   $$(".btn.pim2").forEach((x) => x.classList.toggle("active", x === b));
   caCalc();
+  cnGridRender();   // 믹스면 '옵션 1개 · 구성품' 모양으로 다시 그린다
 }));
 $("#ca-plans").addEventListener("click", (e) => {
   const tr = e.target.closest("tr[data-n]");
   if (!tr || !caState) return;
   caState.sel = { n: +tr.dataset.n };
+  caState.selBy = "user";   // 직접 고른 수량은 그대로 둔다
   caState.mixCounts = null;
   caCalc();
 });
 
-/* ---------- 판매가 계산 창: 1688 옵션명(중국어) 직접 입력 — 상품 옵션마다 줄, 1688 단계마다 칸 (최대 3) ---------- */
-function caOptNames() {
+/* ---------- 판매가 계산 창: 1688 옵션명(중국어) 직접 입력 — 옵션마다 줄, 1688 단계마다 칸 (최대 3) ---------- */
+/* 상품 옵션 해석 — "/" 는 서로 다른 옵션, "+" 는 한 옵션 안의 구성품 (핑크3+블루2 처럼 개수도 읽는다) */
+function caOptTree() {
+  const st = caState;
   const tv = (k) => { const td = $(`#ca-table td.v[data-k=${k}]`); return td ? td.textContent.trim() : ""; };
-  const opt = tv("opt"), col = tv("color");
-  const raw = opt && opt !== "기재예정" ? opt : (col && col !== "기재예정" ? col : "");
-  let names;
-  if (raw.indexOf("+") >= 0) names = raw.split("+").map((x) => x.trim().replace(/\s*\d+\s*개?$/, "").trim());
-  else names = raw.split("/").map((x) => x.trim());
-  names = names.filter(Boolean).filter((x, i, a) => a.indexOf(x) === i);
-  return names.length ? names : [""];
+  const total = st && st.sel ? st.sel.n : 0;
+  const colors = splitColors($("#ca-color").value);
+  let tree;
+  if (st && st.mix && st.mixCounts && colors.length >= 2 && colors.some((k) => st.mixCounts[k] > 0)) {
+    tree = [{ name: mixString(colors, st.mixCounts), set: true, mix: true,   // 색상 믹스도 구성품을 묶은 옵션 1개
+             parts: colors.filter((k) => st.mixCounts[k] > 0).map((k) => ({ name: k, n: st.mixCounts[k], fixed: true })) }];
+  } else {
+    const opt = tv("opt"), col = tv("color");
+    const raw = opt && opt !== "기재예정" ? opt : (col && col !== "기재예정" ? col : "");
+    const optStrs = raw.split("/").map((x) => x.trim()).filter(Boolean).filter((x, i, arr) => arr.indexOf(x) === i);
+    tree = optStrs.length ? optStrs.map((os) => {
+      if (os.indexOf("+") < 0) return { name: os, parts: [{ name: os, n: total }] };
+      const parts = os.split("+").map((x) => {
+        const t = x.trim();
+        const m = t.match(/^(.*?)(\d+)\s*개?$/);
+        return m && m[1].trim() ? { name: m[1].trim(), n: +m[2], fixed: true } : { name: t, n: 1 };
+      }).filter((pt) => pt.name);
+      return parts.length > 1 ? { name: os, set: true, parts } : { name: os, parts: [{ name: os, n: total }] };
+    }) : [{ name: "", parts: [{ name: "", n: total }] }];
+  }
+  const used = {};
+  tree.forEach((o, oi) => o.parts.forEach((pt) => {   // 저장 열쇠 = 옵션 이름 (같은 이름이 겹치면 뒤에 번호)
+    pt.key = used[pt.name] ? pt.name + "#" + (oi + 1) : pt.name;
+    used[pt.key] = 1;
+  }));
+  return tree;
 }
 function cnInfo(v) {   // 예전 저장본(배열)도 읽는다
-  if (Array.isArray(v)) return { cn: v.slice(), price: "", pack: "" };
-  return { cn: (v && v.cn) ? v.cn.slice() : [], price: (v && v.price) || "", pack: (v && v.pack) || "" };
+  if (Array.isArray(v)) return { cn: v.slice(), price: "", pack: "", cnt: "" };
+  return { cn: (v && v.cn) ? v.cn.slice() : [], price: (v && v.price) || "", pack: (v && v.pack) || "", cnt: (v && v.cnt) || "" };
+}
+function cnRowMap() { const m = {}; $$("#cn-table tr[data-key]").forEach((tr) => { m[tr.dataset.key] = tr; }); return m; }
+function cnVal(tr, cls, ph) {
+  const el = tr ? tr.querySelector("input." + cls) : null;
+  if (!el) return "";
+  return el.value.trim() || (ph ? el.placeholder.trim() : "");
+}
+/* 줄 하나의 값 — 표가 그려져 있으면 입력칸에서, 아니면 저장본에서 */
+function cnRow(pt, rows) {
+  const tr = rows[pt.key];
+  const info = cnInfo(caState ? caState.cn[pt.key] : null);
+  const price = parseFloat(tr ? cnVal(tr, "pr", true) : info.price) || 0;
+  const pack = tr ? cnVal(tr, "pk") : info.pack;
+  const own = parseFloat(tr ? cnVal(tr, "pr", true) : info.price) > 0;
+  const cnt = pt.fixed ? pt.n : (parseInt(tr ? cnVal(tr, "ct") : info.cnt, 10) || pt.n);
+  return { price, pack, own, cnt, units: buyUnits(cnt, pack) };
 }
 function cnGridSave() {
   const st = caState;
   if (!st) return;
-  $$("#cn-table tr[data-ko]").forEach((tr) => {
-    st.cn[tr.dataset.ko] = {
+  $$("#cn-table tr[data-key]").forEach((tr) => {
+    st.cn[tr.dataset.key] = {
       cn: [...tr.querySelectorAll("input.lv")].map((i) => i.value.trim()),
-      price: (tr.querySelector("input.pr") || {}).value || "",
-      pack: (tr.querySelector("input.pk") || {}).value || "",
+      price: cnVal(tr, "pr"), pack: cnVal(tr, "pk"), cnt: cnVal(tr, "ct"),
     };
   });
 }
-/* 옵션별 구성 수량 — 색상 믹스면 색상별 개수, 단색 옵션이면 옵션마다 구성 수량 */
-function cnCounts(names) {
-  const st = caState;
-  const td = $("#ca-table td.v[data-k=opt]");
-  const opt = td ? td.textContent.trim() : "";
-  const total = st && st.sel ? st.sel.n : 0;
-  if (st && st.mix && st.mixCounts) return names.map((ko) => st.mixCounts[ko] || 0);
-  if (opt.indexOf("+") >= 0) {
-    return names.map((ko) => {
-      const m = opt.split("+").map((x) => x.trim()).find((x) => x.startsWith(ko));
-      const g = m && m.match(/(\d+)\s*개?$/);
-      return g ? +g[1] : total;
-    });
-  }
-  return names.map(() => total);   // 단색 옵션: 옵션 하나가 곧 한 세트
-}
-/* 계산에 쓸 대표 원가·입수 — 옵션마다 다르면 가장 비싼 원가 · 가장 작은 입수 (보수적으로) */
+/* 계산에 쓸 원가·입수 — 구성품을 묶은 옵션이면 합계, 옵션이 여러 개면 가장 비싼 옵션 기준 */
 function cnEff() {
+  const yuanIn = parseFloat($("#ca-yuan").value) || 0;
   const st = caState;
-  const yuan = parseFloat($("#ca-yuan").value) || 0;
-  if (!st) return { yuan, pack: 1, mixed: false };
-  const trs = $$("#cn-table tr[data-ko]");
-  const rows = trs.length
-    ? trs.map((tr) => ({ price: (tr.querySelector("input.pr") || {}).value || (tr.querySelector("input.pr") || {}).placeholder || "",
-                         pack: (tr.querySelector("input.pk") || {}).value || "" }))
-    : Object.values(st.cn || {}).map(cnInfo);   // 빈 칸은 AI 값(안내 글자)으로 계산
-  const prices = rows.map((r) => parseFloat(r.price)).filter((x) => x > 0);
-  const packs = rows.map((r) => parseFloat(r.pack)).filter((x) => x >= 1);
-  return { yuan: prices.length ? Math.max(...prices) : yuan, pack: packs.length ? Math.min(...packs) : 1,
+  if (!st) return { yuan: yuanIn, pack: 1, set: false, sum: 0, n: 0, mixed: false, fallback: true };
+  const rows = cnRowMap();
+  const tree = caOptTree();
+  let top = null;
+  tree.forEach((o) => {
+    let cost = 0, n = 0, own = false;
+    o.parts.forEach((pt) => { const r = cnRow(pt, rows); cost += r.price * r.units; n += r.cnt; own = own || r.own; });
+    if (!top || cost > top.cost) top = { o, cost, n, own };
+  });
+  if (top && top.o.set && top.o.parts.length > 1) {
+    const n = top.n || 1;
+    const sum = top.own ? top.cost : yuanIn * top.o.parts.reduce((t, pt) => t + cnRow(pt, rows).units, 0);
+    return { yuan: sum / n, pack: 1, set: true, sum: Math.round(sum * 100) / 100, n, mixed: false, fallback: !top.own };
+  }
+  const prices = [], packs = [];
+  tree.forEach((o) => o.parts.forEach((pt) => { const r = cnRow(pt, rows); if (r.price > 0) prices.push(r.price); packs.push(packOf(r.pack)); }));
+  return { yuan: prices.length ? Math.max(...prices) : yuanIn, pack: packs.length ? Math.min(...packs) : 1,
+           set: false, sum: 0, n: 0, fallback: !prices.length,
            mixed: prices.length > 1 && Math.min(...prices) !== Math.max(...prices) };
+}
+/* 구성품을 묶은 옵션이면 원가 칸이 "세트 1개 원가"가 되고 합계를 채워 준다 */
+function cnYuanLabel(eff) {
+  const el = $("#ca-yuan"), lb = $("#ca-yuan-lb"), tag = $("#ca-sumtag");
+  const setMode = eff.set && !eff.fallback;
+  if (lb) lb.textContent = setMode ? "세트 1개 원가(¥)" : "개당 상품가(¥)";
+  if (!tag) return;
+  tag.textContent = setMode ? `구성품 합계 ¥${eff.sum}` : (eff.mixed ? "옵션 중 가장 비싼 값" : "");
+  tag.style.display = tag.textContent ? "inline-block" : "none";
+  if (setMode && el && document.activeElement !== el && (parseFloat(el.value) || 0) !== eff.sum) el.value = eff.sum;
 }
 function cnGridRender() {
   const st = caState;
@@ -5770,49 +5835,97 @@ function cnGridRender() {
   cnGridSave();
   const L = st.cnLevels || 1;
   const map = current ? optMapOf(current) : [];
-  const names = caOptNames();
-  const counts = cnCounts(names);
-  $("#cn-table").innerHTML = `<tr><th>상품 옵션 (쿠팡)</th>${[1, 2, 3].slice(0, L).map((n) => `<th>${n}단계</th>`).join("")}`
-    + `<th class="num">1688 원가(¥)</th><th class="num">입수<br><span style="font-weight:400">1688 1개에 몇 개</span></th><th class="num">1688 구매 수량</th><th>엑셀에 들어갈 이름</th></tr>`
-    + names.map((ko, i) => {
-      const info = cnInfo(st.cn[ko]);
-      const ai = ko ? matchOpt(map, ko) : (map.length === 1 ? map[0] : null);
-      return `<tr data-ko="${escH(ko)}" data-n="${counts[i] || 0}"><td class="ko">${escH(ko || "(옵션 없음)")}</td>`
+  const tree = caOptTree();
+  const anySet = tree.some((o) => o.set && o.parts.length > 1);
+  const multi = tree.length > 1;
+  let html = `<tr><th>${anySet ? "상품 옵션 · 구성품" : "상품 옵션"}</th>${[1, 2, 3].slice(0, L).map((n) => `<th>${n}단계</th>`).join("")}`
+    + `<th class="num">1688 원가(¥)</th>${anySet ? '<th class="num">개수</th>' : ""}`
+    + `<th class="num">입수<br><span style="font-weight:400">1688 1개에 몇 개</span></th><th class="num">1688 구매 수량</th><th>엑셀에 들어갈 이름</th></tr>`;
+  const cols = 1 + L + 3 + (anySet ? 1 : 0);
+  tree.forEach((o, oi) => {
+    const isSet = o.set && o.parts.length > 1;
+    const badge = `<span class="onum">옵션 ${oi + 1}</span>`;
+    if (isSet) html += `<tr class="optHead" data-oh="${oi}"><td colspan="${cols}">${badge}${escH(o.name)} — 옵션 1개 · 구성품 ${o.parts.length}가지`
+      + `${o.mix ? " (색상 믹스)" : ""}</td></tr>`;
+    o.parts.forEach((pt) => {
+      const info = cnInfo(st.cn[pt.key]);
+      const ai = pt.name ? matchOpt(map, pt.name) : (map.length === 1 ? map[0] : null);
+      const prPh = ai && ai.price ? ai.price : (isSet ? "" : (current ? current.priceYuan || "" : ""));
+      html += `<tr data-key="${escH(pt.key)}" data-opt="${oi}">`
+        + `<td class="${isSet ? "sub" : "ko"}">${isSet ? "└ " : (multi ? badge : "")}${escH(pt.name || "(옵션 없음)")}</td>`
         + Array.from({ length: L }, (_, j) => `<td><input class="lv" data-j="${j}" value="${escH(info.cn[j] || "")}" placeholder="${j === 0 && ai ? escH(ai.cn) : ""}"></td>`).join("")
-        + `<td class="num"><input class="pr" value="${escH(info.price)}" placeholder="${ai && ai.price ? ai.price : (current.priceYuan || "")}"></td>`
+        + `<td class="num"><input class="pr" value="${escH(info.price)}" placeholder="${escH(prPh)}"></td>`
+        + (anySet ? (isSet && !pt.fixed
+            ? `<td class="num"><input class="ct" value="${escH(info.cnt || pt.n || 1)}"></td>`
+            : `<td class="cnt">${pt.n || ""}</td>`) : "")
         + `<td class="num"><input class="pk" value="${escH(info.pack)}" placeholder="1"></td>`
         + `<td class="auto"></td><td class="res"></td></tr>`;
-    }).join("");
+    });
+    if (isSet) html += `<tr class="optTot" data-tot="${oi}"><td>옵션 ${oi + 1} 합계</td><td colspan="${L}"></td>`
+      + `<td class="num tsum"></td><td class="cnt tcnt"></td><td class="num"></td><td class="num tbuy"></td><td class="tname"></td></tr>`;
+  });
+  $("#cn-table").innerHTML = html;
   $("#cn-lv-add").disabled = L >= 3;
   $("#cn-lv-del").disabled = L <= 1;
   cnGridResult();
 }
 function cnGridResult(skipCalc) {
-  let sum = 0, packed = false;
+  if (!$("#cn-table")) return;
   if (!skipCalc) cnGridSave();   // 입력한 원가·입수를 계산에 바로 반영
-  $$("#cn-table tr[data-ko]").forEach((tr) => {
-    const lvs = [...tr.querySelectorAll("input.lv")];
-    const vals = lvs.map((i) => i.value.trim()).filter(Boolean);
-    const ph = lvs[0] ? lvs[0].placeholder : "";
-    tr.querySelector("td.res").innerHTML = vals.length ? escH(vals.join(">"))
-      : (ph ? `<span class="ai">${escH(ph)} (AI)</span>` : `<span class="warn">(?)</span>`);
-    const n = +tr.dataset.n || 0;
-    const pk = tr.querySelector("input.pk");
-    const units = n ? buyUnits(n, pk ? pk.value : 1) : 0;
-    tr.querySelector("td.auto").textContent = units || "";
-    if (pk && packOf(pk.value) > 1) packed = true;
-    sum += units;
+  const rows = cnRowMap();
+  const tree = caOptTree();
+  let msg = "", packed = false, buyAll = 0;
+  tree.forEach((o, oi) => {
+    const names = [], buys = [];
+    let cost = 0, cnts = 0;
+    o.parts.forEach((pt) => {
+      const tr = rows[pt.key];
+      if (!tr) return;
+      const lvs = [...tr.querySelectorAll("input.lv")];
+      const vals = lvs.map((i) => i.value.trim()).filter(Boolean);
+      const ph = lvs[0] ? lvs[0].placeholder : "";
+      tr.querySelector("td.res").innerHTML = vals.length ? escH(vals.join(">"))
+        : (ph ? `<span class="ai">${escH(ph)} (AI)</span>` : `<span class="warn">(?)</span>`);
+      const r = cnRow(pt, rows);
+      tr.querySelector("td.auto").textContent = r.units || "";
+      const ct = tr.querySelector("td.cnt");
+      if (ct) ct.textContent = r.cnt || "";
+      if (packOf(r.pack) > 1) packed = true;
+      cost += r.price * r.units;
+      cnts += r.cnt;
+      buyAll += r.units;
+      buys.push(r.units);
+      names.push(vals.length ? vals.join(">") : (ph || pt.name));
+    });
+    const hd = $(`#cn-table tr.optHead[data-oh="${oi}"]`);
+    if (hd) hd.querySelector("td").innerHTML = `<span class="onum">옵션 ${oi + 1}</span>${escH(o.name)} — 옵션 1개 · 구성품 ${o.parts.length}가지${o.mix ? " (색상 믹스)" : ""}`;
+    const tot = $(`#cn-table tr[data-tot="${oi}"]`);
+    if (tot) {
+      const buySum = buys.reduce((x, y) => x + y, 0);
+      tot.querySelector(".tsum").textContent = cost ? "¥" + Math.round(cost * 100) / 100 : "";
+      tot.querySelector(".tcnt").textContent = cnts ? cnts + "개" : "";
+      tot.querySelector(".tbuy").textContent = buySum + "묶음";
+      tot.querySelector(".tname").textContent = names.join("+");
+      msg = `옵션 ${oi + 1}(${o.name}) = 구성품 ${o.parts.length}가지를 묶은 옵션 1개 · 1688에서는 ${buySum}묶음 주문`;
+    }
   });
   const sm = $("#cn-sum");
-  if (sm) sm.textContent = packed && sum ? `1688에서는 모두 ${sum}묶음만 주문하면 됩니다 (구성 수량 ÷ 입수, 올림)` : "";
+  if (sm) sm.textContent = msg || (packed && buyAll ? `1688에서는 모두 ${buyAll}묶음만 주문하면 됩니다 (구성 수량 ÷ 입수, 올림)` : "");
   if (!skipCalc && caState) caCalc();
+}
+/* 구성 수량이 바뀌면 격자의 1688 구매 수량도 다시 계산 */
+function cnCountSync() {
+  if (!caState || !$("#cn-table") || !$$("#cn-table tr[data-key]").length) return;
+  cnGridResult(true);
 }
 $("#cn-table").addEventListener("input", () => cnGridResult());   // 이벤트 객체가 skipCalc 로 넘어가지 않게
 $("#cn-table").addEventListener("keydown", (e) => {
   const inp = e.target.closest("input");
   if (!inp || e.key !== "Enter" || e.isComposing) return;
   e.preventDefault();
-  const tr = inp.closest("tr"), next = tr.nextElementSibling;
+  const tr = inp.closest("tr");
+  let next = tr.nextElementSibling;
+  while (next && !next.dataset.key) next = next.nextElementSibling;
   if (!next) return;
   const t = next.querySelector(`input[data-j="${inp.dataset.j}"]`);
   if (t) { t.value = inp.value; t.focus(); t.select(); cnGridResult(); }
@@ -5826,13 +5939,14 @@ $("#cn-paste-go").addEventListener("click", () => {
   const lines = $("#cn-paste-ta").value.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
     .map((l) => l.split(/\t|>/).map((x) => x.trim()).filter(Boolean).slice(0, 3));
   if (!lines.length) { toast("붙여넣을 옵션명이 없습니다"); return; }
-  const names = caOptNames();
-  names.forEach((ko, i) => { if (lines[i]) st.cn[ko] = lines[i]; });
+  const keys = [];
+  caOptTree().forEach((o) => o.parts.forEach((pt) => keys.push(pt.key)));
+  keys.forEach((k, i) => { if (lines[i]) st.cn[k] = Object.assign(cnInfo(st.cn[k]), { cn: lines[i] }); });
   st.cnLevels = Math.min(3, Math.max(st.cnLevels || 1, ...lines.map((l) => l.length)));
   $("#cn-table").innerHTML = "";   // 입력칸 값으로 덮어쓰지 않게 비운 뒤 다시 그림
   cnGridRender();
   $("#cn-paste").style.display = "none";
-  if (lines.length < names.length) toast(`옵션 ${names.length}개 중 ${lines.length}줄만 채웠습니다 — 빈 줄은 (?)`);
+  if (lines.length < keys.length) toast(`${keys.length}줄 중 ${lines.length}줄만 채웠습니다 — 빈 줄은 (?)`);
 });
 $("#btn-calc").addEventListener("click", () => openCalcModal());
 $("#ca-close").addEventListener("click", () => { $("#calcmodal").classList.remove("open"); caState = null; });
@@ -5845,8 +5959,9 @@ $("#ca-apply").addEventListener("click", () => {
   if (!st.sel || st.sel.over) { toast("판매가 2만 원 미만으로 가능한 구성이 없습니다"); return; }
   const colors = splitColors($("#ca-color").value);
   const useMix = st.mix && colors.length >= 2 && st.mixCounts && mixTotal(st.mixCounts) > 0;
-  const total = useMix ? mixTotal(st.mixCounts) : st.sel.n;
-  const pl = planFor(total, yuan, ship);
+  const eff = cnEff();
+  const total = useMix ? mixTotal(st.mixCounts) : (eff.set && eff.n ? eff.n : st.sel.n);
+  const pl = planFor(total, eff.yuan, ship, eff.pack);
   const tv = (k) => { const td = $(`#ca-table td.v[data-k=${k}]`); return td ? td.textContent.trim() : ""; };
   const changed = (k) => st.orig && tv(k) !== (st.orig[k] || "");
   if (changed("name") && tv("name")) { current.name = tv("name"); setField("#f-name", current.name); setField("#f-name2", current.name); }
@@ -5867,12 +5982,11 @@ $("#ca-apply").addEventListener("click", () => {
   renderProductList();
   updateHeight();
   const cnOut = {};
-  $$("#cn-table tr[data-ko]").forEach((tr) => {
+  $$("#cn-table tr[data-key]").forEach((tr) => {
     const v = [...tr.querySelectorAll("input.lv")].map((i) => i.value.trim());
     while (v.length && !v[v.length - 1]) v.pop();
-    const price = (tr.querySelector("input.pr") || {}).value.trim() || "";
-    const pack = (tr.querySelector("input.pk") || {}).value.trim() || "";
-    if (v.some(Boolean) || price || pack) cnOut[tr.dataset.ko] = { cn: v, price: price, pack: pack };
+    const price = cnVal(tr, "pr"), pack = cnVal(tr, "pk"), cnt = cnVal(tr, "ct");
+    if (v.some(Boolean) || price || pack || cnt) cnOut[tr.dataset.key] = { cn: v, price: price, pack: pack, cnt: cnt };
   });
   current.optCnManual = cnOut;
   current.optCnLevels = st.cnLevels || 1;
