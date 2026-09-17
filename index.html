@@ -3587,7 +3587,7 @@ $("#btn-save-all").addEventListener("click", async () => {
     btn.textContent = "상세 렌더 중...";
     const canvas = await buildCanvas();
     dir.file(`${no}${name} S.jpg`, b64(canvas.toDataURL("image/jpeg", 0.92)), { base64: true });
-    const wb2 = buildExcelWB([excelRow(curIdx)]);
+    const wb2 = buildExcelWB([excelRow(curIdx)], [curIdx]);
     dir.file(`${no}${name} EX.xlsx`, XLSX.write(wb2, { type: "array", bookType: "xlsx" }));
     btn.textContent = "압축 중...";
     const blob = await zip.generateAsync({ type: "blob" });
@@ -3648,8 +3648,8 @@ function matchOpt(map, name) {
   return map.find((m) => normOpt(m.ko) === k) || map.find((m) => normOpt(m.cn) === k) || map.find((m) => normOpt(optKo(m.cn)) === k)
     || map.find((m) => m.ko && (normOpt(m.ko).includes(k) || k.includes(normOpt(m.ko)))) || null;
 }
-/* 실제로 파는 옵션(상품 구성) 기준 — "/" 는 옵션끼리, "+" 는 한 옵션 안의 구성품 */
-function sold1688(f, p) {
+/* 실제로 파는 옵션(상품 구성) — "/" 는 옵션끼리, "+" 는 한 옵션 안의 구성품. 구성품마다 1688 이름·개수·구매 묶음·원가 */
+function soldTree(f, p) {
   const n = parseInt(String(f.qty || p.qty || "").replace(/[^\d]/g, ""), 10) || 0;
   const opt = f.opt && f.opt !== "기재예정" ? f.opt : "";
   const col = f.color && f.color !== "기재예정" ? f.color : "";
@@ -3662,41 +3662,85 @@ function sold1688(f, p) {
     const parts = os.split("+").map((x) => {
       const t = x.trim();
       const m = t.match(/^(.*?)(\d+)\s*개?$/);
-      return m && m[1].trim() ? { name: m[1].trim(), n: +m[2] } : { name: t, n: 1 };
+      return m && m[1].trim() ? { name: m[1].trim(), n: +m[2], fixed: true } : { name: t, n: 1 };
     }).filter((pt) => pt.name);
-    return parts.length > 1 ? { name: os, set: true, parts } : { name: os, parts: [{ name: os, n }] };
+    if (parts.length <= 1) return { name: os, parts: [{ name: os, n }] };
+    const cc = mixCountsOf("", f.comp, parts.map((pt) => pt.name));   // 구성 칸 '5cm 3개+8cm 2개'
+    parts.forEach((pt) => { if (!pt.fixed && cc && cc[pt.name] > 0) { pt.n = cc[pt.name]; pt.fixed = true; } });
+    return { name: os, set: true, parts };
   });
   const used = {};
   tree.forEach((o, oi) => o.parts.forEach((pt) => {
     pt.key = used[pt.name] ? pt.name + "#" + (oi + 1) : pt.name;
     used[pt.key] = 1;
   }));
+  tree.forEach((o) => o.parts.forEach((pt) => {
+    const info = cnInfo(man[pt.key] || man[pt.name]);
+    const manName = info.cn.filter(Boolean).join(">");   // 한 옵션 안의 단계는 >
+    const m = matchOpt(map, pt.name)
+      || (manName ? map.find((x) => normOpt(x.cn) === normOpt(manName) || normOpt(x.cn) === normOpt(info.cn[0])) : null)
+      || (tree.length === 1 && o.parts.length === 1 && map.length === 1 ? map[0] : null);
+    pt.cn = manName || (map.length ? (m ? m.cn : (pt.name ? pt.name + "(?)" : "")) : "");
+    pt.cnt = (pt.fixed ? pt.n : (+info.cnt || pt.n)) || 0;
+    pt.units = pt.cnt ? buyUnits(pt.cnt, info.pack) : 0;   // 1688 구매 수량 = 올림(개수 ÷ 입수)
+    pt.price = +info.price || (m && m.price) || +p.priceYuan || 0;   // 직접 넣은 원가가 우선
+  }));
+  return tree;
+}
+function sold1688(f, p) {   // [상품정보] 탭 (예전 형식)
   const names = [], qtys = [], prices = [];
-  tree.forEach((o) => {
+  soldTree(f, p).forEach((o) => {
     const isSet = o.set && o.parts.length > 1;
-    const oNames = [], oBuys = [];
-    let cost = 0, one = 0;
-    o.parts.forEach((pt) => {
-      const info = cnInfo(man[pt.key] || man[pt.name]);
-      const manName = info.cn.filter(Boolean).join(">");   // 한 옵션 안의 단계는 >
-      const m = matchOpt(map, pt.name)
-        || (manName ? map.find((x) => normOpt(x.cn) === normOpt(manName) || normOpt(x.cn) === normOpt(info.cn[0])) : null)
-        || (tree.length === 1 && o.parts.length === 1 && map.length === 1 ? map[0] : null);
-      if (manName) oNames.push(manName);
-      else if (map.length) oNames.push(m ? m.cn : (pt.name ? pt.name + "(?)" : ""));
-      const cnt = (+info.cnt || pt.n) || 0;
-      const units = cnt ? buyUnits(cnt, info.pack) : 0;
-      const price = +info.price || (m && m.price) || +p.priceYuan || 0;   // 직접 넣은 원가가 우선
-      oBuys.push(units || "");
-      cost += price * units;
-      one = one || price;
-    });
-    const nm = oNames.filter(Boolean).join("+");
+    const nm = o.parts.map((pt) => pt.cn).filter(Boolean).join("+");
     if (nm) names.push(nm);
-    if (oBuys.some(Boolean)) qtys.push(oBuys.join("+"));
-    prices.push(isSet ? Math.round(cost * 100) / 100 : one);   // 묶은 옵션은 합계 · 따로 팔리는 옵션은 1688 단가
+    const buys = o.parts.map((pt) => pt.units || "");
+    if (buys.some(Boolean)) qtys.push(buys.join("+"));
+    const cost = o.parts.reduce((t, pt) => t + pt.price * pt.units, 0);
+    prices.push(isSet ? Math.round(cost * 100) / 100 : (o.parts[0] ? o.parts[0].price : 0));
   });
   return { names: names.join("/"), qty: qtys.join("/"), cols: priceCols(prices) };
+}
+/* [시트 붙여넣기] 탭 — 팀 구글시트 F~X 열 순서 그대로, 쿠팡 옵션 1개 = 1줄.
+   원가 식은 늘 [구매수량 × (옵션1+2+3 원가)] 가 맞게 */
+const SHEET_COLS = ["상품명", "구성", "색상", "수량", "사이즈", "소재", "주문참고", "판매상태", "RG URL", "1688 URL", "타겟 URL",
+  "1688 옵션명", "그로스 옵션 상세 수량", "1688 구매 수량", "옵션1 원가", "옵션2 원가", "옵션3 원가", "1688 배송비", "원가계산용 수량"];
+const EXTRA_COLOR_WORDS = ["옐로", "골드", "실버", "와인", "카키", "데님", "크림", "차콜", "라벤더", "코랄", "머스타드", "올리브", "버건디", "무지개", "투톤"];
+const isColorWord = (s) => Object.keys(COLOR_MAP).concat(EXTRA_COLOR_WORDS).some((k) => String(s || "").includes(k));
+function sheetRowsOf(i) {
+  const f = wsFields(i);
+  const p = products[i] || {};
+  const is1688 = !!p.url1688;
+  const clean = (v) => (v && v !== "기재예정" ? String(v).trim() : "");
+  const r2 = (x) => Math.round(x * 100) / 100;
+  const tree = soldTree(f, p);
+  const multi = tree.length > 1;
+  return tree.map((o) => {
+    const parts = o.parts, k = parts.length;
+    const isSet = o.set && k > 1;
+    let comp, color, qty, S = "", cols = [];
+    if (isSet) {
+      comp = parts.map((pt) => `${pt.name} ${pt.cnt || 1}개`).join("+");
+      color = parts.every((pt) => isColorWord(pt.name)) ? (k <= 3 ? parts.map((pt) => pt.name).join("+") : `${k}종`) : clean(f.color);
+      qty = parts.reduce((t, pt) => t + (pt.cnt || 0), 0) + "개";
+      const u = parts.map((pt) => pt.units || 0), pr = parts.map((pt) => pt.price || 0);
+      if (u.every((x) => x === u[0])) {
+        if (k >= 4 && pr.every((x) => x === pr[0])) { S = u[0] * k; cols = [pr[0]]; }   // 4종 이상 같은 단가: 원가 하나 · 구매수량 = 전체
+        else { S = u[0]; cols = pr.slice(); }                                               // 구성품별 단가 · 구매수량 = 세트 수
+      } else { S = 1; cols = pr.map((x, j) => x * u[j]); }                                 // 개수가 다르면: 단가×개수 · 구매수량 1
+      if (cols.length > 3) cols = [cols[0], cols[1], cols.slice(2).reduce((x, y) => x + y, 0)];   // 3칸을 넘으면 나머지는 옵션3에 합쳐서
+    } else {
+      comp = multi ? `${o.name} ${clean(f.qty)}`.trim() : clean(f.comp);
+      color = multi && isColorWord(o.name) ? o.name : clean(f.color);
+      qty = clean(f.qty);
+      S = parts[0].units || "";
+      cols = parts[0].price ? [parts[0].price] : [];
+    }
+    const [T, U, V] = [0, 1, 2].map((j) => (is1688 && cols[j] != null && cols[j] !== "" ? r2(cols[j]) : ""));
+    const buy = is1688 ? S : "";
+    return [clean(f.name), comp, color, qty, clean(f.size), clean(f.mat), "", "", "",
+            p.url1688 || "", "", is1688 ? parts.map((pt) => pt.cn).filter(Boolean).join(" + ") : "", "",
+            buy, T, U, V, is1688 ? (p.shipYuan || 0) : "", buy];   // 배송비는 옵션 줄마다 같은 값
+  });
 }
 function excelRow(i) {
   const f = wsFields(i);
@@ -3708,17 +3752,24 @@ function excelRow(i) {
           p.url1688 || "", so.names, so.qty, so.cols[0], so.cols[1], so.cols[2],
           is1688 ? (p.shipYuan || "") : "", f.tags, p.sellPrice || ""];
 }
-function buildExcelWB(rows) {
+function buildExcelWB(rows, idxs) {
+  const wb = XLSX.utils.book_new();
+  if (idxs && idxs.length) {   // 첫 탭: 구글시트 F칸에 그대로 붙여넣는 줄 (머리글 없음)
+    const sr = [];
+    idxs.forEach((i) => sheetRowsOf(i).forEach((r) => sr.push(r)));
+    const ws2 = XLSX.utils.aoa_to_sheet(sr);
+    ws2["!cols"] = [40, 26, 14, 7, 14, 10, 6, 6, 6, 30, 6, 36, 8, 8, 8, 8, 8, 8, 8].map((w) => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws2, "시트 붙여넣기");
+  }
   const ws = XLSX.utils.aoa_to_sheet([EXCEL_HEADER, ...rows]);
   ws["!cols"] = [{ wch: 8.1 }, { wch: 41.1 }, { wch: 22 }, { wch: 18 }, { wch: 6 }, { wch: 12 }, { wch: 10 }, { wch: 30 },
     { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 40 }, { wch: 9 }];
-  const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "상품정보");
   return wb;
 }
 $("#btn-save-excel").addEventListener("click", () => {
   if (!current) { toast("먼저 엑셀을 업로드해 주세요"); return; }
-  const wb = buildExcelWB([excelRow(curIdx)]);
+  const wb = buildExcelWB([excelRow(curIdx)], [curIdx]);
   const { no, name } = fileBase();
   XLSX.writeFile(wb, `${no}${name} EX.xlsx`);
   markSaved();
@@ -3726,7 +3777,7 @@ $("#btn-save-excel").addEventListener("click", () => {
 });
 $("#btn-save-excel-all").addEventListener("click", () => {
   if (!current) { toast("먼저 엑셀을 업로드해 주세요"); return; }
-  const wb = buildExcelWB(products.map((_, i) => excelRow(i)));
+  const wb = buildExcelWB(products.map((_, i) => excelRow(i)), products.map((_, i) => i));
   XLSX.writeFile(wb, "상품정보_전체.xlsx");
   markSaved();
   toast(`상품 ${products.length}건의 정보를 한 파일로 저장했습니다`);
@@ -5046,7 +5097,21 @@ function evenCounts(colors, n) {
   return c;
 }
 function mixTotal(counts) { return Object.values(counts || {}).reduce((a, b) => a + (+b || 0), 0); }
-function mixString(colors, counts) { return colors.filter((k) => counts[k] > 0).map((k) => k + counts[k]).join("+"); }
+function mixString(colors, counts) { return colors.filter((k) => counts[k] > 0).map((k) => k + counts[k]).join("+"); }   // 예전 방식 (읽기 호환용)
+function mixOptString(names, counts) { return names.filter((k) => counts[k] > 0).join("+"); }   // 옵션 칸: 이름만 (5cm+8cm+13cm)
+function mixCompString(names, counts) { return names.filter((k) => counts[k] > 0).map((k) => `${k} ${counts[k]}개`).join("+"); }   // 구성 칸: 5cm 3개+8cm 2개
+/* 세트 개수 읽기 — 구성 칸 '5cm 3개+8cm 2개'(새 방식) → 없으면 옵션 칸 '5cm3+8cm2'(예전 방식) */
+function mixCountsOf(optText, compText, names) {
+  const c = {};
+  names.forEach((k) => { c[k] = 0; });
+  let hit = 0;
+  String(compText || "").split("+").forEach((part) => {
+    const m = part.trim().match(/^(.*?)\s*(\d+)\s*개$/);
+    if (m && Object.prototype.hasOwnProperty.call(c, m[1].trim())) { c[m[1].trim()] = +m[2]; hit++; }
+  });
+  if (hit) return c;
+  return parseMixCounts(optText, names);
+}
 function parseMixCounts(opt, colors) {  // "블랙3+베이지2" → {블랙:3, 베이지:2, 핑크:0}
   if (!opt || opt.indexOf("+") < 0) return null;
   const c = {};
@@ -5109,11 +5174,11 @@ function optCnFromImages(images) {
 }
 function extractToProduct(d, url) {
   const plan = d._plan || null;
-  const mix = d._mixCounts && d._colors && d._colors.length >= 2 ? mixString(d._colors, d._mixCounts) : "";
+  const mix = d._mixCounts && d._colors && d._colors.length >= 2 ? mixOptString(d._colors, d._mixCounts) : "";
   const n = mix ? mixTotal(d._mixCounts) : (plan ? plan.n : 0);  // 구성 수량 — 구성 문구·수량 칸에 함께 반영
   return {
     no: "", name: d.name || "상품명", opt: mix || (d.option || ""),
-    comp: n ? syncCompCount(d.comp, n) : (d.comp || ""), color: (d.color || "").replace(/\s*\/\s*/g, " / "), qty: n ? n + "개" : (d.qty || ""),
+    comp: mix ? mixCompString(d._colors, d._mixCounts) : (n ? syncCompCount(d.comp, n) : (d.comp || "")), color: (d.color || "").replace(/\s*\/\s*/g, " / "), qty: n ? n + "개" : (d.qty || ""),
     size: d.size || "", mat: d.material || "", kc: "", kcno: "", age: "",
     url1688: url || "", priceYuan: d.priceYuan || 0, shipYuan: d.shipYuan || 0,
     milkrun: d.milkrun || 0, sellPrice: plan ? plan.tier : 0,
@@ -5238,7 +5303,7 @@ window.openMixAdjust = (ev) => {
   if (!current) { toast("먼저 상품을 불러와 주세요"); return; }
   const colors = optNames($("#f-opt") ? $("#f-opt").textContent : "", $("#f-color") ? $("#f-color").textContent : "");
   if (colors.length < 2) { toast("옵션이 2개 이상일 때 구성을 조정할 수 있습니다 — 상품 옵션(없으면 색상) 칸을 / 로 구분해 주세요"); return; }
-  let counts = parseMixCounts($("#f-opt") ? $("#f-opt").textContent.trim() : "", colors);
+  let counts = mixCountsOf($("#f-opt") ? $("#f-opt").textContent.trim() : "", $("#f-comp") ? $("#f-comp").textContent.trim() : "", colors);
   if (!counts) {
     const q = parseInt((($("#f-qty") ? $("#f-qty").textContent : "") || "").replace(/[^\d]/g, ""), 10);
     counts = evenCounts(colors, q > 0 ? q : colors.length);
@@ -5250,9 +5315,8 @@ window.openMixAdjust = (ev) => {
 function mxRender() {
   const st = mxState;
   if (!st) return;
-  const compNow = $("#f-comp") ? $("#f-comp").textContent.trim() : "";
   renderMixBox($("#mx-box"), st.colors, st.counts, () => mxRender(),
-    (cnt) => `옵션 ${mixString(st.colors, cnt)} · 구성 ${syncCompCount(compNow, mixTotal(cnt))}`);
+    (cnt) => `옵션 ${mixOptString(st.colors, cnt)} · 구성 ${mixCompString(st.colors, cnt)} (${mixTotal(cnt)}개)`);
   const p = current || {};
   const priceEl = $("#mx-price");
   if (p.priceYuan) {
@@ -5268,8 +5332,8 @@ $("#mx-apply").addEventListener("click", () => {
   const st = mxState;
   if (!st || !current) return;
   const total = mixTotal(st.counts);
-  const opt = mixString(st.colors, st.counts);
-  const comp = syncCompCount($("#f-comp") ? $("#f-comp").textContent.trim() : "", total);
+  const opt = mixOptString(st.colors, st.counts);
+  const comp = mixCompString(st.colors, st.counts);
   setField("#f-opt", opt);
   setField("#f-qty", total + "개");
   setField("#f-comp", comp);
@@ -5658,7 +5722,7 @@ window.openCalcModal = () => {
   $("#ca-ship").value = current.shipYuan || "";
   $("#ca-color").value = rv("color");   // 표를 그리기 전에 (앞 상품 색상이 남지 않게)
   const mcolors = optNames(rv("opt"), rv("color"));
-  const mcounts = mcolors.length >= 2 ? parseMixCounts(rv("opt"), mcolors) : null;   // 옵션이 '블랙1+화이트1' 이면 묶은 상태로 복원
+  const mcounts = mcolors.length >= 2 && rv("opt").indexOf("+") >= 0 ? mixCountsOf(rv("opt"), rv("comp"), mcolors) : null;   // 묶은 옵션이면 구성 칸의 개수로 복원
   if (mcounts) { caState.mix = true; caState.mixCounts = mcounts; caState.mixKey = mcolors.join("/"); }
   $$(".btn.pim2").forEach((x) => x.classList.toggle("active", x.dataset.pim2 === (caState.mix ? "mix" : "keep")));
   cnGridRender();
@@ -5674,13 +5738,18 @@ function caMixSync() {
   if (colors.length < 2 && st.mix) { st.mix = false; $$(".btn.pim2").forEach((x) => x.classList.toggle("active", x.dataset.pim2 === "keep")); }
   if (!st.mix || colors.length < 2) { box.style.display = "none"; return; }
   const key = colors.join("/");
-  if (!st.mixCounts || st.mixKey !== key) {
+  if (!st.mixCounts) {
     st.mixCounts = evenCounts(colors, Math.max(colors.length, st.sel ? st.sel.n : 0));   // 기본은 옵션마다 1개씩
+    st.mixKey = key;
+  } else if (st.mixKey !== key) {   // 옵션 칸을 고쳤으면 남은 구성품은 개수 그대로, 새 구성품만 1개
+    const keep = {};
+    colors.forEach((k) => { keep[k] = st.mixCounts[k] > 0 ? st.mixCounts[k] : 1; });
+    st.mixCounts = keep;
     st.mixKey = key;
   }
   box.style.display = "block";
   renderMixBox(box, colors, st.mixCounts, () => caCalc(),
-    (cnt) => `옵션 ${mixString(colors, cnt)} · 구성 ${mixTotal(cnt)}개`);
+    (cnt) => `옵션 ${mixOptString(colors, cnt)} · 구성 ${mixCompString(colors, cnt)} (${mixTotal(cnt)}개)`);
 }
 function caCalc() {
   const st = cnState();
@@ -5759,7 +5828,7 @@ function caOptTree() {
   const colors = optNames(h.opt, h.color);
   let tree;
   if (st && st.mix && st.mixCounts && colors.length >= 2 && colors.some((k) => st.mixCounts[k] > 0)) {
-    tree = [{ name: mixString(colors, st.mixCounts), set: true, mix: true,   // 묶은 옵션도 구성품을 가진 옵션 1개
+    tree = [{ name: mixOptString(colors, st.mixCounts), set: true, mix: true,   // 묶은 옵션도 구성품을 가진 옵션 1개
              parts: colors.filter((k) => st.mixCounts[k] > 0).map((k) => ({ name: k, n: st.mixCounts[k], fixed: true })) }];
   } else {
     const opt = h.opt, col = h.color;
@@ -5888,7 +5957,7 @@ function cnGridRender() {
         + `<td class="num"><input class="pr" value="${escH(info.price)}" placeholder="${escH(prPh)}"></td>`
         + (anySet ? (isSet && !pt.fixed
             ? `<td class="num"><input class="ct" value="${escH(info.cnt || pt.n || 1)}"></td>`
-            : `<td class="cnt">${pt.n || ""}</td>`) : "")
+            : `<td class="cnt">${isSet ? (pt.n || "") : ""}</td>`) : "")   // 단독 옵션 줄은 구성 수량이 떠서 헷갈리므로 비움
         + `<td class="num"><input class="pk" value="${escH(info.pack)}" placeholder="1"></td>`
         + `<td class="auto"></td><td class="res"></td></tr>`;
     });
@@ -5937,7 +6006,7 @@ function cnGridResult(skipCalc) {
       const r = cnRow(pt, rows);
       tr.querySelector("td.auto").textContent = r.units || "";
       const ct = tr.querySelector("td.cnt");
-      if (ct) ct.textContent = r.cnt || "";
+      if (ct) ct.textContent = o.set && o.parts.length > 1 ? (r.cnt || "") : "";
       if (packOf(r.pack) > 1) packed = true;
       cost += r.price * r.units;
       cnts += r.cnt;
@@ -6019,11 +6088,12 @@ $("#ca-apply").addEventListener("click", () => {
   if (changed("opt") && !useMix) { current.opt = tv("opt"); setField("#f-opt", current.opt); }
   if (changed("size")) { current.size = tv("size"); setField("#f-size", current.size); }
   if (changed("mat")) { current.mat = tv("mat"); setField("#f-mat", current.mat); }
-  const comp = syncCompCount(tv("comp") || ($("#f-comp") ? $("#f-comp").textContent.trim() : ""), total);
+  const comp = useMix ? mixCompString(colors, st.mixCounts)   // 묶은 옵션: 구성 칸에 구성품별 개수
+    : syncCompCount(tv("comp") || ($("#f-comp") ? $("#f-comp").textContent.trim() : ""), total);
   current.priceYuan = yuan; current.shipYuan = ship; current.milkrun = 0;
   current.color = $("#ca-color").value.trim();
   setField("#f-color", current.color);
-  if (useMix) { const opt = mixString(colors, st.mixCounts); setField("#f-opt", opt); current.opt = opt; }
+  if (useMix) { const opt = mixOptString(colors, st.mixCounts); setField("#f-opt", opt); current.opt = opt; }   // 옵션 칸은 이름만
   setField("#f-qty", total + "개"); current.qty = total + "개";
   setField("#f-comp", comp); current.comp = comp;
   current.sellPrice = pl.tier || st.sel.tier;
