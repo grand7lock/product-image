@@ -3754,10 +3754,10 @@ function excelRow(i) {
 }
 function buildExcelWB(rows, idxs) {
   const wb = XLSX.utils.book_new();
-  if (idxs && idxs.length) {   // 첫 탭: 구글시트 F칸에 그대로 붙여넣는 줄 (머리글 없음)
+  if (idxs && idxs.length) {   // 첫 탭: 구글시트 F칸에 그대로 붙여넣는 줄 (1행은 항목 이름)
     const sr = [];
     idxs.forEach((i) => sheetRowsOf(i).forEach((r) => sr.push(r)));
-    const ws2 = XLSX.utils.aoa_to_sheet(sr);
+    const ws2 = XLSX.utils.aoa_to_sheet([SHEET_COLS, ...sr]);   // 1행 = 시트와 같은 항목 이름 (붙여넣을 땐 2행부터)
     ws2["!cols"] = [40, 26, 14, 7, 14, 10, 6, 6, 6, 30, 6, 36, 8, 8, 8, 8, 8, 8, 8].map((w) => ({ wch: w }));
     XLSX.utils.book_append_sheet(wb, ws2, "시트 붙여넣기");
   }
