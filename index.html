@@ -1543,6 +1543,22 @@ $("#file-excel").addEventListener("change", async (e) => {
 
 function orDefault(v) { return v && v.trim() ? v.trim() : "기재예정"; }
 
+/* 상품명에서 수량(3종·10개·5세트·10p)과 사이즈(10x6.5x3cm·5cm+8cm·2.5m) 표기를 뺀다 — AI가 만든 이름에만 쓴다 (직접 친 이름은 그대로) */
+function stripQtySize(name) {
+  const raw = String(name || "").trim();
+  const U = "(?:[cC][mM]|[mM][mM]|m|인치|inch|ml|mL|ML|L)";   // 길이·용량 단위 — 3M 같은 대문자 M 은 상표라 제외
+  const NUM = "\\d+(?:\\.\\d+)?";
+  let t = raw;
+  // 10x6.5x3cm · 5cm+8cm+13cm · 26*16*20cm · 13×8×9cm · 약 5 × 1.7cm · 2.5m
+  t = t.replace(new RegExp(`(?:약\\s*)?(?:${NUM}\\s*${U}?\\s*[xX×*+~\\-]\\s*)*${NUM}\\s*${U}(?![A-Za-z가-힣])`, "g"), " ");
+  // 3종 · 3종 세트 · 10개 · 10개입 · 5세트 · 10p · 24pcs · 100매 · 1쌍 · (5세트)
+  t = t.replace(/\(?\s*\d+\s*(?:개입|개|종\s*세트|종|세트|set|SET|pcs|PCS|p|P|장|매|족|쌍|롤|팩|박스|묶음|봉|병|캔|알|입)\s*\)?(?![A-Za-z가-힣])/g, " ");
+  t = t.replace(/[\(\[]\s*[\)\]]/g, " ")                              // 빈 괄호
+       .replace(/\s*[·,/+\-~]\s*(?=$|[·,/+\-~])/g, " ")                // 붙임표만 남은 자리
+       .replace(/^\s*[·,/+\-~]\s*|\s*[·,/+\-~]\s*$/g, "")
+       .replace(/\s{2,}/g, " ").trim();
+  return t || raw;
+}
 function cleanName(name) {
   const seen = new Set();
   return name.split(/\s+/).filter((w) => {
@@ -2407,7 +2423,7 @@ async function polishNameAI(p) {
   try {
     const prompt = `다음 상품 정보로 (1) 쿠팡 검색에 최적화된 깔끔한 상품명과 (2) 쿠팡 검색태그 20개를 작성하세요.
 규칙:
-- 상품명: 중복 단어 제거, 번역투 제거, 자연스러운 단어 배열, 검색에 도움이 되는 추천 키워드 1~2개 추가 가능, 15~30자, 특수문자 최소화, 어린이·아동 관련 단어 금지.
+- 상품명: 중복 단어 제거, 번역투 제거, 자연스러운 단어 배열, 검색에 도움이 되는 추천 키워드 1~2개 추가 가능, 15~30자, 특수문자 최소화, 어린이·아동 관련 단어 금지. 수량(개·종·세트·p)과 사이즈(cm·mm 숫자)는 상품명에 넣지 않기 (별도 칸에 있음).
 ${TAG_RULES}
 판매 카테고리: ${category}
 원본 상품명: ${p.name}
@@ -2415,6 +2431,7 @@ ${TAG_RULES}
 JSON으로만 응답: {"name":"다듬은 상품명","tags":["태그1","태그2", ...20개]}`;
     const j = await geminiTextJSON(prompt, key);
     if (current !== p) return;
+    if (j.name) j.name = stripQtySize(j.name);   // 수량·사이즈는 상품명에 넣지 않는다
     if (j.name) {
       $("#f-name").textContent = j.name;
       $("#f-name2").textContent = j.name;
@@ -2508,12 +2525,12 @@ async function genAICopy(silentPopup) {
 판매 카테고리: ${category}
 상품명(원본): ${p.name}
 구성: ${p.comp || "정보 없음"} / 색상: ${p.color || "정보 없음"} / 수량: ${p.qty || "정보 없음"} / 사이즈: ${p.size || "정보 없음"} / 소재: ${p.mat || "정보 없음"}
-JSON으로만 응답: {"display_name":"다듬은 상품명 15~25자","catch":"한 줄 캐치프레이즈 12~20자","badges":["특징 배지 8~14자" 4개],"trow_caps":["짧은 캡션 8~14자" 3개],"icon_labels":["혜택 2~6자" 5개],"p1_title":"포인트1 헤드라인 8~14자","p1_cap":"말풍선 캡션 10~18자","p2_title":"컬러/옵션 헤드라인 8~14자","play_title":"놀이 섹션 제목 8~12자","play_caps":["동작 캡션 6~10자" 3개],"warn_title":"경고 제목 6~12자","warn_sub":"경고 설명 2문장","note_feature":"제품특징 주의 2문장","note_use":"사용안내 2문장"}`;
+JSON으로만 응답: {"display_name":"다듬은 상품명 15~25자 (수량·사이즈 숫자 넣지 않기)","catch":"한 줄 캐치프레이즈 12~20자","badges":["특징 배지 8~14자" 4개],"trow_caps":["짧은 캡션 8~14자" 3개],"icon_labels":["혜택 2~6자" 5개],"p1_title":"포인트1 헤드라인 8~14자","p1_cap":"말풍선 캡션 10~18자","p2_title":"컬러/옵션 헤드라인 8~14자","play_title":"놀이 섹션 제목 8~12자","play_caps":["동작 캡션 6~10자" 3개],"warn_title":"경고 제목 6~12자","warn_sub":"경고 설명 2문장","note_feature":"제품특징 주의 2문장","note_use":"사용안내 2문장"}`;
     const prompt = toy ? toyPrompt : `당신은 한국 이커머스(쿠팡) 상세페이지 전문 카피라이터입니다. 아래 상품 정보로 상세페이지 카피를 작성하세요.
 규칙:
 - 과장·최상급 표현(최고, 1위, 완벽 등)과 효능 보장 표현 금지. 자연스럽고 담백한 한국어.
 - 어린이·아이·유아·키즈 등 아동 사용을 암시하는 표현 절대 금지 (KC 인증 관련 표현 주의). 성인 취미/일상 관점으로 작성.
-- display_name: 원본 상품명이 번역투·단어 나열식이면 쿠팡 검색에 어울리는 자연스러운 상품명으로 다듬기 (핵심 키워드 유지, 15~25자, 특수문자 최소화).
+- display_name: 원본 상품명이 번역투·단어 나열식이면 쿠팡 검색에 어울리는 자연스러운 상품명으로 다듬기 (핵심 키워드 유지, 15~25자, 특수문자 최소화). 수량(개·종·세트)과 사이즈(cm·mm 숫자)는 넣지 않기 — 별도 칸에 있음.
 - hero_sub는 3~4줄 (\\n으로 줄바꿈), hook_body는 3줄 내외, 각 point의 body는 3~4문장.
 판매 카테고리: ${category}
 상품명(원본): ${p.name}
@@ -2541,6 +2558,7 @@ JSON으로만 응답: {"display_name":"다듬은 상품명 15~25자","catch":"�
     const text = data.candidates[0].content.parts[0].text;
     const c = JSON.parse(text);
     if (current !== p || isToy() !== toy) { toast("상품이 전환되어 AI 문구 적용을 건너뛰었습니다"); return false; }
+    if (c.display_name) c.display_name = stripQtySize(c.display_name);   // 수량·사이즈는 상품명에 넣지 않는다
     if (c.display_name) { $("#f-name").textContent = c.display_name; $("#f-name2").textContent = c.display_name; }
     if (toy) {
       const set = (id, v) => { const el = $(id); if (el && v) el.textContent = v; };
@@ -5033,7 +5051,7 @@ async function extract1688(text) {
   const key = apiKey();
   if (!key) throw new Error("최상단에 API 키를 먼저 입력해 주세요");
   const prompt = `다음은 1688(중국 도매 사이트) 상품 페이지에서 복사한 텍스트입니다. 상품 정보를 추출해 JSON으로만 답하세요.
-형식: {"name":"한국어로 자연스럽게 번역한 상품명(수식어·중복 제거, 쿠팡 검색용, 15~30자)","option":"판매 옵션이 나뉘면 / 로 구분, 한 옵션이 여러 구성이면 + 로 (없으면 빈 문자열)","comp":"구성 요약 — 품목명과 개수","color":"색상들을 / 로 구분 (한국어)","qty":"1세트 수량 (모르면 빈 문자열)","size":"사이즈 — cm 단위 가로x세로(x높이) 형식 우선","material":"소재 (한국어)","priceYuan":최소 구매 구간의 개당 단가 숫자(위안, 모르면 0),"shipYuan":중국 내 배송비 숫자(위안, 모르면 0),"optionPairs":[1688 판매 옵션(SKU)마다 {"cn":"옵션 이름 중국어 원문 그대로(번역 금지)","ko":"그 옵션의 한국어 이름 — option·color 에 적은 표기와 글자까지 똑같이","price":그 옵션의 개당 가격 숫자(위안, 모르면 0)} — 1688 페이지 순서대로 전부, 옵션이 없으면 빈 배열]}
+형식: {"name":"한국어로 자연스럽게 번역한 상품명(수식어·중복 제거, 쿠팡 검색용, 15~30자 — 수량(개·종·세트)과 사이즈(cm·mm 숫자)는 넣지 말 것, 별도 칸에 있음)","option":"판매 옵션이 나뉘면 / 로 구분, 한 옵션이 여러 구성이면 + 로 (없으면 빈 문자열)","comp":"구성 요약 — 품목명과 개수","color":"색상들을 / 로 구분 (한국어)","qty":"1세트 수량 (모르면 빈 문자열)","size":"사이즈 — cm 단위 가로x세로(x높이) 형식 우선","material":"소재 (한국어)","priceYuan":최소 구매 구간의 개당 단가 숫자(위안, 모르면 0),"shipYuan":중국 내 배송비 숫자(위안, 모르면 0),"optionPairs":[1688 판매 옵션(SKU)마다 {"cn":"옵션 이름 중국어 원문 그대로(번역 금지)","ko":"그 옵션의 한국어 이름 — option·color 에 적은 표기와 글자까지 똑같이","price":그 옵션의 개당 가격 숫자(위안, 모르면 0)} — 1688 페이지 순서대로 전부, 옵션이 없으면 빈 배열]}
 규칙: 반드시 아래 텍스트에 실제로 적힌 정보만 사용하세요. 텍스트에 없는 정보는 절대 추측하거나 지어내지 말고 빈 문자열 또는 0으로 두세요. 아래 텍스트가 상품 페이지 내용이 아니거나(예: 주소만 있음) 상품 정보를 찾을 수 없으면 모든 값을 비워서 답하세요. 어린이·아동 관련 단어 금지. JSON 외 다른 텍스트 금지.
 
 ${String(text).slice(0, 15000)}`;
@@ -5177,7 +5195,7 @@ function extractToProduct(d, url) {
   const mix = d._mixCounts && d._colors && d._colors.length >= 2 ? mixOptString(d._colors, d._mixCounts) : "";
   const n = mix ? mixTotal(d._mixCounts) : (plan ? plan.n : 0);  // 구성 수량 — 구성 문구·수량 칸에 함께 반영
   return {
-    no: "", name: d.name || "상품명", opt: mix || (d.option || ""),
+    no: "", name: stripQtySize(d.name) || "상품명", opt: mix || (d.option || ""),
     comp: mix ? mixCompString(d._colors, d._mixCounts) : (n ? syncCompCount(d.comp, n) : (d.comp || "")), color: (d.color || "").replace(/\s*\/\s*/g, " / "), qty: n ? n + "개" : (d.qty || ""),
     size: d.size || "", mat: d.material || "", kc: "", kcno: "", age: "",
     url1688: url || "", priceYuan: d.priceYuan || 0, shipYuan: d.shipYuan || 0,
