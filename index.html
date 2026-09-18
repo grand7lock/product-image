@@ -1230,7 +1230,7 @@
       <button class="btn" id="bi-folder">저장 폴더 변경</button>
       <a class="btn dl" href="1688collector.zip" download="1688수집기.zip" style="text-decoration:none;">수집기 다운로드</a>
     </div>
-    <p class="hint" style="text-align:left; margin-top:4px">수집기가 없는 PC는 [수집기 다운로드]로 받아 압축을 풀고 1688수집기.exe를 더블클릭 (설치 불필요) → 첫 실행 때 저장 폴더 지정 → 켜둔 채 사용. AI 업무툴 카드로 쓰려면 [설정] 수집기 카드 연결.bat을 PC마다 한 번 실행<br>
+    <p class="hint" style="text-align:left; margin-top:4px">수집기가 없는 PC는 [수집기 다운로드]로 받아 압축을 풀고(구글 드라이브가 아닌 PC 로컬 폴더에) 1688수집기.exe를 한 번 실행 (설치 불필요) → 첫 실행 때 저장 폴더 지정. <b>그 다음부터는 이 창을 열면 수집기가 자동으로 켜지고, 새 버전이 나오면 스스로 바뀝니다</b> (브라우저가 "열까요?" 하고 물으면 [열기] + 항상 허용)<br>
       수집기가 Edge 창을 하나 띄워 1688 페이지를 읽습니다 — <b>슬라이더(안전 확인)가 뜨면 그 창에서 한 번 밀어 주세요</b> (슬랙으로도 알림). 차단되면 즉시 멈추고 남은 주소는 입력칸에 되돌려 둡니다.</p>
     <div id="bi-progress" style="text-align:left; margin-top:10px; max-height:44vh; overflow:auto;"></div>
   </div>
@@ -5229,7 +5229,9 @@ $("#pi-extract").addEventListener("click", async () => {
     if (rest.length < 30) {
       // 주소만 붙여넣음 — AI는 주소로 페이지를 볼 수 없어 내용을 지어낼 수 있으므로 수집기로 실제 페이지를 읽어 추출
       btn.textContent = "페이지 읽는 중...";
-      if (!(await helperPing())) { toast("주소만으로는 상품 내용을 알 수 없습니다 — 1688 페이지 본문을 Ctrl+A·C로 복사해 붙여넣거나, 수집기를 켜고 다시 눌러 주세요"); return; }
+      const hp = await helperEnsure((h) => { btn.textContent = h.replace(/<[^>]+>/g, "").slice(0, 60); });
+      if (!hp) { toast("수집기가 켜지지 않았습니다 — 1688수집기.exe를 한 번 실행해 주세요 (첫 실행 때 자동 실행이 등록됩니다). 또는 페이지 본문을 Ctrl+A·C로 복사해 붙여넣어 주세요"); return; }
+      btn.textContent = "페이지 읽는 중...";
       const f = await fetchWithStatus(urlM[0], "붙여넣기", (st) => {
         if (st.state === "need_human") btn.textContent = `슬라이더 확인 — 수집기 Edge 창에서 밀어 주세요 (${hm(st.deadline)}까지)`;
       }).catch(() => null);
@@ -5493,23 +5495,74 @@ async function fetchWithStatus(url, idx, onState) {
   try { return await helperCall("/fetch", { url, user: userName(), idx }); }
   finally { done = true; }
 }
-const HELPER_VER = 1.5;   // 이 앱이 기대하는 수집기 버전 (낮으면 갱신 안내)
-let biRunning = false;
-async function biStatus() {
-  const p = await helperPing();
-  const el = $("#bi-status");
+const HELPER_VER = 1.6;   // 이 앱이 기대하는 수집기 버전 (낮으면 수집기에 업데이트를 시킨다 — 1.6 미만은 스스로 못 바꾸므로 안내)
+const HELPER_PROTO = "ktw1688://open";   // 수집기가 켜질 때 스스로 등록해 두는 연결 — 이걸로 웹에서 수집기를 켠다
+const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
+function helperOpen() { try { window.location.href = HELPER_PROTO; } catch (_) {} }   // 수집기 켜기 (ktw1688://) — 브라우저가 등록된 프로그램을 연다
+/* 수집기가 꺼져 있으면 켜서 기다린다 (브라우저가 "열까요?" 하고 한 번 묻는다) — 켜지면 ping 결과, 아니면 null */
+async function helperLaunch(onMsg, waitMs) {
+  onMsg(`<span style="color:#0a63cc">⏳ 수집기를 켜는 중입니다… (최대 ${Math.round((waitMs || 20000) / 1000)}초)</span><br>브라우저가 <b>"1688수집기를 열까요?"</b> 하고 물으면 <b>[열기]</b>를 누르세요 — <b>항상 허용</b>에 체크하면 다음부터는 묻지 않습니다`);
+  helperOpen();
+  const until = Date.now() + (waitMs || 20000);
+  while (Date.now() < until) {
+    await sleepMs(1500);
+    const p = await helperPing();
+    if (p) return p;
+  }
+  return null;
+}
+/* 수집기가 구버전이면 /update 로 새 버전을 받게 하고, 새 버전이 뜰 때까지 기다린다 — 성공하면 새 ping, 실패하면 null */
+async function helperUpdate(p, onMsg) {
+  onMsg(`<span style="color:#c25e00">⬆ 수집기 v${escH(p.ver)} → <b>v${HELPER_VER}</b> 업데이트 중… 새 파일을 받아 바꾸고 다시 켭니다 (30초쯤, 수집기 창이 잠깐 닫혔다 뜹니다)</span>`);
+  let r = null;
+  try { r = await helperCall("/update", { ver: String(HELPER_VER) }, 8000); } catch (_) { r = null; }
+  if (!r || !r.ok) return null;   // 1.6 미만 수집기는 이 기능이 없어 404 — 직접 설치 안내로
+  const until = Date.now() + 150000;
+  while (Date.now() < until) {
+    await sleepMs(2000);
+    const q = await helperPing();
+    if (q && (parseFloat(q.ver) || 0) >= HELPER_VER) return q;
+  }
+  return null;
+}
+/* 수집기 준비 — 꺼져 있으면 켜고, 구버전이면 바꾸고, 결과를 onMsg 로 알린다. 준비되면 ping 결과, 아니면 null */
+let helperInflight = null;   // 창 열기와 [시작] 이 겹쳐도 수집기 켜기·업데이트는 한 번만
+async function helperEnsure(onMsg, opts) {
+  if (helperInflight) { helperInflight.subs.push(onMsg); return helperInflight.promise; }
+  const subs = [onMsg];
+  const fan = (h) => subs.forEach((f) => { try { f(h); } catch (_) {} });
+  const promise = (async () => { try { return await helperEnsureImpl(fan, opts); } finally { helperInflight = null; } })();
+  helperInflight = { subs, promise };
+  return promise;
+}
+async function helperEnsureImpl(onMsg, opts) {
+  const o = opts || {};
+  let p = await helperPing();
+  if (!p && o.launch !== false) p = await helperLaunch(onMsg, o.waitMs);
   if (!p) {
-    el.innerHTML = `❌ 수집기가 꺼져 있습니다 — 바탕화면 <b>1688수집기</b> 아이콘을 더블클릭해 실행한 뒤 이 창을 다시 열어 주세요 (없으면 아래 [수집기 다운로드])`;
+    onMsg(`<span style="color:#e14b4a">❌ 수집기가 자동으로 켜지지 않았습니다</span> — 아래 [수집기 다운로드]로 받아 압축을 풀고 <b>1688수집기.exe를 한 번 실행</b>해 주세요. 첫 실행 때 자동 실행이 이 PC에 등록되어 <b>다음부터는 저절로 켜집니다</b>. <button type="button" class="btn" id="bi-relaunch" style="padding:3px 10px; font-size:12px; margin-left:6px">다시 켜기</button>`);
     return null;
   }
   const v = parseFloat(p.ver) || 0;
-  const old = v < 1.2;
-  const notLatest = v < HELPER_VER;   // 사진 후보 정리가 들어간 버전
+  if (v < HELPER_VER) {
+    const q = await helperUpdate(p, onMsg);
+    if (q) p = q;
+    else {
+      onMsg(`✅ 수집기 연결됨 (v${escH(p.ver)}) · 저장 폴더: <b>${escH(p.folder || "미지정")}</b><br><b style="color:#e14b4a">수집기가 v${escH(p.ver)}이라 스스로 새 버전으로 바뀌지 못합니다 — 이번 한 번만 아래 [수집기 다운로드]로 v${HELPER_VER}을 받아 압축을 풀고, 기존 수집기 창을 닫은 뒤 1688수집기.exe를 실행해 주세요 (수집기 폴더는 구글 드라이브가 아닌 PC 로컬에). 그 다음부터는 자동으로 켜지고 자동으로 업데이트됩니다.</b>`);
+      return p;
+    }
+  }
   const cool = p.cooldown_until && p.cooldown_until > Date.now();
-  el.innerHTML = `✅ 수집기 연결됨 (v${escH(p.ver)}${old ? "" : p.browser ? " · Edge 창 수집" : " · 브라우저 없음 — 기본 수집"}) · 저장 폴더: <b>${escH(p.folder || "미지정 — [저장 폴더 변경]으로 지정")}</b>`
-    + (old ? `<br><b style="color:#e14b4a">구버전 수집기입니다 — 1688에 쉽게 차단됩니다. [수집기 다운로드]로 새 버전을 받아 교체해 주세요</b>` : "")
-    + (!old && notLatest ? `<br><b style="color:#e14b4a">수집기가 v${escH(p.ver)}입니다 — 아래 [수집기 다운로드]로 <span style="text-decoration:underline">v${HELPER_VER}</span>를 받아 바꿔 주세요. 결제·등급 아이콘이 사진 후보에 섞이고 상세 사진이 빠지던 문제를 고친 버전입니다 (압축을 풀어 기존 폴더에 덮어쓰기 → 수집기 창을 닫았다 다시 실행)</b>` : "")
-    + (cool ? `<br><b style="color:#e14b4a">1688 차단 냉각 중 — ${hm(p.cooldown_until)} 이후 다시 시도할 수 있습니다</b>` : "");
+  onMsg(`✅ 수집기 연결됨 (v${escH(p.ver)}${p.browser ? " · Edge 창 수집" : " · 브라우저 없음 — 기본 수집"}) · 저장 폴더: <b>${escH(p.folder || "미지정 — [저장 폴더 변경]으로 지정")}</b>`
+    + (cool ? `<br><b style="color:#e14b4a">1688 차단 냉각 중 — ${hm(p.cooldown_until)} 이후 다시 시도할 수 있습니다</b>` : ""));
+  return p;
+}
+let biRunning = false, biChecking = false;
+async function biStatus() {
+  const el = $("#bi-status");
+  const p = await helperEnsure((h) => { el.innerHTML = h; });
+  const rb = $("#bi-relaunch");
+  if (rb) rb.addEventListener("click", () => biStatus());
   return p;
 }
 function biSaveRest(list) {
@@ -5531,9 +5584,12 @@ $("#bi-folder").addEventListener("click", async () => {
 });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 $("#bi-start").addEventListener("click", async () => {
-  if (biRunning) return;
+  if (biRunning || biChecking) return;
   if (!apiKey()) { toast("최상단에 API 키를 먼저 입력해 주세요"); return; }
-  const hp = await biStatus();
+  const sb = $("#bi-start"), lbl = sb.textContent;
+  biChecking = true; sb.disabled = true; sb.textContent = "수집기 확인 중...";   // 수집기 켜기·업데이트를 기다리는 동안 다시 눌리지 않게
+  let hp = null;
+  try { hp = await biStatus(); } finally { biChecking = false; sb.disabled = false; sb.textContent = lbl; }
   if (!hp) return;
   if (hp.cooldown_until && hp.cooldown_until > Date.now()) { toast(`1688 차단 냉각 중입니다 — ${hm(hp.cooldown_until)} 이후 다시 시도해 주세요`); return; }
   let urls = $("#bi-urls").value.split("\n").map((s) => s.trim()).filter((s) => /1688\.com/.test(s));
