@@ -5479,7 +5479,14 @@ async function helperCall(path, body, ms) {
   } finally { clearTimeout(t); }
 }
 async function helperPing() {
-  try { const p = await helperCall("/ping"); return p && p.ok ? p : null; } catch (e) { return null; }
+  try { const p = await helperCall("/ping"); if (p && p.ok) { helperSeen(p.ver); return p; } return null; } catch (e) { return null; }
+}
+/* 이 PC에서 확인된 가장 높은 수집기 버전 — 설치 안내 말풍선을 띄울지 정한다 */
+function helperSeenVer() { try { return parseFloat(localStorage.getItem("helper_ver_seen") || "0") || 0; } catch (_) { return 0; } }
+function helperSeen(ver) {
+  const v = parseFloat(ver) || 0;
+  try { if (v > helperSeenVer()) localStorage.setItem("helper_ver_seen", String(v)); } catch (_) {}
+  if (v >= HELPER_VER && typeof tipNow !== "undefined" && tipNow && tipNow.id === "helper16") tipClose("helper16", false);   // 설치됐으면 말풍선 닫기
 }
 /* /fetch 를 기다리는 동안 2초마다 수집기 상태(Edge 창 로딩·슬라이더 대기)를 받아 화면에 표시 */
 async function fetchWithStatus(url, idx, onState) {
@@ -6590,6 +6597,12 @@ setTimeout(async () => {
 
 /* ---------- 새 기능 말풍선 — 이 브라우저에서 접속 2번까지, 기능마다 따로 ([알겠어요] = 끝) ---------- */
 const TIPS = [
+  { id: "helper16", sel: "#btn-1688-batch", side: "l", badge: "필수", t: "수집기 v1.6 — 이번 한 번만 설치", html: true, always: true, closeOnTarget: true,
+    width: 330, foot: "이 PC 수집기가 v1.6이 되면 사라져요",
+    cond: () => helperSeenVer() < HELPER_VER,   // 이 PC에서 v1.6 이 한 번도 확인되지 않았을 때
+    b: "① [1688 일괄 가져오기] 창의 <b>[수집기 다운로드]</b>로 받기<br>② 구글 드라이브가 아닌 <b>PC 폴더</b>(예: C:\\1688수집기)에 압축 풀기<br>"
+      + "③ 켜져 있는 <b>수집기 창을 닫고</b> 1688수집기.exe <b>한 번 실행</b>"
+      + "<div style=\"margin-top:5px; color:#ffd58a\">그다음부터는 이 버튼을 누르면 수집기가 <b>자동으로 켜지고, 새 버전도 스스로 바뀝니다</b>. 브라우저가 \"열까요?\" 물으면 [열기] + 항상 허용</div>" },
   { id: "workload", sel: ".work-row", side: "l", t: "작업물 불러오기",
     b: "저장해 둔 작업 파일(.ktw)을 여기서 바로 열어 이어서 작업하세요." },
   { id: "calc2", sel: "#btn-calc", side: "l", t: "판매가 계산이 새로워졌어요",
@@ -6645,29 +6658,31 @@ function tipPlace() {
   box.style.top = top + "px";
 }
 function tipTick() {
-  if (tipVisits > TIP_MAX_VISITS) return;
   if (tipNow) { tipPlace(); return; }
-  const next = TIPS.find((t) => !tipDone(t.id) && tipVisible($(t.sel)));
+  const next = TIPS.find((t) => (t.always || tipVisits <= TIP_MAX_VISITS)   // always = 접속 횟수 제한 없음
+    && (!t.cond || t.cond()) && !tipDone(t.id) && tipVisible($(t.sel)));
   if (!next) return;
   const el = $(next.sel);
   const box = document.createElement("div");
   box.className = "ntip " + next.side;
-  box.innerHTML = `<div class="tt"><b class="new">NEW</b>${escH(next.t)}</div><div>${escH(next.b)}</div>`
-    + `<div class="ft"><span>${TIP_MAX_VISITS}번 접속할 때까지 보여요</span><button type="button" class="ok">알겠어요</button></div>`;
+  if (next.width) box.style.maxWidth = next.width + "px";
+  box.innerHTML = `<div class="tt"><b class="new">${escH(next.badge || "NEW")}</b>${escH(next.t)}</div><div>${next.html ? next.b : escH(next.b)}</div>`
+    + `<div class="ft"><span>${escH(next.foot || `${TIP_MAX_VISITS}번 접속할 때까지 보여요`)}</span><button type="button" class="ok">알겠어요</button></div>`;
   document.body.appendChild(box);
   el.classList.add("ntip-ring");
-  tipNow = { id: next.id, sel: next.sel, side: next.side, el: box };
+  tipNow = { id: next.id, sel: next.sel, side: next.side, el: box, closeOnTarget: !!next.closeOnTarget };
   box.querySelector(".ok").addEventListener("click", () => tipClose(next.id, true));
   tipPlace();
 }
 document.addEventListener("click", (e) => {   // 말풍선 밖을 누르면 이번 접속 동안만 닫기
   if (!tipNow || !tipNow.el) return;
-  if (tipNow.el.contains(e.target) || (e.target.closest && e.target.closest(tipNow.sel))) return;
+  if (tipNow.el.contains(e.target)) return;
+  if (e.target.closest && e.target.closest(tipNow.sel) && !tipNow.closeOnTarget) return;   // 버튼을 누르면 창이 열리므로 설치 안내는 닫는다
   tipClose(tipNow.id, false);
 }, true);
 ["scroll", "resize"].forEach((ev) => window.addEventListener(ev, () => tipPlace(), true));
 setInterval(tipTick, 800);
-setTimeout(tipTick, 1200);
+helperPing().finally(() => setTimeout(tipTick, 300));   // 수집기 버전을 먼저 확인한 뒤 말풍선
 
 /* ---------- 날개 배너 ---------- */
 $("#wing-top").addEventListener("click", () => $("#preview-wrap").scrollTo({ top: 0, behavior: "smooth" }));
