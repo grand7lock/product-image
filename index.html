@@ -5533,7 +5533,7 @@ function helperSeenVer() { try { return parseFloat(localStorage.getItem("helper_
 function helperSeen(ver) {
   const v = parseFloat(ver) || 0;
   try { if (v > helperSeenVer()) localStorage.setItem("helper_ver_seen", String(v)); } catch (_) {}
-  if (v >= HELPER_VER && typeof tipNow !== "undefined" && tipNow && tipNow.id === "helper16") tipClose("helper16", false);   // 설치됐으면 말풍선 닫기
+  if (v >= HELPER_AUTO_VER && typeof tipNow !== "undefined" && tipNow && tipNow.id === "helper16") tipClose("helper16", false);   // 설치됐으면 말풍선 닫기
 }
 /* /fetch 를 기다리는 동안 2초마다 수집기 상태(Edge 창 로딩·슬라이더 대기)를 받아 화면에 표시 */
 async function fetchWithStatus(url, idx, onState) {
@@ -5549,7 +5549,8 @@ async function fetchWithStatus(url, idx, onState) {
   try { return await helperCall("/fetch", { url, user: userName(), idx }); }
   finally { done = true; }
 }
-const HELPER_VER = 1.6;   // 이 앱이 기대하는 수집기 버전 (낮으면 수집기에 업데이트를 시킨다 — 1.6 미만은 스스로 못 바꾸므로 안내)
+const HELPER_VER = 1.7;   // 이 앱이 기대하는 수집기 버전 (낮으면 수집기에 업데이트를 시킨다) — 수집기를 고칠 때마다 함께 올릴 것
+const HELPER_AUTO_VER = 1.6;   // 스스로 새 버전으로 바뀔 수 있는 최소 버전 (이보다 낮으면 직접 설치 안내)
 const HELPER_PROTO = "ktw1688://open";   // 수집기가 켜질 때 스스로 등록해 두는 연결 — 이걸로 웹에서 수집기를 켠다
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
 function helperOpen() { try { window.location.href = HELPER_PROTO; } catch (_) {} }   // 수집기 켜기 (ktw1688://) — 브라우저가 등록된 프로그램을 연다
@@ -6788,9 +6789,9 @@ setTimeout(async () => {
 
 /* ---------- 새 기능 말풍선 — 이 브라우저에서 접속 2번까지, 기능마다 따로 ([알겠어요] = 끝) ---------- */
 const TIPS = [
-  { id: "helper16", sel: "#btn-1688-batch", side: "l", badge: "필수", t: "수집기 v1.6 — 이번 한 번만 설치", html: true, always: true, closeOnTarget: true,
-    width: 330, foot: "이 PC 수집기가 v1.6이 되면 사라져요",
-    cond: () => helperSeenVer() < HELPER_VER,   // 이 PC에서 v1.6 이 한 번도 확인되지 않았을 때
+  { id: "helper16", sel: "#btn-1688-batch", side: "l", badge: "필수", t: "수집기 v" + HELPER_VER + " — 이번 한 번만 설치", html: true, always: true, closeOnTarget: true,
+    width: 330, foot: "설치하면 그다음부터는 저절로 새 버전이 돼요",
+    cond: () => helperSeenVer() < HELPER_AUTO_VER,   // 스스로 업데이트하지 못하는 버전일 때만 (v1.6 부터는 자동)
     b: "① [1688 일괄 가져오기] 창의 <b>[수집기 다운로드]</b>로 받기<br>② 구글 드라이브가 아닌 <b>PC 폴더</b>(예: C:\\1688수집기)에 압축 풀기<br>"
       + "③ 켜져 있는 <b>수집기 창을 닫고</b> 1688수집기.exe <b>한 번 실행</b>"
       + "<div style=\"margin-top:5px; color:#ffd58a\">그다음부터는 이 버튼을 누르면 수집기가 <b>자동으로 켜지고, 새 버전도 스스로 바뀝니다</b>. 브라우저가 \"열까요?\" 물으면 [열기] + 항상 허용</div>" },
