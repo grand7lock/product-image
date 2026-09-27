@@ -12,6 +12,17 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   /* ---------- 상세페이지 디자인 프리셋 · 글씨체 (기본 템플릿만 색 적용, 대표 이미지는 제외) ---------- */
+  #donepop { position:fixed; inset:0; z-index:10000; background:rgba(17,20,26,.45); display:flex; align-items:center; justify-content:center; }
+  #donepop .pbox { background:#fff; border-radius:14px; padding:22px 24px 18px; width:430px; max-width:92vw; box-shadow:0 18px 50px rgba(0,0,0,.28); text-align:left; }
+  #donepop .pt { font-size:18px; font-weight:800; color:#111; }
+  #donepop .ps { font-size:13px; color:#555; line-height:1.7; margin-top:8px; }
+  #donepop .plist { margin-top:10px; background:#f7f9fc; border:1px solid #e5eaf1; border-radius:9px; padding:8px 10px; font-size:12.5px; color:#333; line-height:1.8; max-height:120px; overflow:auto; }
+  #donepop .plist b { color:#1b5fae; }
+  #donepop .plist .no { color:#c0392b; }
+  #donepop .pbtns { margin-top:14px; display:flex; gap:8px; align-items:center; }
+  #donepop .pb { border:none; border-radius:9px; font-size:13.5px; font-weight:800; padding:9px 16px; cursor:pointer; font-family:inherit; }
+  #donepop .pb.go { background:#111; color:#fff; }
+  #donepop .pb.later { background:#eef0f3; color:#333; }
   #sku-box { border:2px solid #7aa7e0; background:#f7fbff; border-radius:10px; padding:10px 12px 12px; margin:10px 0 2px; }
   #sku-box .hd { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   #sku-box .t { font-size:13.5px; font-weight:800; color:#1b5fae; }
@@ -618,7 +629,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (V1.31) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
+    <h1>이미지 생성기 (V1.38) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -5345,6 +5356,7 @@ function piApply(asNew) {
   cnMode = "ca";
   logUsage("1688 붙여넣기 적용", prod.name.slice(0, 40));
   toast(`상품 정보를 적용했습니다${prod.sellPrice ? ` — 판매가 ${prod.sellPrice.toLocaleString()}원 · ${prod.qty}` : ""}`);
+  donePopup([curIdx]);
 }
 $("#pi-apply").addEventListener("click", () => piApply(false));
 $("#pi-apply-new").addEventListener("click", () => piApply(true));
@@ -5659,6 +5671,7 @@ $("#bi-start").addEventListener("click", async () => {
   const row = (i, cls, msg) => { const el = $(`#bi-r${i}`); if (el) el.innerHTML = `<b class="${cls}">${escH(msg)}</b> ${i + 1}. ${escH(urls[i].slice(0, 60))}…`; };
   snapshotCurrent();
   let added = 0, firstNew = -1, stopAt = -1, stopped = "", coolUntil = 0;
+  const newIdx = [];   // 이번에 새로 들어온 상품 번호 (끝나면 판매가 계산 팝업)
   const stat = { block: 0, fail: 0, ai: 0, human: 0 };
   for (let i = 0; i < urls.length; i++) {
     const idx = `${i + 1}/${urls.length}`;
@@ -5710,6 +5723,7 @@ $("#bi-start").addEventListener("click", async () => {
     const prod = extractToProduct(d, urls[i]);
     products.push(prod);
     workspaces.push(freshWS({ candidates: cleanCands((f.images || []).map((im) => ({ u: im.u, kind: im.kind, label: im.label || "" }))) }));
+    newIdx.push(products.length - 1);
     if (firstNew < 0) firstNew = products.length - 1;
     added++;
     row(i, "ok", `완료 — ${prod.name.slice(0, 24)}${f.human ? " (슬라이더 통과)" : ""}${plan ? ` · ${plan.n}개 ${plan.tier.toLocaleString()}원 · 순마진 ${plan.margin.toLocaleString()}원${plan.warn ? " ⚠범위밖" : ""}` : ""}`);
@@ -5754,6 +5768,7 @@ $("#bi-start").addEventListener("click", async () => {
   biRunning = false;
   $("#bi-start").disabled = false;
   $("#bi-start").textContent = rest.length ? "이어서 가져오기" : "일괄 가져오기 시작";
+  if (newIdx.length) { $("#bimodal").classList.remove("open"); donePopup(newIdx); }
 });
 
 /* --- 사용 로그 훅 (버튼 클릭 시 기록 — 기록 실패해도 동작 무관) --- */
@@ -5976,6 +5991,39 @@ $("#ca-plans").addEventListener("click", (e) => {
   st.mixCounts = null;
   caCalc();
 });
+
+/* ---------- 수집이 끝나면: 판매가 계산으로 이동 ---------- */
+let calcQueue = [];   // 차례로 계산 창을 열 상품 번호
+function calcNext() {
+  const i = calcQueue.shift();
+  if (i == null || !products[i]) { calcQueue = []; return; }
+  if (i !== curIdx) switchProduct(i);
+  setTimeout(() => openCalcModal(), 260);   // 상품이 다 바뀐 뒤에 열기
+}
+function donePopup(idxs) {
+  const list = (idxs || []).filter((i) => products[i]);
+  if (!list.length) return;
+  const old = $("#donepop");
+  if (old) old.remove();
+  const p = document.createElement("div");
+  p.id = "donepop";
+  const rows = list.map((i, n) => {
+    const pr = products[i];
+    const cnt = pr.sku1688 && Array.isArray(pr.sku1688.list) ? pr.sku1688.list.length : 0;
+    return `${n + 1}. ${escH((pr.name || "상품").slice(0, 28))} — `
+      + (cnt ? `<b>1688 옵션 ${cnt}개</b>` : `<span class="no">1688 옵션 못 읽음</span>`);
+  }).join("<br>");
+  p.innerHTML = `<div class="pbox"><div class="pt">수집 완료 — 상품 ${list.length}개를 가져왔습니다</div>`
+    + `<div class="ps">이어서 <b>옵션과 판매가</b>를 정하시겠어요?<br>첫 상품부터 [판매가 계산]이 열립니다. 적용하면 다음 상품으로 넘어갑니다.</div>`
+    + `<div class="plist">${rows}</div>`
+    + `<div class="pbtns"><button type="button" class="pb go">판매가 계산 열기 (1/${list.length})</button>`
+    + `<button type="button" class="pb later">나중에</button></div></div>`;
+  document.body.appendChild(p);
+  const close = () => { p.remove(); };
+  p.querySelector(".later").addEventListener("click", () => { calcQueue = []; close(); });
+  p.querySelector(".go").addEventListener("click", () => { calcQueue = list.slice(); close(); calcNext(); });
+  p.addEventListener("click", (e) => { if (e.target === p) { calcQueue = []; close(); } });
+}
 
 /* ---------- 수집기가 가져온 1688 옵션(SKU) 목록에서 고르기 ---------- */
 function skuData() {   // 지금 창의 상품이 가진 1688 옵션 표 (없으면 null → 지금까지 방식 그대로)
@@ -6342,7 +6390,7 @@ $("#cn-paste-go").addEventListener("click", () => {
   if (lines.length < keys.length) toast(`${keys.length}줄 중 ${lines.length}줄만 채웠습니다 — 빈 줄은 (?)`);
 });
 $("#btn-calc").addEventListener("click", () => openCalcModal());
-$("#ca-close").addEventListener("click", () => { $("#calcmodal").classList.remove("open"); caState = null; });
+$("#ca-close").addEventListener("click", () => { $("#calcmodal").classList.remove("open"); caState = null; calcQueue = []; });
 $("#ca-apply").addEventListener("click", () => {
   const st = caState;
   if (!st || !current) return;
@@ -6379,6 +6427,7 @@ $("#ca-apply").addEventListener("click", () => {
   $("#calcmodal").classList.remove("open");
   caState = null;
   toast(`적용했습니다 — ${total}개 구성 · 판매가 ${(current.sellPrice || 0).toLocaleString()}원`);
+  if (calcQueue.length) setTimeout(calcNext, 300);   // 수집 직후 차례로 열기
 });
 
 /* --- 선택한 원본 사진도 마우스를 올리면 크게 미리보기 --- */
