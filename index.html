@@ -12,6 +12,13 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   /* ---------- 상세페이지 디자인 프리셋 · 글씨체 (기본 템플릿만 색 적용, 대표 이미지는 제외) ---------- */
+  #bi-tabs { display:flex; gap:6px; margin:6px 0 10px; flex-wrap:wrap; }
+  #bi-tabs button { border:1.5px solid #dfe3e8; background:#fff; border-radius:9px 9px 0 0; padding:7px 14px; font-size:13px; font-weight:800; color:#777; cursor:pointer; font-family:inherit; }
+  #bi-tabs button.on { background:#111; color:#fff; border-color:#111; }
+  #bi-tabs .tabhint { font-size:11.5px; color:#888; align-self:center; margin-left:4px; }
+  #bi-over-row { display:flex; align-items:center; gap:6px; margin-top:8px; font-size:12.5px; font-weight:700; color:#333; cursor:pointer; }
+  #bi-over-row span { font-weight:400; color:#888; font-size:11.5px; }
+  #bi-over-row.off { opacity:.45; cursor:default; }
   #donepop { position:fixed; inset:0; z-index:10000; background:rgba(17,20,26,.45); display:flex; align-items:center; justify-content:center; }
   #donepop .pbox { background:#fff; border-radius:14px; padding:22px 24px 18px; width:430px; max-width:92vw; box-shadow:0 18px 50px rgba(0,0,0,.28); text-align:left; }
   #donepop .pt { font-size:18px; font-weight:800; color:#111; }
@@ -44,6 +51,20 @@
   #sku-list td.pr { text-align:right; font-weight:800; color:#1b5fae; white-space:nowrap; width:74px; }
   #sku-list td.st { text-align:right; color:#888; font-size:11.5px; white-space:nowrap; width:78px; }
   #sku-list td.ck { width:26px; text-align:center; }
+  #sku-list td.th { width:44px; padding:3px 4px; }
+  #sku-list td.th img { width:38px; height:38px; object-fit:cover; border-radius:6px; border:1px solid #e3e8ef; display:block; background:#f3f5f8; }
+  #sku-list td.nm { line-height:1.35; }
+  #sku-list td.nm .cn0 { font-family:'Microsoft YaHei','Malgun Gothic',sans-serif; color:#222; }
+  #sku-list td.nm .ko0 { color:#1b5fae; font-size:11.5px; font-weight:700; }
+  #sku-list td.pr { width:86px; }
+  #sku-list td.pr .ai { color:#c25e00; font-size:10.5px; font-weight:700; }
+  #sku-list td.st { width:96px; }
+  #ca-table tr.optrow td.k { background:#fff3e0; color:#c25e00; }
+  #ca-table tr.optrow td.v { background:#fffaf2; outline:2.5px solid #f0a04b; outline-offset:-2px; font-weight:800; color:#c25e00; }
+  #opt-note { position:absolute; display:none; align-items:center; gap:8px; pointer-events:none; z-index:2; }
+  #opt-note .arw { font-size:22px; color:#f0a04b; font-weight:800; line-height:1; }
+  #opt-note .txt { background:#fff3e0; border:1.5px solid #f0a04b; border-radius:9px; padding:7px 11px; font-size:12.5px; font-weight:800; color:#c25e00; line-height:1.55; max-width:330px; }
+  #opt-note .txt span { display:block; font-weight:600; color:#8a6136; font-size:11.5px; margin-top:3px; }
   #sku-list .sold { color:#e14b4a; font-weight:700; }
   #sku-sum { margin-top:7px; font-size:11.5px; color:#1b5fae; font-weight:700; }
   #qbox { border:2px solid #bfe3c6; background:#f7fbf8; border-radius:10px; padding:9px 12px 11px; margin-top:10px; }
@@ -659,14 +680,11 @@
           <button class="btn" id="btn-template">엑셀 양식 받기</button>
         </div>
         <div class="pick"><span class="pk">선택 2</span>
-          <button class="btn" id="btn-1688-batch" style="background:#f08c1e; color:#fff;">1688 일괄 가져오기</button>
+          <button class="btn" id="btn-1688-batch" style="background:#f08c1e; color:#fff;">1688 가져오기</button>
           <button class="btn" id="btn-calc">판매가 계산</button>
         </div>
-        <div class="pick"><span class="pk">선택 3</span>
-          <button class="btn lorange" id="btn-1688-paste">1688 개별 가져오기</button>
-        </div>
       </div>
-      <p class="hint" style="margin-top:6px">일괄 가져오기 = 수집기 실행 후 URL만 붙여넣으면 상품정보·이미지 후보·판매가까지 자동 (최대 20개). 개별 가져오기 = 1688 페이지를 Ctrl+A·C로 복사해 1개씩 자동 기입. 판매가 계산 = 지금 보고 있는 상품의 구성 수량·판매가를 다시 계산.</p>
+      <p class="hint" style="margin-top:6px">1688 가져오기 = 주소를 붙여넣으면 수집기가 읽어 상품정보·이미지 후보·옵션·판매가까지 자동 (최대 20개). 1688이 막히거나 수집기가 없으면 창 안에서 <b>[페이지 본문 붙여넣기]</b>로 바꿔 Ctrl+A·C 한 내용을 넣으세요. 판매가 계산 = 지금 보고 있는 상품의 옵션·구성 수량·판매가를 다시 계산.</p>
       <div class="fold" id="fold-price">
         <div class="fold-h"><span class="ar">▸</span>가격 계산 설정<span class="fold-sum" id="price-sum"></span></div>
         <div class="fold-b">
@@ -1240,35 +1258,21 @@
     </div>
   </div>
 </div>
-<div id="pastemodal" class="modal">
-  <div class="mbox" style="width:760px; max-width:96vw; max-height:92vh; overflow:auto;">
-    <div class="mtitle">1688 상품정보 자동 기입</div>
-    <p class="msub" style="text-align:left; display:inline-block; font-size:12.5px; color:#555; line-height:1.9; margin:6px 0 10px;"><b style="color:#c25e00">방법 1)</b> 1688 수집기를 실행한 후 <b>1688 URL만</b> 입력하세요<br><b style="color:#c25e00">방법 2)</b> 1688 상품 페이지에서 <b>Ctrl+A</b>(전체 선택) → <b>Ctrl+C</b> 복사 후 아래에 붙여넣으세요</p>
-    <textarea id="pi-text" rows="5" style="width:100%;" placeholder="여기에 붙여넣기 (Ctrl+V)"></textarea>
-    <div style="margin-top:8px; text-align:left;">
-      <button class="btn blue" id="pi-extract">정보 추출 (AI)</button>
-      <span style="font-size:12px; color:#888;">상품당 약 5~10원 · 5~10초</span>
-      <button class="btn" id="pi-cancel" style="float:right;">닫기</button>
-    </div>
-    <div id="pi-result" style="display:none; text-align:left;">
-      <div class="sub-label" style="margin-top:10px">추출 결과 — 칸을 클릭해 바로 수정</div>
-      <table id="pi-table"></table>
-      <div id="pi-calc-slot"></div>
-      <div style="margin-top:12px;">
-        <button class="btn primary" id="pi-apply">현재 상품에 적용</button>
-        <button class="btn" id="pi-apply-new">새 상품으로 추가</button>
-      </div>
-    </div>
-  </div>
-</div>
 <div id="bimodal" class="modal">
   <div class="mbox" style="width:560px; max-width:94vw; max-height:92vh; overflow:auto; position:relative;">
     <button id="bi-close" title="닫기" style="position:absolute; top:10px; right:12px; border:none; background:#eef0f3; color:#333; width:32px; height:32px; border-radius:50%; font-size:16px; font-weight:800; cursor:pointer; font-family:inherit;">✕</button>
-    <div class="mtitle" style="margin:0 40px 0 0;">1688 일괄 가져오기 (최대 20개)</div>
+    <div class="mtitle" style="margin:0 40px 0 0;">1688 가져오기 (최대 20개)</div>
     <p class="msub" id="bi-status">수집기 연결 확인 중...</p>
+    <div id="bi-tabs">
+      <button type="button" class="on" data-tab="url">주소로 가져오기</button>
+      <button type="button" data-tab="text">페이지 본문 붙여넣기</button>
+      <span class="tabhint" id="bi-tabhint">수집기가 1688 페이지를 읽습니다 · 한 줄에 1개, 최대 20개</span>
+    </div>
     <textarea id="bi-urls" rows="6" style="width:100%;" placeholder="1688 상품 주소를 한 줄에 1개씩 붙여넣기&#10;예) https://detail.1688.com/offer/123456789.html"></textarea>
+    <textarea id="bi-text" rows="6" style="width:100%; display:none;" placeholder="1688 상품 페이지에서 Ctrl+A(전체 선택) → Ctrl+C 복사한 내용을 여기에 붙여넣기 (Ctrl+V)"></textarea>
+    <label id="bi-over-row"><input type="checkbox" id="bi-over"> 지금 보고 있는 상품에 덮어쓰기 <span>(새로 추가하지 않음 · 상품번호와 골라 둔 사진·문구는 그대로)</span></label>
     <div style="margin-top:8px; text-align:left;">
-      <button class="btn blue" id="bi-start">일괄 가져오기 시작</button>
+      <button class="btn blue" id="bi-start">가져오기 시작</button>
       <button class="btn" id="bi-folder">저장 폴더 변경</button>
       <a class="btn dl" href="1688collector.zip" download="1688수집기.zip" style="text-decoration:none;">수집기 다운로드</a>
     </div>
@@ -1278,7 +1282,7 @@
   </div>
 </div>
 <div id="calcmodal" class="modal">
-  <div class="mbox" style="width:760px; max-width:96vw; max-height:92vh; overflow:auto; text-align:left;">
+  <div class="mbox" style="width:1060px; max-width:97vw; max-height:92vh; overflow:auto; text-align:left; position:relative;">
     <div class="mtitle">판매가 계산</div>
     <table id="ca-table"></table>
     <div id="ca-calc-slot"><div id="calc-block">
@@ -2468,7 +2472,13 @@ async function geminiTextJSON(prompt, key) {
 const TAG_RULES = `- tags: 쿠팡 검색태그 20개. 구매자가 실제로 검색할 법한 상세 검색어(단어 또는 2~3단어 조합) 위주로, 상품과 직접 관련된 것만.
 - 태그에 상품 용도·소재·특징·연관 활동 키워드를 섞을 것. 중복·유사 반복 금지, 브랜드명·타사명 금지, 어린이·아동 관련 단어 금지, 각 태그는 15자 이내.`;
 
-async function polishNameAI(p) {
+/* 상품 번호로 — 일괄로 여러 개를 가져와도 각 상품에 들어간다 */
+function polishProductAI(i) {
+  const p = products[i];
+  if (!p) return;
+  polishNameAI(p, i);
+}
+async function polishNameAI(p, idx) {
   const key = apiKey();
   if (!key) return;
   try {
@@ -2481,17 +2491,22 @@ ${TAG_RULES}
 구성: ${p.comp || "정보 없음"} / 사이즈: ${p.size || "정보 없음"} / 소재: ${p.mat || "정보 없음"}
 JSON으로만 응답: {"name":"다듬은 상품명","tags":["태그1","태그2", ...20개]}`;
     const j = await geminiTextJSON(prompt, key);
-    if (current !== p) return;
     if (j.name) j.name = stripQtySize(j.name);   // 수량·사이즈는 상품명에 넣지 않는다
-    if (j.name) {
-      $("#f-name").textContent = j.name;
-      $("#f-name2").textContent = j.name;
-      toast("상품명을 쿠팡 스타일로 다듬었습니다: " + j.name);
-      updateHeight();
+    const i = idx == null ? products.indexOf(p) : idx;
+    const tags = Array.isArray(j.tags) && j.tags.length ? j.tags.slice(0, 20).join(", ") : "";
+    if (j.name) p.name = j.name;
+    if (current === p) {
+      if (j.name) {
+        $("#f-name").textContent = j.name;
+        $("#f-name2").textContent = j.name;
+        toast("상품명을 쿠팡 스타일로 다듬었습니다: " + j.name);
+        updateHeight();
+      }
+      if (tags) $("#tags-area").value = tags;
+    } else if (i >= 0 && workspaces[i]) {
+      if (tags) workspaces[i].tags = tags;   // 지금 보고 있지 않은 상품은 작업칸에 담아 둔다
     }
-    if (Array.isArray(j.tags) && j.tags.length) {
-      $("#tags-area").value = j.tags.slice(0, 20).join(", ");
-    }
+    if (i >= 0) renderProductList();
   } catch (e) { console.warn("상품명 다듬기 실패:", e.message); }
 }
 
@@ -5115,7 +5130,7 @@ ${String(text).slice(0, 15000)}`;
 }
 
 /* --- 붙여넣기 창 --- */
-let piState = null;  // { d(추출값), plans, sel(선택 plan), mix, fromBatch }
+
 /* 옵션을 고를 때 1688 페이지를 옆 탭에 띄워 비교 — 주소가 있는 상품만 */
 function link1688Html(url) {
   return /^https?:\/\/\S*1688\.com\//i.test(String(url || ""))
@@ -5123,35 +5138,6 @@ function link1688Html(url) {
 }
 const PLAN_SHOW_MAX = 14900;  // 계산표는 이 판매가까지만 보여 준다 (제안 구성이 더 비싸면 그 줄은 표시)
 const PI_FIELDS = [["name", "상품명"], ["option", "상품 옵션"], ["comp", "구성"], ["color", "색상"], ["size", "사이즈"], ["material", "소재"]];
-function piRender() {
-  const st = piState;
-  if (!st) return;
-  cnMode = "pi";
-  $("#pi-result").style.display = "block";
-  $("#pi-table").innerHTML = PI_FIELDS.map(([k, label]) =>
-    `<tr><td class="k">${label}${k === "name" ? link1688Html(st.d.url1688) : ""}</td><td class="v" contenteditable="true" data-k="${k}"></td></tr>`).join("");
-  $$("#pi-table td.v").forEach((td) => {
-    td.textContent = st.d[td.dataset.k] || "";
-    td.addEventListener("input", () => {
-      st.d[td.dataset.k] = td.textContent.trim();
-      if (td.dataset.k === "color") { $("#ca-color").value = st.d.color; st.sel = null; st.selBy = null; }
-      if (td.dataset.k === "color" || td.dataset.k === "option") cnGridRender();
-    });
-  });
-  st.cn = st.cn || {};
-  st.cnLevels = st.cnLevels || 1;
-  st.cnKeys = null;
-  moveCalcBlock("#pi-calc-slot");   // 판매가 계산 창과 같은 표·계산기를 그대로 사용
-  skuRender();
-  $("#cn-paste").style.display = "none";
-  $("#cn-table").innerHTML = "";
-  $("#ca-yuan").value = st.d.priceYuan || "";
-  $("#ca-ship").value = st.d.shipYuan || "";
-  $("#ca-color").value = st.d.color || "";
-  $$(".btn.pim2").forEach((x) => x.classList.toggle("active", x.dataset.pim2 === (st.mix ? "mix" : "keep")));
-  cnGridRender();
-  caCalc();
-}
 /* 색상 믹스 공용 수집기 */
 function splitColors(s) { return String(s || "").split("/").map((x) => x.trim()).filter((x) => x && x !== "기재예정"); }
 /* 한 세트로 묶을 수 있는 이름 목록 — 상품 옵션(/로 나열)이 먼저, 없으면 색상. 이미 묶여 있으면(A1+B1) 그 구성품 이름 */
@@ -5267,99 +5253,25 @@ function extractToProduct(d, url) {
 function freshWS(extra) {
   return Object.assign({ html: null, photos: [], photosFull: [], photoLabels: [], photoFrom: [], mains: {}, tags: "", saved: false, modelMode: "none", aiCopied: false, copyEdited: false }, extra || {});
 }
-window.openPasteModal = () => {
-  piState = { d: { milkrun: 0 }, plans: [], sel: null, mix: false, mixCounts: null, mixKey: null, fetched: null, cn: {}, cnLevels: 1 };
-  $("#pi-text").value = "";
-  $("#pi-result").style.display = "none";
-  $("#pastemodal").classList.add("open");
-};
-$("#btn-1688-paste").addEventListener("click", () => openPasteModal());
-$("#pi-cancel").addEventListener("click", () => { $("#pastemodal").classList.remove("open"); piState = null; cnMode = "ca"; });
-$("#pi-extract").addEventListener("click", async () => {
-  const txt = $("#pi-text").value.trim();
-  const rest = txt.replace(/https?:\/\/\S+/gi, "").trim();
-  const urlM = txt.match(/https?:\/\/\S*1688\.com\/\S+/i);
-  if (rest.length < 30 && !urlM) { toast("1688 페이지를 Ctrl+A로 전체 복사해 붙여넣어 주세요"); return; }
-  const btn = $("#pi-extract");
-  btn.disabled = true;
-  try {
-    let src = txt, fetched = null;
-    if (rest.length < 30) {
-      // 주소만 붙여넣음 — AI는 주소로 페이지를 볼 수 없어 내용을 지어낼 수 있으므로 수집기로 실제 페이지를 읽어 추출
-      btn.textContent = "페이지 읽는 중...";
-      const hp = await helperEnsure((h) => { btn.textContent = h.replace(/<[^>]+>/g, "").slice(0, 60); });
-      if (!hp) { toast("수집기가 켜지지 않았습니다 — 1688수집기.exe를 한 번 실행해 주세요 (첫 실행 때 자동 실행이 등록됩니다). 또는 페이지 본문을 Ctrl+A·C로 복사해 붙여넣어 주세요"); return; }
-      btn.textContent = "페이지 읽는 중...";
-      const f = await fetchWithStatus(urlM[0], "붙여넣기", (st) => {
-        if (st.state === "need_human") btn.textContent = `슬라이더 확인 — 수집기 Edge 창에서 밀어 주세요 (${hm(st.deadline)}까지)`;
-      }).catch(() => null);
-      if (!f || !f.ok) {
-        const code = f ? f.error : "NO_HELPER";
-        if (code === "BLOCKED") logError("1688 차단", `붙여넣기 · ${offerTail(urlM[0])} · ${f.detail || ""}`);
-        if (code === "NEED_HUMAN_TIMEOUT") logError("슬라이더 시간 초과", `붙여넣기 · ${offerTail(urlM[0])}`);
-        toast({
-          BLOCKED: "1688이 자동 접속을 막았습니다 — 페이지 본문을 Ctrl+A·C로 복사해 붙여넣어 주세요",
-          COOLDOWN: `1688 차단 냉각 중입니다${f && f.retry_after_s ? ` (약 ${Math.ceil(f.retry_after_s / 60)}분 남음)` : ""} — 그동안은 페이지 본문을 복사해 붙여넣어 주세요`,
-          NEED_HUMAN_TIMEOUT: "슬라이더를 풀지 않아 중단했습니다 — 수집기 Edge 창에서 밀고 다시 눌러 주세요",
-        }[code] || "페이지를 읽지 못했습니다 — 페이지 본문을 Ctrl+A·C로 복사해 붙여넣어 주세요");
-        return;
-      }
-      src = f.text;
-      fetched = { url: urlM[0], images: f.images || [], sku: f.sku || null };
-    }
-    btn.textContent = "추출 중...";
-    const d = await extract1688(src);
-    if (!piState) return;
-    if (!d || !d.name) { toast("상품 정보를 찾지 못했습니다 — 1688 상품 페이지 본문이 맞는지 확인해 주세요"); return; }
-    piState.d = Object.assign({ milkrun: 0 }, d);
-    if (fetched) { piState.d.url1688 = fetched.url; piState.fetched = fetched; piState.d._sku = fetched.sku || null; if (!(Array.isArray(piState.d.optionPairs) && piState.d.optionPairs.length)) piState.d.optionCn = optCnFromImages(fetched.images); }
-    else if (urlM) piState.d.url1688 = urlM[0];
-    piState.sel = null;
-    piState.mixCounts = null;
-    piState.mixKey = null;
-    piState.cn = {};
-    piState.cnLevels = 1;
-    piRender();
-  } catch (e) {
-    toast("추출 실패: " + e.message);
-  } finally {
-    btn.disabled = false; btn.textContent = "정보 추출 (AI)";
-  }
-});
-function piApply(asNew) {
-  const st = piState;
-  if (!st || !st.d.name) { toast("먼저 [정보 추출]을 실행해 주세요"); return; }
-  st.d.priceYuan = parseFloat($("#ca-yuan").value) || 0;
-  st.d.shipYuan = parseFloat($("#ca-ship").value) || 0;
-  st.d._plan = st.sel;
-  st.d._colors = optNames(st.d.option, st.d.color);
-  st.d._mixCounts = st.mix ? st.mixCounts : null;
-  const prod = Object.assign(extractToProduct(st.d, st.d.url1688 || ""), cnCollect());   // 1688 옵션명·원가·입수도 함께
-  const cands = st.fetched ? cleanCands((st.fetched.images || []).map((im) => ({ u: im.u, kind: im.kind, label: im.label || "" }))) : null;
-  if (asNew || !current) {
-    if (products.length >= 20) { toast("상품은 최대 20개입니다"); return; }
-    snapshotCurrent();
-    products.push(prod);
-    workspaces.push(freshWS(cands ? { candidates: cands } : undefined));
-    renderProductList();
-    switchProduct(products.length - 1);
-    polishNameAI(current);
-  } else {
-    Object.assign(current, prod, { no: current.no });  // NO는 유지
-    if (cands && workspaces[curIdx] && !(workspaces[curIdx].candidates || []).length) { workspaces[curIdx].candidates = cands; renderCandidates(); }
+/* 가져온 상품을 목록에 넣는다 — 덮어쓰기면 지금 상품에, 아니면 새 상품으로 (사진 후보도 함께) */
+function addOrOverwrite(prod, cands, over) {
+  if (over && current) {
+    Object.assign(current, prod, { no: current.no });   // 상품번호와 작업(사진·문구)은 그대로
+    if (cands && workspaces[curIdx] && !(workspaces[curIdx].candidates || []).length) workspaces[curIdx].candidates = cands;
     fillProductFields(current);
     applyMainCaptions();
+    renderCandidates();
     renderProductList();
+    return curIdx;
   }
-  $("#pastemodal").classList.remove("open");
-  piState = null;
-  cnMode = "ca";
-  logUsage("1688 붙여넣기 적용", prod.name.slice(0, 40));
-  toast(`상품 정보를 적용했습니다${prod.sellPrice ? ` — 판매가 ${prod.sellPrice.toLocaleString()}원 · ${prod.qty}` : ""}`);
-  donePopup([curIdx]);
+  if (products.length >= 20) { toast("상품은 최대 20개입니다"); return -1; }
+  snapshotCurrent();
+  products.push(prod);
+  workspaces.push(freshWS(cands ? { candidates: cands } : undefined));
+  renderProductList();
+  switchProduct(products.length - 1);
+  return products.length - 1;
 }
-$("#pi-apply").addEventListener("click", () => piApply(false));
-$("#pi-apply-new").addEventListener("click", () => piApply(true));
 
 /* --- 색상 믹스 구성 조정: 적용 후 미리보기 옵션 줄 [구성 조정] --- */
 /* 옵션 칸(#f-opt) 옆에 버튼을 붙인다 — #f-opt 안에 넣으면 옵션 글자에 섞이므로 형제/라벨 칸에 둔다 */
@@ -5561,7 +5473,7 @@ async function fetchWithStatus(url, idx, onState) {
   try { return await helperCall("/fetch", { url, user: userName(), idx }); }
   finally { done = true; }
 }
-const HELPER_VER = 1.7;   // 이 앱이 기대하는 수집기 버전 (낮으면 수집기에 업데이트를 시킨다) — 수집기를 고칠 때마다 함께 올릴 것
+const HELPER_VER = 1.8;   // 이 앱이 기대하는 수집기 버전 (낮으면 수집기에 업데이트를 시킨다) — 수집기를 고칠 때마다 함께 올릴 것
 const HELPER_AUTO_VER = 1.6;   // 스스로 새 버전으로 바뀔 수 있는 최소 버전 (이보다 낮으면 직접 설치 안내)
 const HELPER_PROTO = "ktw1688://open";   // 수집기가 켜질 때 스스로 등록해 두는 연결 — 이걸로 웹에서 수집기를 켠다
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -5640,6 +5552,7 @@ $("#btn-1688-batch").addEventListener("click", () => {
   // 지난번에 중단된 남은 주소가 있으면 입력칸에 채워 [이어서 가져오기]
   let rest = "";
   try { rest = localStorage.getItem("bi_rest") || ""; } catch (_) {}
+  biTabSet("url");
   if (rest && !$("#bi-urls").value.trim()) { $("#bi-urls").value = rest; $("#bi-start").textContent = "이어서 가져오기"; }
   biStatus();
 });
@@ -5650,7 +5563,60 @@ $("#bi-folder").addEventListener("click", async () => {
   biStatus();
 });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let biTab = "url";   // url = 주소로 · text = 페이지 본문
+function biTabSet(t) {
+  biTab = t;
+  $$("#bi-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
+  $("#bi-urls").style.display = t === "url" ? "" : "none";
+  $("#bi-text").style.display = t === "text" ? "" : "none";
+  $("#bi-tabhint").textContent = t === "url"
+    ? "수집기가 1688 페이지를 읽습니다 · 한 줄에 1개, 최대 20개"
+    : "1688이 막히거나 수집기가 없을 때 — 수집기 없이도 됩니다";
+  $("#bi-start").textContent = t === "url" ? "가져오기 시작" : "본문으로 가져오기";
+  biOverSync();
+}
+function biOverSync() {
+  const on = !!(current && products.length);
+  const box = $("#bi-over");
+  box.disabled = !on;
+  if (!on) box.checked = false;
+  $("#bi-over-row").classList.toggle("off", !on);
+}
+$("#bi-tabs").addEventListener("click", (e) => { const b = e.target.closest("button[data-tab]"); if (b) biTabSet(b.dataset.tab); });
+/* 본문 붙여넣기로 가져오기 — AI 로 정리해 바로 상품에 넣는다 (중간 확인 표 없이) */
+async function biFromText() {
+  const txt = $("#bi-text").value.trim();
+  const rest = txt.replace(/https?:\/\/\S+/gi, "").trim();
+  if (rest.length < 30) { toast("1688 페이지를 Ctrl+A로 전체 복사해 붙여넣어 주세요 (주소만 있으면 [주소로 가져오기] 탭)"); return; }
+  if (!apiKey()) { toast("최상단에 API 키를 먼저 입력해 주세요"); return; }
+  const over = $("#bi-over").checked && !!current;
+  const btn = $("#bi-start"), lbl = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "AI 정리 중...";
+  const prog = $("#bi-progress");
+  prog.innerHTML = `<div class="bi-row"><b>1</b> — AI 정리 중</div>`;
+  try {
+    const urlM = txt.match(/https?:\/\/\S*1688\.com\/\S+/i);
+    const d = await extract1688(txt);
+    if (!d || !d.name) { prog.innerHTML = `<div class="bi-row"><b class="err">실패</b> — 상품 정보를 찾지 못했습니다. 1688 상품 페이지 본문이 맞는지 확인해 주세요.</div>`; return; }
+    if (!(Array.isArray(d.optionPairs) && d.optionPairs.length)) d.optionCn = "";
+    const prod = extractToProduct(d, urlM ? urlM[0] : "");
+    const idx = addOrOverwrite(prod, null, over);
+    if (idx < 0) return;
+    polishProductAI(idx);
+    prog.innerHTML = `<div class="bi-row"><b class="ok">끝</b> — ${escH(prod.name.slice(0, 28))}${over ? " (지금 상품에 덮어씀)" : " 추가됨"}. 사진은 [1688 이미지 후보]가 없으니 직접 넣어 주세요.</div>`;
+    $("#bi-text").value = "";
+    $("#bimodal").classList.remove("open");
+    donePopup([idx]);
+  } catch (e) {
+    prog.innerHTML = `<div class="bi-row"><b class="err">실패</b> — ${escH(e.message || "AI 정리 실패")}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = lbl;
+  }
+}
 $("#bi-start").addEventListener("click", async () => {
+  if (biTab === "text") { if (!biRunning && !biChecking) await biFromText(); return; }
   if (biRunning || biChecking) return;
   if (!apiKey()) { toast("최상단에 API 키를 먼저 입력해 주세요"); return; }
   const sb = $("#bi-start"), lbl = sb.textContent;
@@ -5661,6 +5627,8 @@ $("#bi-start").addEventListener("click", async () => {
   if (hp.cooldown_until && hp.cooldown_until > Date.now()) { toast(`1688 차단 냉각 중입니다 — ${hm(hp.cooldown_until)} 이후 다시 시도해 주세요`); return; }
   let urls = $("#bi-urls").value.split("\n").map((s) => s.trim()).filter((s) => /1688\.com/.test(s));
   if (!urls.length) { toast("1688 상품 주소를 한 줄에 1개씩 붙여넣어 주세요"); return; }
+  const over = $("#bi-over").checked && !!current;
+  if (over && urls.length > 1) { urls = urls.slice(0, 1); toast("덮어쓰기는 주소 1개만 처리합니다"); }
   const room = 20 - products.length;
   if (room <= 0) { toast("상품이 이미 20개입니다"); return; }
   if (urls.length > room) { toast(`상품 한도(20개)까지 ${room}개만 처리합니다`); urls = urls.slice(0, room); }
@@ -5721,10 +5689,11 @@ $("#bi-start").addEventListener("click", async () => {
     const plan = d.priceYuan ? bestPlan(calcPlans(d.priceYuan, d.shipYuan || 0, 0)) : null;
     d._plan = plan; d._mixCounts = null;
     const prod = extractToProduct(d, urls[i]);
-    products.push(prod);
-    workspaces.push(freshWS({ candidates: cleanCands((f.images || []).map((im) => ({ u: im.u, kind: im.kind, label: im.label || "" }))) }));
-    newIdx.push(products.length - 1);
-    if (firstNew < 0) firstNew = products.length - 1;
+    const pi = addOrOverwrite(prod, cleanCands((f.images || []).map((im) => ({ u: im.u, kind: im.kind, label: im.label || "" }))), over);
+    if (pi < 0) break;
+    newIdx.push(pi);
+    if (firstNew < 0) firstNew = pi;
+    polishProductAI(pi);   // 상품명 다듬기 + 검색태그 (본문 가져오기와 같게)
     added++;
     row(i, "ok", `완료 — ${prod.name.slice(0, 24)}${f.human ? " (슬라이더 통과)" : ""}${plan ? ` · ${plan.n}개 ${plan.tier.toLocaleString()}원 · 순마진 ${plan.margin.toLocaleString()}원${plan.warn ? " ⚠범위밖" : ""}` : ""}`);
     if (i < urls.length - 1) {
@@ -5814,16 +5783,8 @@ priceSumText();
 /* --- 옵션·판매가 계산 (지금 보고 있는 상품 기준) ---
    같은 부품(#calc-block)을 [판매가 계산]과 [1688 개별 가져오기] 두 창이 번갈아 쓴다 */
 let caState = null;
-let cnMode = "ca";   // ca = 판매가 계산 창 · pi = 개별 가져오기 창
-function cnState() { return cnMode === "pi" ? piState : caState; }
-function cnHost() {   // 지금 창의 상품 옵션·색상·1688 옵션 짝·기본 원가
-  if (cnMode === "pi") {
-    const d = (piState && piState.d) || {};
-    return { opt: d.option || "", color: d.color || "", yuan: d.priceYuan || 0,
-             map: optMapOf({ optMap: (Array.isArray(d.optionPairs) ? d.optionPairs : [])
-               .map((o) => ({ cn: String((o && o.cn) || "").trim(), ko: String((o && o.ko) || "").trim(), price: +(o && o.price) || 0 }))
-               .filter((o) => o.cn), optCn: String(d.optionCn || "").trim() }) };
-  }
+function cnState() { return caState; }
+function cnHost() {   // 지금 상품의 옵션·색상·1688 옵션 짝·기본 원가
   const tv = (k) => { const td = $(`#ca-table td.v[data-k=${k}]`); return td ? td.textContent.trim() : ""; };
   return { opt: tv("opt"), color: tv("color"), yuan: (current && current.priceYuan) || 0, map: current ? optMapOf(current) : [] };
 }
@@ -5843,7 +5804,6 @@ function cnCollect(base) {
 window.openCalcModal = () => {
   if (!current) { toast("먼저 상품을 불러와 주세요"); return; }
   caState = { mix: false, mixCounts: null, mixKey: null, sel: null, plans: [] };
-  cnMode = "ca";
   moveCalcBlock("#ca-calc-slot");
   const fv = (sel, fb) => { const el = $(sel); const t = el ? el.textContent.trim() : ""; return t && t !== "기재예정" ? t : (fb || ""); };
   const rows = [["name", "상품명", fv("#f-name", current.name)], ["opt", "상품 옵션", fv("#f-opt", current.opt)], ["comp", "구성", fv("#f-comp", current.comp)],
@@ -5874,6 +5834,7 @@ window.openCalcModal = () => {
   cnGridRender();
   caCalc();
   $("#calcmodal").classList.add("open");
+  optNoteShow();
 };
 function caMixSync() {
   const st = cnState(), box = $("#ca-mix-box");
@@ -5951,14 +5912,12 @@ function qboxRender() {
   const box = $("#qbox"), st = cnState();
   if (!box) return;
   const h = cnHost();
-  const p = cnMode === "pi" ? (piState && piState.d) : current;
+  const p = current;
   if (!st || !p || !st.sel) { box.style.display = "none"; return; }
   const total = st.sel.n || 0;
-  const f = { name: cnMode === "pi" ? (p.name || "") : (($("#ca-table td.v[data-k=name]") || {}).textContent || "").trim(),
-              opt: h.opt, color: h.color, qty: total ? total + "개" : (p.qty || ""),
-              size: cnMode === "pi" ? (p.size || "") : (($("#ca-table td.v[data-k=size]") || {}).textContent || "").trim(),
-              mat: cnMode === "pi" ? (p.material || "") : (($("#ca-table td.v[data-k=mat]") || {}).textContent || "").trim(),
-              comp: cnMode === "pi" ? (p.comp || "") : (($("#ca-table td.v[data-k=comp]") || {}).textContent || "").trim() };
+  const tvq = (k) => (($(`#ca-table td.v[data-k=${k}]`) || {}).textContent || "").trim();
+  const f = { name: tvq("name"), opt: h.opt, color: h.color, qty: total ? total + "개" : (p.qty || ""),
+              size: tvq("size"), mat: tvq("mat"), comp: tvq("comp") };
   const prod = Object.assign({}, p, cnCollect(p.optCnManual),
     { url1688: p.url1688 || "", priceYuan: parseFloat($("#ca-yuan").value) || 0, shipYuan: parseFloat($("#ca-ship").value) || 0,
       optMap: h.map });
@@ -6027,10 +5986,43 @@ function donePopup(idxs) {
 
 /* ---------- 수집기가 가져온 1688 옵션(SKU) 목록에서 고르기 ---------- */
 function skuData() {   // 지금 창의 상품이 가진 1688 옵션 표 (없으면 null → 지금까지 방식 그대로)
-  const d = cnMode === "pi" ? (piState && piState.d && piState.d._sku) : (current && current.sku1688);
+  const d = current && current.sku1688;
   return d && Array.isArray(d.list) && d.list.length ? d : null;
 }
 const skuKey = (x) => (x.attrs || []).join(">");
+/* 1688 페이지에 보이는 차례 — 단계별 값 순서대로 (가격표 순서는 페이지와 다르다) */
+function skuSorted(d) {
+  const idx = (d.props || []).map((p) => {
+    const m = {};
+    (p.values || []).forEach((v, i) => { m[v.name] = i; });
+    return m;
+  });
+  const rank = (x) => (x.attrs || []).map((a, j) => (idx[j] && idx[j][a] != null ? idx[j][a] : 9999));
+  return (d.list || []).map((x, i) => ({ x, i })).sort((a, b) => {
+    const ra = rank(a.x), rb = rank(b.x);
+    for (let j = 0; j < Math.max(ra.length, rb.length); j++) {
+      const v = (ra[j] == null ? 9999 : ra[j]) - (rb[j] == null ? 9999 : rb[j]);
+      if (v) return v;
+    }
+    return a.i - b.i;
+  }).map((o) => o.x);
+}
+/* 단계 값이 한 가지뿐이면 이름에서 빼고, + · / 는 · 로 (그 두 기호는 옵션을 가르는 기호라서) */
+function skuNameParts(d, x) {
+  const keep = (d.props || []).map((p) => (p.values || []).length > 1);
+  const attrs = (x.attrs || []);
+  const use = attrs.filter((a, j) => (keep[j] == null ? true : keep[j]));
+  return (use.length ? use : attrs).map((a) => String(a).replace(/[+\/]/g, "·").replace(/\s{2,}/g, " ").trim());
+}
+const skuThumb = (d, x) => {   // 옵션 사진 (단계 값에 붙어 있는 것)
+  for (let j = 0; j < (x.attrs || []).length; j++) {
+    const p = (d.props || [])[j];
+    const v = p && (p.values || []).find((y) => y.name === x.attrs[j] && y.img);
+    if (v) return v.img;
+  }
+  return "";
+};
+const skuPrice = (x, fb) => (x.price > 0 ? { v: x.price, ai: false } : { v: +fb || 0, ai: true });   // 1688 이 0 으로 줄 때는 AI 원가로
 function skuKo(x, map) {   // 한국어 이름 — AI가 찾은 짝 > 사전 > 중국어 그대로
   const m = matchOpt(map || [], skuKey(x)) || matchOpt(map || [], (x.attrs || [])[0] || "");
   if (m && m.ko) return m.ko;
@@ -6046,6 +6038,26 @@ function cnLevelCell(j, val, ph) {
   return `<select class="lv" data-j="${j}"><option value="">${escH(ph ? ph + " (AI)" : "(비움)")}</option>`
     + opts.map((v) => `<option${v === val ? " selected" : ""}>${escH(v)}</option>`).join("") + `</select>`;
 }
+/* 상품 옵션 줄을 칠하고 오른쪽에 설명을 붙인다 (판매가 계산 창) */
+function optNoteShow() {
+  const tr = $$("#ca-table tr").find((r) => { const k = r.querySelector("td.k"); return k && k.textContent.indexOf("상품 옵션") === 0; });
+  const box = $("#calcmodal .mbox");
+  let n = $("#opt-note");
+  if (!tr || !box) { if (n) n.style.display = "none"; return; }
+  tr.classList.add("optrow");
+  if (!n) {
+    n = document.createElement("div");
+    n.id = "opt-note";
+    n.innerHTML = `<div class="arw">◀</div><div class="txt">상품 옵션 기준으로 아래 옵션이 수정·변경됩니다`
+      + `<span>이 칸의 이름·개수를 고치면 1688 옵션표 · 구성 · 엑셀 줄이 함께 바뀝니다</span></div>`;
+    box.appendChild(n);
+  }
+  const r = tr.getBoundingClientRect(), b = box.getBoundingClientRect();
+  if (!r.width || b.width - (r.right - b.left) < 200) { n.style.display = "none"; return; }   // 자리가 좁으면 숨김
+  n.style.display = "flex";
+  n.style.left = (r.right - b.left + 10) + "px";
+  n.style.top = (r.top - b.top + box.scrollTop - 8) + "px";
+}
 function skuState() {
   const st = cnState();
   if (!st) return null;
@@ -6058,7 +6070,8 @@ function skuRender() {
   if (!d || !st) { box.style.display = "none"; return; }
   box.style.display = "block";
   const map = cnHost().map;
-  const rows = d.list.map((x) => ({ x, key: skuKey(x), ko: skuKo(x, map) }));
+  const fb = cnHost().yuan;
+  const rows = skuSorted(d).map((x) => ({ x, key: skuKey(x), ko: skuKo(x, map), pr: skuPrice(x, fb) }));
   const chosen = rows.filter((r) => st.on[r.key]).length;
   $("#sku-note").innerHTML = `수집기가 가져온 <b>${d.list.length}개</b> · 옵션명·원가·재고 그대로`;
   $("#sku-instock").classList.toggle("on", !!st.instock);
@@ -6074,46 +6087,56 @@ function skuRender() {
     if (st.q && (r.key + " " + r.ko).toLowerCase().indexOf(st.q.toLowerCase()) < 0) return false;
     return (d.props || []).every((p, j) => !st.lv[j] || (r.x.attrs || [])[j] === st.lv[j]);
   });
+  const same = (a, b) => normOpt(a) === normOpt(b);
   $("#sku-list").innerHTML = `<table>` + show.slice(0, 300).map((r) => {
     const out = !r.x.stock;
+    const cn = (r.x.attrs || []).join(" > ");
+    const img = skuThumb(d, r.x);
     return `<tr class="${st.on[r.key] ? "on" : ""}${out ? " out" : ""}" data-key="${escH(r.key)}">`
       + `<td class="ck"><input type="checkbox" ${st.on[r.key] ? "checked" : ""} ${out ? "disabled" : ""}></td>`
-      + `<td class="cn">${escH((r.x.attrs || []).join(" > "))}</td><td class="ko">${escH(r.ko)}</td>`
-      + `<td class="pr">${r.x.price ? "¥" + r.x.price : ""}</td>`
+      + `<td class="th">${img ? `<img src="${escH(img)}" loading="lazy" alt="">` : ""}</td>`
+      + `<td class="nm"><div class="cn0">${escH(cn)}</div>${r.ko && !same(r.ko, cn) ? `<div class="ko0">${escH(r.ko)}</div>` : ""}</td>`
+      + `<td class="pr">${r.pr.v ? "¥" + r.pr.v + (r.pr.ai ? ' <span class="ai">AI</span>' : "") : ""}</td>`
       + `<td class="st">${out ? '<span class="sold">품절</span>' : "재고 " + r.x.stock.toLocaleString()}</td></tr>`;
   }).join("")
-    + (show.length > 300 ? `<tr><td colspan="5" style="color:#999; font-size:11.5px">… ${show.length - 300}개 더 (찾기로 좁혀 주세요)</td></tr>` : "")
-    + (show.length ? "" : `<tr><td style="color:#999; font-size:12px">조건에 맞는 옵션이 없습니다</td></tr>`) + `</table>`;
-  $("#sku-sum").innerHTML = chosen
+    + (show.length > 300 ? `<tr><td colspan="6" style="color:#999; font-size:11.5px">… ${show.length - 300}개 더 (찾기로 좁혀 주세요)</td></tr>` : "")
+    + (show.length ? "" : `<tr><td colspan="6" style="color:#999; font-size:12px">조건에 맞는 옵션이 없습니다</td></tr>`) + `</table>`;
+  const guess = rows.some((r) => r.pr.ai && r.pr.v);
+  $("#sku-sum").innerHTML = (chosen
     ? `체크한 <b>${chosen}개</b>가 아래 표와 상품 옵션에 들어갑니다`
-    : `체크하면 아래 표와 상품 옵션에 들어갑니다 · 비워 두면 AI가 찾은 옵션이 들어갑니다`;
+    : `체크하면 아래 표와 상품 옵션에 들어갑니다 · 비워 두면 AI가 찾은 옵션이 들어갑니다`)
+    + (guess ? ` · <span style="color:#c25e00">1688이 옵션 가격을 주지 않아 AI가 읽은 ¥${fb} 로 채웠습니다 — 표에서 고칠 수 있습니다</span>` : "");
 }
 /* 체크한 옵션을 상품 옵션·표에 반영 (하나도 없으면 원래 옵션으로 되돌린다) */
 function skuApply() {
   const d = skuData(), st = cnState(), sk = skuState();
   if (!d || !st) return;
   const map = cnHost().map;
-  const picked = d.list.filter((x) => sk.on[skuKey(x)]);
+  const picked = skuSorted(d).filter((x) => sk.on[skuKey(x)]);
+  cnGridSave();   // 화면에 입력해 둔 값을 먼저 저장 (그래야 아래에서 넣는 값이 덮이지 않는다)
   const setOpt = (v) => {
-    if (cnMode === "pi") { piState.d.option = v; const td = $("#pi-table td.v[data-k=option]"); if (td) td.textContent = v; }
-    else { const td = $("#ca-table td.v[data-k=opt]"); if (td) td.textContent = v; }
+    const td = $("#ca-table td.v[data-k=opt]");
+    if (td) td.textContent = v;
   };
-  if (!picked.length) { setOpt(sk.orig != null ? sk.orig : ""); st.mix = false; skuRender(); cnGridRender(); return; }
+  if (!picked.length) { setOpt(sk.orig != null ? sk.orig : ""); st.mix = false; skuRender(); cnGridRender(true); return; }
   if (sk.orig == null) sk.orig = cnHost().opt;   // 처음 고를 때 원래 옵션을 기억
-  const names = [];
+  const names = [], fb = cnHost().yuan;
   picked.forEach((x) => {
-    let ko = skuKo(x, map) || skuKey(x);
-    while (names.indexOf(ko) >= 0) ko += " ·";   // 같은 이름이 겹치면 구분
+    const parts = skuNameParts(d, x);
+    let ko = skuKo(x, map) || parts.join(" ") || skuKey(x);
+    ko = String(ko).replace(/[+\/]/g, "·").trim();   // + · / 는 옵션을 가르는 기호라 이름에 두지 않는다
+    while (names.indexOf(ko) >= 0) ko += " ·";        // 같은 이름이 겹치면 구분
     names.push(ko);
     const info = cnInfo(st.cn[ko]);
-    st.cn[ko] = { cn: (x.attrs || []).slice(0, 3), price: x.price ? String(x.price) : info.price, pack: info.pack, cnt: info.cnt };
+    const pr = skuPrice(x, fb);
+    st.cn[ko] = { cn: (x.attrs || []).slice(0, 3), price: pr.v ? String(pr.v) : info.price, pack: info.pack, cnt: info.cnt };
   });
   st.cnLevels = Math.min(3, Math.max(st.cnLevels || 1, ...picked.map((x) => (x.attrs || []).length)));
   st.mix = false;
   $$(".btn.pim2").forEach((x) => x.classList.toggle("active", x.dataset.pim2 === "keep"));
   setOpt(names.join("/"));
   skuRender();
-  cnGridRender();
+  cnGridRender(true);   // 방금 넣은 값을 다시 저장하며 덮어쓰지 않게
 }
 $("#sku-list").addEventListener("click", (e) => {
   const tr = e.target.closest("tr[data-key]"), sk = skuState();
@@ -6249,10 +6272,10 @@ function cnYuanLabel(eff) {
   // 표에 원가가 있으면 칸에도 그 값을 보여 준다 (칸 숫자와 계산이 어긋나 보이지 않게)
   if (own && el && document.activeElement !== el && Math.abs((parseFloat(el.value) || 0) - use) > 0.0001) el.value = Math.round(use * 10000) / 10000;
 }
-function cnGridRender() {
+function cnGridRender(skipSave) {
   const st = cnState();
   if (!st || !$("#cn-table")) return;
-  cnGridSave();
+  if (!skipSave) cnGridSave();
   const L = st.cnLevels || 1;
   const map = cnHost().map;
   const tree = caOptTree();
