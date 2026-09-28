@@ -31,6 +31,12 @@
   #donepop .pb.go { background:#111; color:#fff; }
   #donepop .pb.later { background:#eef0f3; color:#333; }
   #sku-box { border:2px solid #7aa7e0; background:#f7fbff; border-radius:10px; padding:10px 12px 12px; margin:10px 0 2px; }
+  #sku-none { display:none; border:1.5px dashed #c8d2de; background:#fafbfc; border-radius:10px; padding:9px 12px; margin:10px 0 2px;
+    font-size:12.5px; color:#667; line-height:1.7; }
+  #sku-none b { color:#1b5fae; }
+  #sku-none .why { color:#999; font-size:11.5px; display:block; margin-top:2px; }
+  #sku-none .mini { border:1.5px solid #cfe0f5; background:#fff; border-radius:7px; font-size:11.5px; font-weight:700;
+    padding:4px 9px; color:#1b5fae; cursor:pointer; font-family:inherit; margin-left:6px; }
   #sku-box .hd { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   #sku-box .t { font-size:13.5px; font-weight:800; color:#1b5fae; }
   #sku-box .s { font-size:11.5px; color:#777; }
@@ -655,7 +661,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (V1.39) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
+    <h1>이미지 생성기 (V1.40) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -1291,6 +1297,7 @@
     <div class="mtitle">판매가 계산</div>
     <table id="ca-table"></table>
     <div id="ca-calc-slot"><div id="calc-block">
+    <div id="sku-none"></div>
     <div id="sku-box" style="display:none;">
       <div class="hd"><span class="t">1688 옵션 — 체크로 고르기</span><span class="s" id="sku-note"></span><span class="sp"></span>
         <button type="button" class="mini on" id="sku-instock">재고 있는 것만</button>
@@ -6046,6 +6053,29 @@ function cnLevelCell(j, val, ph) {
   return `<select class="lv" data-j="${j}"><option value="">${escH(ph ? ph + " (AI)" : "(비움)")}</option>`
     + opts.map((v) => `<option${v === val ? " selected" : ""}>${escH(v)}</option>`).join("") + `</select>`;
 }
+/* 1688 옵션 파란 목록이 없을 때 — 왜 없는지 + 주소가 있으면 다시 가져오기 */
+function skuNoneRender(show) {
+  const n = $("#sku-none");
+  if (!n) return;
+  n.style.display = show ? "block" : "none";
+  if (!show) return;
+  const url = (current && current.url1688) || "";
+  n.innerHTML = `이 상품에는 <b>1688 옵션표</b>가 없어서 체크로 고르는 파란 목록이 나오지 않습니다 — 아래 표에 직접 적으시면 됩니다.`
+    + (url ? `<button type="button" class="mini" id="sku-refetch">1688에서 옵션표 가져오기</button>` : "")
+    + `<span class="why">본문 붙여넣기·엑셀로 만든 상품, 수집기 v1.6 이하로 가져온 상품, 1688 페이지에 옵션표가 없는 상품일 때 이렇게 나옵니다</span>`;
+  const b = $("#sku-refetch");
+  if (b) b.addEventListener("click", () => {
+    $$(".modal.open").forEach((m) => m.classList.remove("open"));   // 계산 창(또는 개별 가져오기 창)을 닫고
+    $("#bimodal").classList.add("open");
+    biTabSet("url");
+    $("#bi-urls").value = url;
+    $("#bi-start").textContent = "가져오기 시작";
+    biOverSync();
+    const ov = $("#bi-over");
+    if (!ov.disabled) ov.checked = true;   // 같은 상품에 덮어쓰기 (상품번호·사진·문구 그대로)
+    biStatus();
+  });
+}
 /* 아래에서 수량을 바꾸면 맨 위 [구성] 칸도 바로 따라간다 — 창을 열 때는 건드리지 않는다 */
 function caCompSync() {
   const st = cnState(), td = $("#ca-table td.v[data-k=comp]");
@@ -6102,6 +6132,7 @@ function skuState() {
 function skuRender() {
   const box = $("#sku-box"), d = skuData(), st = skuState();
   if (!box) return;
+  skuNoneRender(!d || !st);
   if (!d || !st) { box.style.display = "none"; return; }
   box.style.display = "block";
   const map = cnHost().map;
