@@ -65,6 +65,11 @@
   #opt-note .arw { font-size:22px; color:#f0a04b; font-weight:800; line-height:1; }
   #opt-note .txt { background:#fff3e0; border:1.5px solid #f0a04b; border-radius:9px; padding:7px 11px; font-size:12.5px; font-weight:800; color:#c25e00; line-height:1.55; max-width:330px; }
   #opt-note .txt span { display:block; font-weight:600; color:#8a6136; font-size:11.5px; margin-top:3px; }
+  #opt-note .txt { max-width:380px; }
+  #opt-note .txt span.rule { border-top:1px dashed #f0a04b; padding-top:5px; margin-top:6px; line-height:1.6; }
+  #opt-note .txt span.rule b { color:#c25e00; font-weight:800; }
+  #opt-note .txt span.rule2 { font-weight:700; color:#0a63cc; margin-top:5px; }
+  #ca-table td.v.justsync { background:#fff3e0; outline:2.5px solid #f0a04b; outline-offset:-2px; transition:background .2s; }
   #sku-list .sold { color:#e14b4a; font-weight:700; }
   #sku-sum { margin-top:7px; font-size:11.5px; color:#1b5fae; font-weight:700; }
   #qbox { border:2px solid #bfe3c6; background:#f7fbf8; border-radius:10px; padding:9px 12px 11px; margin-top:10px; }
@@ -650,7 +655,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (V1.38) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
+    <h1>이미지 생성기 (V1.39) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -1295,7 +1300,7 @@
       <div class="sum" id="sku-sum"></div>
     </div>
     <div id="cn-grid">
-      <div class="hd"><span class="t">1688 옵션명 (중국어)</span><span class="s">1688 페이지에서 단계별 옵션 이름을 복사해 칸마다 붙여넣기 · 비워 두면 AI가 찾은 이름</span><span class="sp"></span>
+      <div class="hd"><span class="t">1688 옵션명 (중국어)</span><span class="s">엑셀에 들어갈 이름은 자동입니다 — <b style="color:#0a63cc">회색 (AI) 글자가 보이면 그냥 두세요</b>. 직접 고칠 때만 칸에 붙여넣기</span><span class="sp"></span>
         <button type="button" class="mini" id="cn-lv-add">＋ 단계 추가</button><button type="button" class="mini" id="cn-lv-del">－ 단계 빼기</button><button type="button" class="mini" id="cn-paste-tg">한꺼번에 붙여넣기</button></div>
       <table id="cn-table"></table>
       <div class="sum" id="cn-sum"></div>
@@ -1304,7 +1309,9 @@
     </div>
     <p class="cn-desc">입수 = 1688 1개(묶음)에 들어 있는 개수 (6개입이면 6 · 낱개면 1). 1688 구매 수량 = 올림(구성 수량 ÷ 입수)이고, 세트 원가도 묶음 단위로 계산합니다.<br>
       상품 옵션에서 <b>＋</b>로 이으면 그 자체가 <b>옵션 1개</b>(구성품 묶음), <b>/</b>로 나누면 <b>서로 다른 옵션</b>입니다. (예: 5cm+8cm+13cm = 1옵션 · 화이트/크라프트 = 2옵션)<br>
-      1688옵션명: 한 옵션 안의 단계는 &gt;로, 옵션끼리는 지금처럼 /로 이어집니다. <span style="color:#999">· 칸에 붙여넣고 Enter = 아래 줄 같은 칸에 같은 이름</span></p>
+      1688옵션명: 한 옵션 안의 단계는 &gt;로, 옵션끼리는 지금처럼 /로 이어집니다. <span style="color:#999">· 칸에 붙여넣고 Enter = 아래 줄 같은 칸에 같은 이름</span><br>
+      <b style="color:#0a63cc">엑셀에 들어갈 이름은 내가 쓰는 칸이 아니라 자동으로 채워지는 칸입니다.</b> 파란 창에서 고른 옵션 &gt; AI가 찾은 이름(회색 (AI)) 순서로 들어가고, 직접 쓴 이름이 있으면 그 이름이 먼저입니다. 빨간 <b>(?)</b> 일 때만 1688에서 복사해 넣어 주세요.<br>
+      아래에서 수량을 바꾸면(계산표 줄 선택 · 세트 옵션의 개수 칸 · 구성 조정) 맨 위 <b>구성</b> 칸도 함께 바뀝니다.</p>
     <div class="sub-label" style="margin-top:12px">가격·구성 계산</div>
     <div class="ca-row" style="margin-top:4px;">
       <span id="ca-yuan-lb">개당 상품가(¥)</span><input type="number" id="ca-yuan" step="0.01"><span id="ca-sumtag" style="display:none"></span>
@@ -5855,7 +5862,7 @@ function caMixSync() {
     st.mixKey = key;
   }
   box.style.display = "block";
-  renderMixBox(box, colors, st.mixCounts, () => caCalc(),
+  renderMixBox(box, colors, st.mixCounts, () => { caCalc(); caCompSync(); },
     (cnt) => `옵션 ${mixOptString(colors, cnt)} · 구성 ${mixCompString(colors, cnt)} (${mixTotal(cnt)}개)`);
 }
 function caCalc() {
@@ -5949,6 +5956,7 @@ $("#ca-plans").addEventListener("click", (e) => {
   st.selBy = "user";   // 직접 고른 수량은 그대로 둔다
   st.mixCounts = null;
   caCalc();
+  caCompSync();   // 고른 수량을 맨 위 구성 칸에도
 });
 
 /* ---------- 수집이 끝나면: 판매가 계산으로 이동 ---------- */
@@ -6038,6 +6046,30 @@ function cnLevelCell(j, val, ph) {
   return `<select class="lv" data-j="${j}"><option value="">${escH(ph ? ph + " (AI)" : "(비움)")}</option>`
     + opts.map((v) => `<option${v === val ? " selected" : ""}>${escH(v)}</option>`).join("") + `</select>`;
 }
+/* 아래에서 수량을 바꾸면 맨 위 [구성] 칸도 바로 따라간다 — 창을 열 때는 건드리지 않는다 */
+function caCompSync() {
+  const st = cnState(), td = $("#ca-table td.v[data-k=comp]");
+  if (!st || !td || !st.sel || !$("#calcmodal").classList.contains("open")) return;
+  const colors = optNames(cnHost().opt, $("#ca-color").value);
+  const eff = cnEff();
+  const useMix = st.mix && colors.length >= 2 && st.mixCounts && mixTotal(st.mixCounts) > 0;
+  const total = useMix ? mixTotal(st.mixCounts) : (eff.set && eff.n ? eff.n : st.sel.n);
+  if (!total) return;
+  const now = td.textContent.trim();
+  let next;
+  if (useMix) next = mixCompString(colors, st.mixCounts);
+  else if (eff.set) {   // 구성품을 묶은 옵션: 구성품마다 개수를 다시 적는다
+    const rows = cnRowMap(), o = caOptTree().find((x) => x.set && x.parts.length > 1);
+    next = o ? o.parts.map((pt) => `${pt.name} ${cnRow(pt, rows).cnt}개`).join("+") : syncCompCount(now, total);
+  } else next = syncCompCount(now, total);
+  if (!next || next === now) return;
+  td.textContent = next;
+  td.classList.remove("justsync");
+  void td.offsetWidth;   // 같은 칸을 연달아 바꿔도 다시 반짝이게
+  td.classList.add("justsync");
+  clearTimeout(caCompSync._t);
+  caCompSync._t = setTimeout(() => td.classList.remove("justsync"), 1600);
+}
 /* 상품 옵션 줄을 칠하고 오른쪽에 설명을 붙인다 (판매가 계산 창) */
 function optNoteShow() {
   const tr = $$("#ca-table tr").find((r) => { const k = r.querySelector("td.k"); return k && k.textContent.indexOf("상품 옵션") === 0; });
@@ -6049,7 +6081,10 @@ function optNoteShow() {
     n = document.createElement("div");
     n.id = "opt-note";
     n.innerHTML = `<div class="arw">◀</div><div class="txt">상품 옵션 기준으로 아래 옵션이 수정·변경됩니다`
-      + `<span>이 칸의 이름·개수를 고치면 1688 옵션표 · 구성 · 엑셀 줄이 함께 바뀝니다</span></div>`;
+      + `<span>이 칸의 이름·개수를 고치면 1688 옵션표 · 구성 · 엑셀 줄이 함께 바뀝니다</span>`
+      + `<span class="rule"><b>/</b> 로 나누면 <b>서로 다른 옵션</b> · <b>＋</b> 로 이으면 <b>한 옵션 안의 구성품</b>`
+      + `<br>예) 화이트<b>/</b>크라프트 = 2옵션 · 5cm<b>＋</b>8cm<b>＋</b>13cm = 옵션 1개(구성품 3가지)</span>`
+      + `<span class="rule2">아래에서 수량을 바꾸면 맨 위 <b>구성</b> 수량도 함께 바뀝니다</span></div>`;
     box.appendChild(n);
   }
   const r = tr.getBoundingClientRect(), b = box.getBoundingClientRect();
@@ -6284,7 +6319,7 @@ function cnGridRender(skipSave) {
   const multi = tree.length > 1;
   let html = `<tr><th>${anySet ? "상품 옵션 · 구성품" : "상품 옵션"}</th>${[1, 2, 3].slice(0, L).map((n) => `<th>${n}단계</th>`).join("")}`
     + `<th class="num">1688 원가(¥)</th>${anySet ? '<th class="num">개수</th>' : ""}`
-    + `<th class="num">입수<br><span style="font-weight:400">1688 1개에 몇 개</span></th><th class="num">1688 구매 수량</th><th>엑셀에 들어갈 이름</th></tr>`;
+    + `<th class="num">입수<br><span style="font-weight:400">1688 1개에 몇 개</span></th><th class="num">1688 구매 수량</th><th>엑셀에 들어갈 이름<br><span style="font-weight:400">자동 · (AI) 면 그냥 두기</span></th></tr>`;
   const cols = 1 + L + 3 + (anySet ? 1 : 0);
   tree.forEach((o, oi) => {
     const isSet = o.set && o.parts.length > 1;
@@ -6382,7 +6417,10 @@ function cnCountSync() {
   if (!cnState() || !$("#cn-table") || !$$("#cn-table tr[data-key]").length) return;
   cnGridResult(true);
 }
-$("#cn-table").addEventListener("input", () => cnGridResult());   // 이벤트 객체가 skipCalc 로 넘어가지 않게
+$("#cn-table").addEventListener("input", (e) => {   // 이벤트 객체가 skipCalc 로 넘어가지 않게
+  cnGridResult();
+  if (e.target.classList.contains("ct")) caCompSync();   // 개수를 고치면 맨 위 구성도
+});
 $("#cn-table").addEventListener("keydown", (e) => {
   const inp = e.target.closest("input");
   if (!inp || e.key !== "Enter" || e.isComposing) return;
