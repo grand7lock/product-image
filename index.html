@@ -661,7 +661,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (V1.40) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
+    <h1>이미지 생성기 (V1.41) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -782,6 +782,10 @@
       <button class="btn gmode" data-gmode="style">연출 우선 (기본)</button>
       <button class="btn gmode" data-gmode="acc">정확도 우선</button>
       <p class="hint" style="margin-top:4px">정확도 우선 = 원본 사진의 구도·각도를 유지하고 배경·조명만 바꿔 상품 변형을 최소화합니다.</p>
+      <div class="sub-label">구성 이미지 개수</div>
+      <button class="btn cmode" data-cmode="cap">자동 — 최대 3개 (기본)</button>
+      <button class="btn cmode" data-cmode="all">수량 그대로</button>
+      <p class="hint" style="margin-top:4px">10개 세트처럼 수량이 많을 때 [자동]은 대표 3개 정도만 앞에 두고 나머지는 겹쳐 쌓인 모습으로 만듭니다 (구성품 종류는 모두 나옵니다). [수량 그대로]는 적어 둔 수량만큼 늘어놓습니다.</p>
       <button class="btn blue" id="btn-ai-img">상세 AI 생성</button>
       <p class="hint" style="margin-top:6px; line-height:1.7">
         <span style="display:block">· 상세페이지의 빈 슬롯을 AI 연출컷으로 채웁니다 (장당 수십 원)</span>
@@ -2903,6 +2907,24 @@ function setGenMode(m, silent) {
 }
 $$(".btn.gmode").forEach((b) => b.addEventListener("click", () => setGenMode(b.dataset.gmode)));
 setGenMode(genAcc, true);
+/* 구성 이미지에 몇 개까지 늘어놓을지 — 수량이 많은 세트에서 낱개가 잔뜩 생성되던 문제 */
+let compCap = localStorage.getItem("comp_cap") === "all" ? "all" : "cap";
+const COMP_CAP_FROM = 4;   // 이 수량부터 줄여서 그린다
+function setCompCap(m, silent) {
+  compCap = m === "all" ? "all" : "cap";
+  localStorage.setItem("comp_cap", compCap);
+  $$(".btn.cmode").forEach((b) => b.classList.toggle("active", b.dataset.cmode === compCap));
+  if (!silent) toast(compCap === "all" ? "구성 이미지: 적어 둔 수량 그대로 그립니다" : "구성 이미지: 대표 3개 정도만 앞에 두고 나머지는 겹쳐 쌓인 모습으로 그립니다");
+}
+$$(".btn.cmode").forEach((b) => b.addEventListener("click", () => setCompCap(b.dataset.cmode)));
+setCompCap(compCap, true);
+/* 구성 이미지 프롬프트 꼬리 — 수량이 많으면 낱개를 다 늘어놓지 않게 */
+function compCountRule() {
+  const q = parseInt(String(($("#f-qty") ? $("#f-qty").textContent : "")).replace(/[^\d]/g, ""), 10) || 0;
+  if (compCap !== "cap" || q < COMP_CAP_FROM) return " 이 구성과 수량·색상에 일치하도록 정확히 표현하세요.";
+  return " 구성품 종류는 모두 보이게 하되, 같은 물건이 여러 개일 때는 낱개를 전부 늘어놓지 말고 대표 3개 정도만 앞에 또렷하게 두고"
+    + " 나머지는 뒤에 겹쳐 쌓이거나 묶음(포장) 상태로 자연스럽게 표현하세요. 색상 구성은 그대로 지키세요.";
+}
 
 window.genFromEmpty = async (ev, btn) => {
   ev.stopPropagation();
@@ -3289,7 +3311,7 @@ function slotPromptBase(slotName) {
     case "use2": return common + (modelMode === "none"
       ? "용도: 상품 단독 연출컷. 인물 없이 실사용 공간(책상·거실 등)에 상품을 자연스럽게 배치한 모습."
       : "용도: 사용컷. 상품을 실제로 사용하는 장면을 자연스러운 일상 공간에서 연출한 모습.") + wearOne;
-    case "comp": return common + `용도: 구성품 소개. 밝은 흰색 배경 위에 모든 구성품이 가지런히 정돈되어 놓인 모습. 실제 구성 정보 — 구성: ${t("#f-comp")} / 색상: ${t("#f-color")} / 수량: ${t("#f-qty")} / 사이즈: ${t("#f-size")}. 이 구성과 수량·색상에 일치하도록 정확히 표현하세요.`;
+    case "comp": return common + `용도: 구성품 소개. 밝은 흰색 배경 위에 모든 구성품이 가지런히 정돈되어 놓인 모습. 실제 구성 정보 — 구성: ${t("#f-comp")} / 색상: ${t("#f-color")} / 수량: ${t("#f-qty")} / 사이즈: ${t("#f-size")}.` + compCountRule();
     // 로켓 템플릿 슬롯
     case "r1": return common + "용도: 로켓 견적서용 연출 사진 1 — 상품이 실제 사용되는 공간에 자연스럽게 배치된 밝은 연출 컷.";
     case "r2": return common + "용도: 로켓 견적서용 연출 사진 2 — 상품의 디테일·소재가 잘 보이는 클로즈업 연출 컷.";
@@ -3310,7 +3332,7 @@ function slotPromptBase(slotName) {
     case "d0": return common + "용도: 쿠팡 대표이미지(메인). 순수한 흰색(#FFFFFF) 배경 위에 상품 전체가 정면으로 깔끔하게 놓인 모습. 그림자는 은은하게, 상품이 화면의 대부분을 차지하는 정사각형 구도. 소품·배경 요소 없이 상품만.";
     case "d1": return common + "용도: 대표 추가컷(디테일). 상품의 질감·마감·디테일이 잘 보이는 클로즈업, 밝은 배경, 정사각형 구도.";
     case "d2": return common + "용도: 대표 추가컷(연출). 상품을 어울리는 공간에 자연스럽게 배치한 밝은 라이프스타일 연출, 정사각형 구도.";
-    case "d3": return common + "용도: 대표 추가컷(구성). 전체 구성품을 밝은 배경 위에 가지런히 나열한 모습, 정사각형 구도.";
+    case "d3": return common + "용도: 대표 추가컷(구성). 전체 구성품을 밝은 배경 위에 가지런히 나열한 모습, 정사각형 구도." + compCountRule();
     case "d4": return common + (modelMode === "none"
       ? "용도: 대표 추가컷(사용). 인물 없이 사용 장면을 연상시키는 상품 연출, 밝고 깨끗한 배경, 정사각형 구도."
       : "용도: 대표 추가컷(사용). 성인의 손이 상품을 사용하는 장면, 밝고 깨끗한 배경, 정사각형 구도.") + wearOne;
@@ -3763,7 +3785,7 @@ function soldTree(f, p) {
       return m && m[1].trim() ? { name: m[1].trim(), n: +m[2], fixed: true } : { name: t, n: 1 };
     }).filter((pt) => pt.name);
     if (parts.length <= 1) return { name: os, parts: [{ name: os, n }] };
-    const cc = mixCountsOf("", f.comp, parts.map((pt) => pt.name));   // 구성 칸 '5cm 3개+8cm 2개'
+    const cc = compCountsOf(f.comp, parts.map((pt) => pt.name));   // 구성 칸 '5cm 3개+8cm 2개' · '골드(15cm 2개…)'
     parts.forEach((pt) => { if (!pt.fixed && cc && cc[pt.name] > 0) { pt.n = cc[pt.name]; pt.fixed = true; } });
     return { name: os, set: true, parts };
   });
@@ -5187,6 +5209,23 @@ function mixCountsOf(optText, compText, names) {
   if (hit) return c;
   return parseMixCounts(optText, names);
 }
+/* 구성 문구에서 구성품별 개수 — '골드 6개+화이트 6개' 또는 '골드(15cm 2개, 20cm 2개, 25cm 2개)+화이트(…)' */
+function compCountsOf(compText, names) {
+  const c = {};
+  names.forEach((k) => { c[k] = 0; });
+  const has = (k) => Object.prototype.hasOwnProperty.call(c, k);
+  let hit = 0;
+  String(compText || "").split("+").forEach((part) => {
+    const t = part.trim();
+    let m = t.match(/^(.*?)\s*(\d+)\s*개$/);
+    if (m && has(m[1].trim())) { c[m[1].trim()] = +m[2]; hit++; return; }
+    m = t.match(/^([^(（]+)[(（]([^)）]*)[)）]\s*$/);   // 이름(15cm 2개, 20cm 2개, 25cm 2개) = 6개
+    if (!m || !has(m[1].trim())) return;
+    const ns = (m[2].match(/\d+\s*개/g) || []).map((x) => parseInt(x, 10));
+    if (ns.length) { c[m[1].trim()] = ns.reduce((a, b) => a + b, 0); hit++; }
+  });
+  return hit ? c : null;
+}
 function parseMixCounts(opt, colors) {  // "블랙3+베이지2" → {블랙:3, 베이지:2, 핑크:0}
   if (!opt || opt.indexOf("+") < 0) return null;
   const c = {};
@@ -5800,7 +5839,7 @@ let caState = null;
 function cnState() { return caState; }
 function cnHost() {   // 지금 상품의 옵션·색상·1688 옵션 짝·기본 원가
   const tv = (k) => { const td = $(`#ca-table td.v[data-k=${k}]`); return td ? td.textContent.trim() : ""; };
-  return { opt: tv("opt"), color: tv("color"), yuan: (current && current.priceYuan) || 0, map: current ? optMapOf(current) : [] };
+  return { opt: tv("opt"), color: tv("color"), comp: tv("comp"), yuan: (current && current.priceYuan) || 0, map: current ? optMapOf(current) : [] };
 }
 function moveCalcBlock(slot) { const b = $("#calc-block"), h = $(slot); if (b && h && b.parentElement !== h) h.appendChild(b); }
 /* 표에 넣은 1688 옵션명·원가·입수를 상품에 저장할 형태로 */
@@ -6089,6 +6128,7 @@ function caCompSync() {
   let next;
   if (useMix) next = mixCompString(colors, st.mixCounts);
   else if (eff.set) {   // 구성품을 묶은 옵션: 구성품마다 개수를 다시 적는다
+    if (!now.split("+").every((t) => /\d+\s*개\s*$/.test(t.trim()))) return;   // 직접 쓴 구성 문구는 그대로 둔다
     const rows = cnRowMap(), o = caOptTree().find((x) => x.set && x.parts.length > 1);
     next = o ? o.parts.map((pt) => `${pt.name} ${cnRow(pt, rows).cnt}개`).join("+") : syncCompCount(now, total);
   } else next = syncCompCount(now, total);
@@ -6251,6 +6291,10 @@ function caOptTree() {
         const m = t.match(/^(.*?)(\d+)\s*개?$/);
         return m && m[1].trim() ? { name: m[1].trim(), n: +m[2], fixed: true } : { name: t, n: 1 };
       }).filter((pt) => pt.name);
+      if (parts.length > 1) {
+        const cc = compCountsOf(cnHost().comp, parts.map((pt) => pt.name));   // 구성 문구에 적힌 개수 (6개입 세트 등)
+        parts.forEach((pt) => { if (!pt.fixed && cc && cc[pt.name] > 0) pt.n = cc[pt.name]; });
+      }
       return parts.length > 1 ? { name: os, set: true, parts } : { name: os, parts: [{ name: os, n: total }] };
     }) : [{ name: "", parts: [{ name: "", n: total }] }];
   }
@@ -6499,7 +6543,7 @@ $("#ca-apply").addEventListener("click", () => {
   const changed = (k) => st.orig && tv(k) !== (st.orig[k] || "");
   if (changed("name") && tv("name")) { current.name = tv("name"); setField("#f-name", current.name); setField("#f-name2", current.name); }
   if (changed("opt") && !useMix) { current.opt = tv("opt"); setField("#f-opt", current.opt); }
-  if (changed("size")) { current.size = tv("size"); setField("#f-size", current.size); }
+  if (changed("size")) { current.size = tv("size"); setField("#f-size", current.size); updateSizeSlots(); }   // 사이즈 칸 수도 함께
   if (changed("mat")) { current.mat = tv("mat"); setField("#f-mat", current.mat); }
   const comp = useMix ? mixCompString(colors, st.mixCounts)   // 묶은 옵션: 구성 칸에 구성품별 개수
     : syncCompCount(tv("comp") || ($("#f-comp") ? $("#f-comp").textContent.trim() : ""), total);
