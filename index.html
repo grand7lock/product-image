@@ -2713,6 +2713,7 @@ function renderSrcThumbs() {
       <select onchange="setSrcLabel(${i}, this.value)">${SRC_LABELS.map((l) => `<option${(srcLabels[i] || "자동") === l ? " selected" : ""}>${l}</option>`).join("")}</select>
     </div>`).join("");
   if (typeof renderCandidates === "function") renderCandidates();  // 1688 이미지 후보 스트립 동기화
+  if (typeof renderProductList === "function") renderProductList();  // 상품 목록의 [사진 N] 도 바로 (넣어도 0으로 남던 문제)
 }
 window.removeSrc = (i) => { srcPhotos.splice(i, 1); srcFull.splice(i, 1); srcLabels.splice(i, 1); srcFrom.splice(i, 1); renderSrcThumbs(); };
 window.setSrcLabel = (i, v) => { srcLabels[i] = v; };
@@ -5860,6 +5861,7 @@ window.openCalcModal = () => {
   moveCalcBlock("#ca-calc-slot");
   const fv = (sel, fb) => { const el = $(sel); const t = el ? el.textContent.trim() : ""; return t && t !== "기재예정" ? t : (fb || ""); };
   const rows = [["name", "상품명", fv("#f-name", current.name)], ["opt", "상품 옵션", fv("#f-opt", current.opt)], ["comp", "구성", fv("#f-comp", current.comp)],
+    ["qty", "수량", fv("#f-qty", current.qty)],
     ["color", "색상", fv("#f-color", current.color)], ["size", "사이즈", fv("#f-size", current.size)], ["mat", "소재", fv("#f-mat", current.mat)]];
   const rv = (k) => { const r = rows.find((x) => x[0] === k); return r ? r[2] : ""; };
   $("#ca-table").innerHTML = rows.map(([k, label]) =>
@@ -5870,6 +5872,7 @@ window.openCalcModal = () => {
     caState.orig[td.dataset.k] = rows[i][2];
     if (td.dataset.k === "color") td.addEventListener("input", () => { $("#ca-color").value = td.textContent.trim(); if (caState) { caState.sel = null; caCalc(); } });
     if (td.dataset.k === "opt" || td.dataset.k === "color") td.addEventListener("input", () => cnGridRender());
+    if (td.dataset.k === "qty") td.addEventListener("input", () => caQtyEdit(td));
   });
   caState.cn = JSON.parse(JSON.stringify(current.optCnManual || {}));
   caState.cnLevels = Math.min(3, Math.max(1, current.optCnLevels || 0, ...Object.values(caState.cn).map((v) => (v || []).length)));
@@ -5884,6 +5887,8 @@ window.openCalcModal = () => {
   if (mcounts) { caState.mix = true; caState.mixCounts = mcounts; caState.mixKey = mcolors.join("/"); }
   $$(".btn.pim2").forEach((x) => x.classList.toggle("active", x.dataset.pim2 === (caState.mix ? "mix" : "keep")));
   skuRender();
+  const q0 = parseInt(String(rv("qty")).replace(/[^\d]/g, ""), 10) || 0;
+  if (q0) caState.sel = { n: q0 };   // 상품에 적어 둔 수량 그대로 (계산이 안 되면 caCalc 이 제안으로 돌린다)
   cnGridRender();
   caCalc();
   $("#calcmodal").classList.add("open");
@@ -5923,6 +5928,7 @@ function caCalc() {
     card.style.display = "none"; tbl.style.display = "none"; st.plans = []; st.sel = null;
     note.textContent = "개당 상품가(¥)를 넣으면 구성 수량별 판매가·순마진을 계산합니다.";
     caMixSync();
+    caQtySync(st.mix && st.mixCounts ? mixTotal(st.mixCounts) : (eff.set && eff.n ? eff.n : 0));
     return;
   }
   st.plans = calcPlans(eff.yuan, ship, eff.pack);
@@ -5935,6 +5941,7 @@ function caCalc() {
     card.innerHTML = "판매가 2만 원 미만으로는 순마진이 나오지 않습니다 — 단가·수량을 확인해 주세요";
     tbl.style.display = "none";
     caMixSync();
+    caQtySync(st.mix && st.mixCounts ? mixTotal(st.mixCounts) : (eff.set && eff.n ? eff.n : (st.sel ? st.sel.n : 0)));
     return;
   }
   card.style.display = "block";
@@ -5958,6 +5965,7 @@ function caCalc() {
       + (eff.yuan !== (parseFloat($("#ca-yuan").value) || 0) ? ` · 원가 ¥${eff.yuan}${eff.mixed ? " (옵션 중 가장 비싼 값 기준)" : ""}` : "")) + tail;
   caMixSync();
   cnCountSync();
+  caQtySync(st.mix && st.mixCounts ? mixTotal(st.mixCounts) : (eff.set && eff.n ? eff.n : (st.sel ? st.sel.n : 0)));
   qboxRender();
 }
 /* 엑셀 [시트 붙여넣기] 에 들어갈 줄 미리보기 — 지금 창의 값 그대로 */
@@ -6115,6 +6123,29 @@ function skuNoneRender(show) {
     biStatus();
   });
 }
+/* 맨 위 [수량] 칸을 직접 고칠 때 — 계산표에 없는 수량(30개입 1묶음 등)도 그대로 쓴다 */
+function caQtyEdit(td) {
+  const st = cnState();
+  if (!st) return;
+  const n = parseInt(String(td.textContent).replace(/[^\d]/g, ""), 10) || 0;
+  if (!n) return;
+  const eff = cnEff();
+  if (st.mix || eff.set) {   // 구성품을 묶은 옵션은 구성품 개수 합이 곧 수량
+    if (!caQtyEdit._t) { toast("구성품을 묶은 옵션이라 수량은 아래 [개수] 칸을 고쳐 주세요"); caQtyEdit._t = setTimeout(() => { caQtyEdit._t = 0; }, 4000); }
+    return;
+  }
+  st.sel = { n };
+  st.selBy = "user";
+  caCalc();
+  caCompSync();
+}
+/* 계산·개수가 바뀌면 맨 위 [수량] 칸도 따라간다 (내가 그 칸에 적는 중이면 건드리지 않음) */
+function caQtySync(total) {
+  const td = $("#ca-table td.v[data-k=qty]");
+  if (!td || document.activeElement === td || !total) return;
+  const txt = total + "개";
+  if (td.textContent.trim() !== txt) td.textContent = txt;
+}
 /* 아래에서 수량을 바꾸면 맨 위 [구성] 칸도 바로 따라간다 — 창을 열 때는 건드리지 않는다 */
 function caCompSync() {
   const st = cnState(), td = $("#ca-table td.v[data-k=comp]");
@@ -6154,7 +6185,7 @@ function optNoteShow() {
       + `<span>이 칸의 이름·개수를 고치면 1688 옵션표 · 구성 · 엑셀 줄이 함께 바뀝니다</span>`
       + `<span class="rule"><b>/</b> 로 나누면 <b>서로 다른 옵션</b> · <b>＋</b> 로 이으면 <b>한 옵션 안의 구성품</b>`
       + `<br>예) 화이트<b>/</b>크라프트 = 2옵션 · 5cm<b>＋</b>8cm<b>＋</b>13cm = 옵션 1개(구성품 3가지)</span>`
-      + `<span class="rule2">아래에서 수량을 바꾸면 맨 위 <b>구성</b> 수량도 함께 바뀝니다</span></div>`;
+      + `<span class="rule2">수량은 맨 위 <b>수량</b> 칸에 직접 적어도 되고, 아래 계산표 줄·개수 칸을 바꿔도 서로 맞춰집니다</span></div>`;
     box.appendChild(n);
   }
   const r = tr.getBoundingClientRect(), b = box.getBoundingClientRect();
@@ -6279,7 +6310,7 @@ function caOptTree() {
   let tree;
   if (st && st.mix && st.mixCounts && colors.length >= 2 && colors.some((k) => st.mixCounts[k] > 0)) {
     tree = [{ name: mixOptString(colors, st.mixCounts), set: true, mix: true,   // 묶은 옵션도 구성품을 가진 옵션 1개
-             parts: colors.filter((k) => st.mixCounts[k] > 0).map((k) => ({ name: k, n: st.mixCounts[k], fixed: true })) }];
+             parts: colors.filter((k) => st.mixCounts[k] > 0).map((k) => ({ name: k, n: st.mixCounts[k], mixCnt: true })) }];
   } else {
     const opt = h.opt, col = h.color;
     const raw = opt && opt !== "기재예정" ? opt : (col && col !== "기재예정" ? col : "");
@@ -6410,7 +6441,7 @@ function cnGridRender(skipSave) {
         + Array.from({ length: L }, (_, j) => `<td>${cnLevelCell(j, info.cn[j] || "", j === 0 && ai ? ai.cn : "")}</td>`).join("")
         + `<td class="num"><input class="pr" value="${escH(info.price)}" placeholder="${escH(prPh)}"></td>`
         + (anySet ? (isSet && !pt.fixed
-            ? `<td class="num"><input class="ct" value="${escH(info.cnt || pt.n || 1)}"></td>`
+            ? `<td class="num"><input class="ct" value="${escH(pt.mixCnt ? pt.n : (info.cnt || pt.n || 1))}"></td>`
             : `<td class="cnt">${isSet ? (pt.n || "") : ""}</td>`) : "")   // 단독 옵션 줄은 구성 수량이 떠서 헷갈리므로 비움
         + `<td class="num"><input class="pk" value="${escH(info.pack)}" placeholder="1"></td>`
         + `<td class="auto"></td><td class="res"></td></tr>`;
@@ -6493,6 +6524,18 @@ function cnCountSync() {
   cnGridResult(true);
 }
 $("#cn-table").addEventListener("input", (e) => {   // 이벤트 객체가 skipCalc 로 넘어가지 않게
+  const st = cnState();
+  if (e.target.classList.contains("ct") && st && st.mix && st.mixCounts) {   // 묶은 옵션: 개수 칸 = 구성 조정 값
+    const tr = e.target.closest("tr[data-key]");
+    const key = tr ? tr.dataset.key : "";
+    const v = parseInt(e.target.value, 10);
+    if (key && v >= 0 && Object.prototype.hasOwnProperty.call(st.mixCounts, key)) {
+      st.mixCounts[key] = v;
+      caCalc();
+      caCompSync();
+      return;
+    }
+  }
   cnGridResult();
   if (e.target.classList.contains("ct")) caCompSync();   // 개수를 고치면 맨 위 구성도
 });
