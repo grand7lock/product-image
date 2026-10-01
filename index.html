@@ -661,7 +661,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (V1.41) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
+    <h1>이미지 생성기 (V1.42) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -1322,7 +1322,8 @@
       상품 옵션에서 <b>＋</b>로 이으면 그 자체가 <b>옵션 1개</b>(구성품 묶음), <b>/</b>로 나누면 <b>서로 다른 옵션</b>입니다. (예: 5cm+8cm+13cm = 1옵션 · 화이트/크라프트 = 2옵션)<br>
       1688옵션명: 한 옵션 안의 단계는 &gt;로, 옵션끼리는 지금처럼 /로 이어집니다. <span style="color:#999">· 칸에 붙여넣고 Enter = 아래 줄 같은 칸에 같은 이름</span><br>
       <b style="color:#0a63cc">엑셀에 들어갈 이름은 내가 쓰는 칸이 아니라 자동으로 채워지는 칸입니다.</b> 파란 창에서 고른 옵션 &gt; AI가 찾은 이름(회색 (AI)) 순서로 들어가고, 직접 쓴 이름이 있으면 그 이름이 먼저입니다. 빨간 <b>(?)</b> 일 때만 1688에서 복사해 넣어 주세요.<br>
-      아래에서 수량을 바꾸면(계산표 줄 선택 · 세트 옵션의 개수 칸 · 구성 조정) 맨 위 <b>구성</b> 칸도 함께 바뀝니다.</p>
+      아래에서 수량을 바꾸면(계산표 줄 선택 · 세트 옵션의 개수 칸 · 구성 조정) 맨 위 <b>구성</b> 칸도 함께 바뀝니다.
+      <b>입수를 넣으면 개수·수량이 그보다 작을 때 입수로 맞춰집니다</b>(묶음은 통째로 판매) — 그 뒤 직접 고치면 고친 값이 우선입니다.</p>
     <div class="sub-label" style="margin-top:12px">가격·구성 계산</div>
     <div class="ca-row" style="margin-top:4px;">
       <span id="ca-yuan-lb">개당 상품가(¥)</span><input type="number" id="ca-yuan" step="0.01"><span id="ca-sumtag" style="display:none"></span>
@@ -5977,8 +5978,11 @@ function qboxRender() {
   if (!st || !p || !st.sel) { box.style.display = "none"; return; }
   const total = st.sel.n || 0;
   const tvq = (k) => (($(`#ca-table td.v[data-k=${k}]`) || {}).textContent || "").trim();
-  const f = { name: tvq("name"), opt: h.opt, color: h.color, qty: total ? total + "개" : (p.qty || ""),
-              size: tvq("size"), mat: tvq("mat"), comp: tvq("comp") };
+  const mcolors = optNames(h.opt, $("#ca-color").value);
+  const useMix = st.mix && mcolors.length >= 2 && st.mixCounts && mixTotal(st.mixCounts) > 0;   // 적용 때와 같은 기준
+  const f = { name: tvq("name"), opt: useMix ? mixOptString(mcolors, st.mixCounts) : h.opt, color: h.color,
+              qty: (useMix ? mixTotal(st.mixCounts) : total) ? (useMix ? mixTotal(st.mixCounts) : total) + "개" : (p.qty || ""),
+              size: tvq("size"), mat: tvq("mat"), comp: useMix ? mixCompString(mcolors, st.mixCounts) : tvq("comp") };
   const prod = Object.assign({}, p, cnCollect(p.optCnManual),
     { url1688: p.url1688 || "", priceYuan: parseFloat($("#ca-yuan").value) || 0, shipYuan: parseFloat($("#ca-ship").value) || 0,
       optMap: h.map });
@@ -6523,8 +6527,36 @@ function cnCountSync() {
   if (!cnState() || !$("#cn-table") || !$$("#cn-table tr[data-key]").length) return;
   cnGridResult(true);
 }
+/* 입수(1688 1개에 몇 개)를 넣었을 때 개수·수량이 그보다 작으면 입수로 맞춘다 — 묶음은 통째로 판다 (그 뒤 직접 고친 값이 우선) */
+function packFill(inp) {
+  const st = cnState();
+  const pack = parseInt(inp.value, 10) || 0;
+  if (!st || pack <= 1) return false;
+  const tr = inp.closest("tr[data-key]"), key = tr ? tr.dataset.key : "";
+  const ct = tr ? tr.querySelector("input.ct") : null;
+  const say = (what) => { if (!packFill._t) { toast(`입수 ${pack}개에 맞춰 ${what} ${pack}으로 맞췄습니다 (묶음 통째로 판매)`); packFill._t = setTimeout(() => { packFill._t = 0; }, 2500); } };
+  if (st.mix && st.mixCounts && Object.prototype.hasOwnProperty.call(st.mixCounts, key)) {   // 한 세트로 묶음: 그 줄의 개수
+    if ((st.mixCounts[key] || 0) >= pack) return false;
+    st.mixCounts[key] = pack;
+    if (ct) ct.value = pack;
+    caCalc(); caCompSync(); say("개수를");
+    return true;
+  }
+  if (ct) {   // 구성품을 묶은 옵션: 그 줄의 개수
+    if ((parseInt(ct.value, 10) || 0) >= pack) return false;
+    ct.value = pack;
+    cnGridResult(); caCompSync(); say("개수를");
+    return true;
+  }
+  const n = st.sel ? st.sel.n : 0;   // 단일 상품·옵션 따로 판매: 맨 위 수량
+  if (n >= pack) return false;
+  st.sel = { n: pack }; st.selBy = "user";
+  cnGridResult(); caCompSync(); say("수량을");
+  return true;
+}
 $("#cn-table").addEventListener("input", (e) => {   // 이벤트 객체가 skipCalc 로 넘어가지 않게
   const st = cnState();
+  if (e.target.classList.contains("pk") && packFill(e.target)) return;
   if (e.target.classList.contains("ct") && st && st.mix && st.mixCounts) {   // 묶은 옵션: 개수 칸 = 구성 조정 값
     const tr = e.target.closest("tr[data-key]");
     const key = tr ? tr.dataset.key : "";
