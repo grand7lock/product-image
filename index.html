@@ -373,6 +373,10 @@
   .use-sub { font-size:23px; color:#808080; line-height:1.7; margin:26px 48px 46px; white-space:pre-wrap; }
   .slot-use { width:100%; height:680px; }
   .slot-use + .slot-use { margin-top:24px; }
+  .use-add { display:flex; justify-content:center; align-items:center; gap:12px; margin-top:18px; }
+  .use-add button { border:2px dashed #9fb3c8; background:#f7f9fc; color:#2b5c8a; border-radius:12px; padding:14px 26px; font-size:20px; font-weight:800; cursor:pointer; font-family:inherit; }
+  .use-add button.minus { border-style:solid; border-color:#ddd; color:#888; background:#fff; font-size:16px; padding:9px 18px; }
+  .use-add .tip { font-size:14px; color:#999; }
 
   .sec-comp { padding-top:120px; text-align:center; }
   .sec-comp .slot-wrap { padding:44px 48px 0; }
@@ -409,7 +413,7 @@
   .slot-main .rm, .slot-main .rgn { font-size:15px; padding:4px 9px; }
   .slot:hover .rm, .slot:hover .rgn { opacity:1; }
 
-  body.exporting .slot.empty, body.exporting .rm, body.exporting .rgn, body.exporting .sec-tools { display:none !important; }
+  body.exporting .slot.empty, body.exporting .rm, body.exporting .rgn, body.exporting .sec-tools, body.exporting .use-add { display:none !important; }
   body.exporting [contenteditable]:hover, body.exporting [contenteditable]:focus { outline:none; }
 
   /* ---------- 문구·완구 템플릿 (색상은 --t-* 변수, 사진에서 자동 추출) ---------- */
@@ -983,7 +987,8 @@
         <h2 contenteditable="true">실제 사용 모습</h2>
         <p class="use-sub" contenteditable="true">일상에서 이렇게 활용할 수 있어요</p>
         <div class="slot slot-use empty" data-slot="use1"></div>
-        <div class="slot slot-use empty" data-slot="use2"></div>
+        <div class="slot slot-use empty" data-slot="use2" style="display:none;"></div>
+        <div class="use-add"><button type="button" onclick="useToggle(this)">＋ 사용컷 1개 더 추가</button><span class="tip">저장 이미지에는 안 나옵니다 · 추가하면 AI 생성·원본 채우기 모두 가능</span></div>
       </section>
 
       <section class="sec-comp" data-sec="상품 옵션">
@@ -3188,6 +3193,7 @@ window.restoreSlot = (ev, btn) => {
 };
 
 function bindPageSlots() {
+  ensureUseAdd();
   $$("#page .slot").forEach((slot) => {
     slot.addEventListener("click", () => { pendingSlot = slot; $("#file-slot").click(); });
     bindSlotDnD(slot);
@@ -3608,6 +3614,40 @@ $("#btn-ai-mains").addEventListener("click", async () => {
 });
 
 /* ---------- 섹션 숨기기 ---------- */
+/* 사용컷 두 번째 칸 — 기본은 접힘. 버튼으로 켜고, 비어 있을 때만 다시 접는다 */
+function useAddRefresh(sec) {
+  const u2 = sec.querySelector("[data-slot=use2]"), add = sec.querySelector(".use-add");
+  if (!u2 || !add) return;
+  const on = u2.style.display !== "none";
+  add.innerHTML = on
+    ? `<button type="button" class="minus" onclick="useToggle(this)">－ 추가한 칸 빼기</button><span class="tip">빈 칸일 때만 · 그림이 있으면 칸의 [제거]로</span>`
+    : `<button type="button" onclick="useToggle(this)">＋ 사용컷 1개 더 추가</button><span class="tip">저장 이미지에는 안 나옵니다 · 추가하면 AI 생성·원본 채우기 모두 가능</span>`;
+}
+function useToggle(btn) {
+  const sec = btn.closest("section"), u2 = sec.querySelector("[data-slot=use2]");
+  if (!u2) return;
+  if (u2.style.display !== "none") {
+    if (!u2.classList.contains("empty")) { toast("그림이 들어 있는 칸입니다 — 칸의 [제거]를 먼저 눌러 주세요"); return; }
+    u2.style.display = "none";
+  } else {
+    u2.style.display = "";
+  }
+  useAddRefresh(sec);
+  updateHeight();
+}
+window.useToggle = useToggle;
+/* 예전에 만든 상품(버튼이 없는 저장본)에도 버튼을 달아 준다 — 두 번째 칸이 비어 있으면 접고, 그림이 있으면 그대로 */
+function ensureUseAdd() {
+  const sec = $("#page .sec-use");
+  if (!sec) return;
+  const u2 = sec.querySelector("[data-slot=use2]");
+  if (!u2) return;
+  if (!sec.querySelector(".use-add")) {
+    if (u2.classList.contains("empty")) u2.style.display = "none";
+    const d = document.createElement("div"); d.className = "use-add"; sec.appendChild(d);
+  }
+  useAddRefresh(sec);
+}
 function hideSec(btn) {
   btn.closest("section").classList.add("hidden-sec");
   updateHeight();
