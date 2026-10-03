@@ -76,6 +76,15 @@
   #opt-note .txt span.rule b { color:#c25e00; font-weight:800; }
   #opt-note .txt span.rule2 { font-weight:700; color:#0a63cc; margin-top:5px; }
   #ca-table td.v.justsync { background:#fff3e0; outline:2.5px solid #f0a04b; outline-offset:-2px; transition:background .2s; }
+  #er-fx { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  #er-fx .lb { font-size:12px; color:#888; margin-right:2px; }
+  #er-fx button.fx { border:1.5px solid #dfe3e8; background:#fff; border-radius:8px; padding:6px 11px; font-size:12.5px; font-weight:800; color:#444; cursor:pointer; font-family:inherit; }
+  #er-fx button.fx.on { background:#0a7cff; border-color:#0a7cff; color:#fff; }
+  #er-fx .st { display:flex; align-items:center; gap:6px; margin-left:10px; font-size:12px; color:#888; }
+  #er-fx .st input { width:100px; vertical-align:middle; }
+  #er-fx .st b { color:#0a7cff; }
+  #er-fx .st.off { opacity:.4; }
+  #er-fx .desc { width:100%; font-size:11.5px; color:#8a8f95; margin-top:2px; }
   #packpop { position:fixed; inset:0; z-index:10001; background:rgba(17,20,26,.5); display:none; align-items:center; justify-content:center; }
   #packpop.open { display:flex; }
   #packpop .pb { background:#fff; border-radius:14px; width:640px; max-width:94vw; padding:22px 24px 18px; box-shadow:0 18px 50px rgba(0,0,0,.3); text-align:left; }
@@ -1164,8 +1173,8 @@
 </div>
 <div id="ermodal" class="modal">
   <div class="mbox">
-    <div class="mtitle">글자 지우기</div>
-    <p class="msub">지울 글자 부분을 드래그로 박스 지정하면 주변 색으로 자연스럽게 메워집니다 · 여러 번 지정 가능 (사이즈컷은 치수 합성 전 원본에서 지워집니다)</p>
+    <div class="mtitle">이미지 수정 — 글자·로고 지우기, 모자이크, 블러</div>
+    <p class="msub">고칠 부분을 원형 붓으로 칠하거나 사각 박스로 지정하면 아래에서 고른 효과가 적용됩니다 · 여러 번 지정 가능 (사이즈컷은 치수 합성 전 원본에서 지워집니다)</p>
     <div id="er-stage" style="position:relative; margin:0 auto; overflow:hidden; cursor:crosshair; touch-action:none; background:#f6f6f6;">
       <img id="er-img" style="display:block; pointer-events:none;">
       <div id="er-sel" style="display:none; position:absolute; border:2px dashed #e14b4a; background:rgba(225,75,74,.12); pointer-events:none;"></div>
@@ -1174,8 +1183,15 @@
       <div id="er-cursor" style="display:none; position:absolute; border:2px dashed #0a7cff; border-radius:50%; pointer-events:none;"></div>
     </div>
     <p class="msub" style="margin-top:6px;">파란 점선 = 상세에서 실제로 보이는 영역</p>
+    <div id="er-fx"><span class="lb">효과</span>
+      <button type="button" class="fx" data-fx="fill" title="고른 영역 바로 바깥의 색을 이어서 채웁니다 — 배경 위 글자·로고 지우기">주변색 채우기</button>
+      <button type="button" class="fx" data-fx="mosaic">모자이크</button>
+      <button type="button" class="fx" data-fx="blur">블러</button>
+      <button type="button" class="fx" data-fx="erase">부분삭제 (흰색)</button>
+      <span class="st" id="er-st-wrap">강도 <input type="range" id="er-st" min="1" max="20" step="1" value="10"><b id="er-st-v">10</b></span>
+      <div class="desc">주변색 채우기 = 고른 영역 바로 바깥의 색을 이어서 채웁니다 (배경 위 글자·로고 지우기, 그라데이션도 자연스럽게) · 모자이크·블러는 강도로 조절 · 부분삭제는 흰색으로</div></div>
     <div style="margin-top:10px;">
-      <span style="font-size:12px; color:#888; margin-right:4px;">지우개 모양</span>
+      <span style="font-size:12px; color:#888; margin-right:4px;">붓 모양</span>
       <button class="btn" id="er-mode-circle">● 원형</button>
       <button class="btn" id="er-mode-rect">■ 사각 박스</button>
       <span style="font-size:12px; color:#888; margin:0 4px 0 12px;">크기</span>
@@ -3105,7 +3121,7 @@ function setSlotImage(slotEl, dataUrl) {
   btns += `<button class="edt" onclick="editMainImage(event, this)">사이즈·크기 수정</button>`;
   btns += `<button class="bgx" onclick="swapBgAI(event, this)">배경만 교체</button>`;
   if (slotEl.dataset.orig) btns += `<button class="undo" onclick="undoBg(event, this)">되돌리기</button>`;
-  btns += `<button class="erz" onclick="eraseText(event, this)">글자 지우기</button>`;
+  btns += `<button class="erz" onclick="eraseText(event, this)">이미지 수정</button>`;
   btns += `<button class="mv" onclick="moveSlotStart(event, this)">이동</button>`;
   btns += `<button class="cpy" onclick="copySlotStart(event, this)">복사</button>`;
   slotEl.innerHTML = `<img src="${dataUrl}" draggable="true" ondragstart="slotImgDragStart(event)">` + btns + `<button class="rm" onclick="clearSlot(event, this)">제거</button>`;
@@ -5112,6 +5128,7 @@ window.eraseText = (ev, btn) => {
     pc.getContext("2d").clearRect(0, 0, pc.width, pc.height);
     erState = { slot, base, img: probe, items: [], scale, isTsize };
     erSyncTools();
+    erFxSync();
     // U2. 상세에서 실제로 보이는 영역(cover 크롭) 점선 가이드
     const g = $("#er-guide");
     let show = false;
@@ -5176,22 +5193,77 @@ function erRender() {
   c.width = st.img.naturalWidth; c.height = st.img.naturalHeight;
   const x = c.getContext("2d");
   x.drawImage(st.img, 0, 0);
-  if (st.items.length) {
-    const id = x.getImageData(0, 0, c.width, c.height);
-    for (const it of st.items) {
-      if (it.type === "stroke") {
-        for (const p of it.pts) erFillCircle(id.data, c.width, c.height, p.x, p.y, it.r);
-      } else {
-        erFillData(id.data, c.width, c.height, it);
-      }
-    }
-    x.putImageData(id, 0, 0);
+  for (const it of st.items) {
+    const fx = it.fx || "fill";
+    if (fx === "fill") {
+      const id = x.getImageData(0, 0, c.width, c.height);
+      if (it.type === "stroke") { for (const p of it.pts) erFillCircle(id.data, c.width, c.height, p.x, p.y, it.r); }
+      else fxFillRect(id.data, c.width, c.height, it.x, it.y, it.w, it.h);
+      x.putImageData(id, 0, 0);
+    } else fxCanvas(x, c, it);
   }
   return c;
 }
 function erUpdatePreview() {
   const c = erRender();
   if (c) $("#er-img").src = c.toDataURL("image/png");
+}
+/* 효과 (주변색 채우기 기본 · 모자이크 · 블러 · 부분삭제) + 강도 1~20 */
+const ER_FX = ["fill", "mosaic", "blur", "erase"];
+let erFx = ER_FX.includes(localStorage.getItem("er_fx")) ? localStorage.getItem("er_fx") : "fill";
+let erSt = Math.min(20, Math.max(1, parseInt(localStorage.getItem("er_st") || "10", 10)));
+function erFxSync() {
+  $$("#er-fx button.fx").forEach((b) => b.classList.toggle("on", b.dataset.fx === erFx));
+  $("#er-st").value = erSt; $("#er-st-v").textContent = erSt;
+  $("#er-st-wrap").classList.toggle("off", !(erFx === "mosaic" || erFx === "blur"));
+}
+$$("#er-fx button.fx").forEach((b) => b.addEventListener("click", () => { erFx = b.dataset.fx; localStorage.setItem("er_fx", erFx); erFxSync(); }));
+$("#er-st").addEventListener("input", () => { erSt = parseInt($("#er-st").value, 10); localStorage.setItem("er_st", erSt); $("#er-st-v").textContent = erSt; });
+/* 주변색 채우기(사각) — 영역 바로 바깥(왼·오른·위·아래 2px 띠)의 색을 양쪽으로 이어 붙인다 (그라데이션 배경도 자연스럽게) */
+function fxFillRect(d, W, H, x, y, w, h) {
+  x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
+  if (w < 1 || h < 1) return;
+  const at = (X, Y) => { const i = (Y * W + X) * 4; return [d[i], d[i + 1], d[i + 2]]; };
+  const ring = (pts) => { const ok = pts.filter(([X, Y]) => X >= 0 && Y >= 0 && X < W && Y < H); if (!ok.length) return null;
+    const s2 = [0, 0, 0]; ok.forEach(([X, Y]) => { const c = at(X, Y); s2[0] += c[0]; s2[1] += c[1]; s2[2] += c[2]; }); return s2.map((v) => v / ok.length); };
+  const L = [], R = [], T = [], B = [];
+  for (let j = 0; j < h; j++) { L[j] = x >= 3 ? ring([[x - 2, y + j], [x - 3, y + j]]) : null; R[j] = x + w + 2 < W ? ring([[x + w + 1, y + j], [x + w + 2, y + j]]) : null; }
+  for (let i = 0; i < w; i++) { T[i] = y >= 3 ? ring([[x + i, y - 2], [x + i, y - 3]]) : null; B[i] = y + h + 2 < H ? ring([[x + i, y + h + 1], [x + i, y + h + 2]]) : null; }
+  const mix = (p, q, t) => (p && q ? p.map((v, k) => v + (q[k] - v) * t) : (p || q));
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    const X = x + i, Y = y + j;
+    if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
+    const hz = mix(L[j], R[j], (i + .5) / w), vt = mix(T[i], B[i], (j + .5) / h);
+    const c = hz && vt ? hz.map((v, k) => (v + vt[k]) / 2) : (hz || vt || [255, 255, 255]);
+    const o = (Y * W + X) * 4; d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
+  }
+}
+/* 모자이크·블러·부분삭제 — 캔버스 위에서 영역(사각 또는 붓 자국 원들)을 잘라 적용 */
+function fxCanvas(ctx, cv, it) {
+  const st = it.st || 10;
+  let x, y, w, h;
+  ctx.save();
+  if (it.type === "rect") { x = it.x; y = it.y; w = it.w; h = it.h; ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); }
+  else {
+    const xs = it.pts.map((p) => p.x), ys = it.pts.map((p) => p.y);
+    x = Math.min(...xs) - it.r; y = Math.min(...ys) - it.r; w = Math.max(...xs) - x + it.r; h = Math.max(...ys) - y + it.r;
+    ctx.beginPath(); it.pts.forEach((p) => { ctx.moveTo(p.x + it.r, p.y); ctx.arc(p.x, p.y, it.r, 0, Math.PI * 2); }); ctx.clip();
+  }
+  x = Math.max(0, Math.floor(x)); y = Math.max(0, Math.floor(y)); w = Math.min(cv.width - x, Math.ceil(w)); h = Math.min(cv.height - y, Math.ceil(h));
+  if (w >= 1 && h >= 1) {
+    if (it.fx === "erase") { ctx.fillStyle = "#fff"; ctx.fillRect(x, y, w, h); }
+    else if (it.fx === "mosaic") {
+      const p = Math.max(4, Math.round(st * cv.width / 1000)), t = document.createElement("canvas");
+      t.width = Math.max(1, Math.floor(w / p)); t.height = Math.max(1, Math.floor(h / p));
+      const tc = t.getContext("2d"); tc.imageSmoothingEnabled = false; tc.drawImage(cv, x, y, w, h, 0, 0, t.width, t.height);
+      ctx.imageSmoothingEnabled = false; ctx.drawImage(t, 0, 0, t.width, t.height, x, y, w, h); ctx.imageSmoothingEnabled = true;
+    } else if (it.fx === "blur") {
+      const t = document.createElement("canvas"); t.width = w; t.height = h;
+      t.getContext("2d").drawImage(cv, x, y, w, h, 0, 0, w, h);
+      ctx.filter = `blur(${Math.max(2, st * cv.width / 2000)}px)`; ctx.drawImage(t, x, y); ctx.filter = "none";
+    }
+  }
+  ctx.restore();
 }
 /* 지우개 도구 상태 (원형 기본 / 사각, 크기 1~10) */
 let erMode = localStorage.getItem("er_mode") === "rect" ? "rect" : "circle";
@@ -5230,7 +5302,7 @@ $("#er-stage").addEventListener("pointerdown", (e) => {
   const dx = e.clientX - rc.left, dy = e.clientY - rc.top;
   if (erMode === "circle") {
     const s = erState.scale;
-    erDrag = { rc, stroke: { type: "stroke", r: erBrushR(), pts: [{ x: dx / s, y: dy / s }] }, lastX: dx, lastY: dy };
+    erDrag = { rc, stroke: { type: "stroke", r: erBrushR(), pts: [{ x: dx / s, y: dy / s }], fx: erFx, st: erSt }, lastX: dx, lastY: dy };
     erPaintDot(dx, dy);
   } else {
     erDrag = { rc, x0: dx, y0: dy };
@@ -5288,7 +5360,7 @@ $("#er-stage").addEventListener("pointerup", (e) => {
               w: Math.abs(dx - erDrag.x0) / s, h: Math.abs(dy - erDrag.y0) / s };
   erDrag = null;
   if (r.w < 4 || r.h < 4) return;
-  r.type = "rect";
+  r.type = "rect"; r.fx = erFx; r.st = erSt;
   erState.items.push(r);
   erUpdatePreview();
 });
@@ -5315,7 +5387,7 @@ $("#er-apply").addEventListener("click", async () => {
   delete st.slot.dataset.edorig;  // 지운 결과가 새 기준 — [사이즈·크기 수정]이 지우기 전 원본을 띄우지 않게 (이신혜 리포트)
   $("#ermodal").classList.remove("open");
   erState = null;
-  toast("글자를 지웠습니다");
+  toast("이미지를 수정했습니다");
 });
 
 /* ========== 1688 자동 기입 (붙여넣기·일괄 가져오기) + 가격·구성 계산 ========== */
