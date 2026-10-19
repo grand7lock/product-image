@@ -715,7 +715,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (V1.46) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
+    <h1>이미지 생성기 (V1.47) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -5434,25 +5434,37 @@ function planFor(n, yuan, ship, pack) {
   const margin = net(tier);
   return { n, setCost, fixed, tier, fee: Math.round(tier * feePct / 100), feeShip, margin, ok: margin >= lo && margin <= hi, over: false };
 }
+/* 제안할 수 있는 '보기 좋은 수량' — 39장처럼 어색한 숫자는 제안하지 않는다 (표에는 전부 나오고 클릭은 가능) */
+const NICE_QTY = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 25, 30, 40, 50, 60, 70, 80, 90, 100];
 function calcPlans(yuan, ship, pack) {
   const plans = [];
-  for (let n = 1; n <= 40; n++) {
+  for (let n = 1; n <= 100; n++) {
     const pl = planFor(n, yuan, ship, pack);
     if (pl.over) break;   // 이 수량부터는 판매가가 2만 원 이상이어야 해서 제안하지 않음
     plans.push(pl);
   }
   return plans;
 }
-function bestPlan(plans) {
-  const ok = plans.filter((p) => p.ok);
-  if (ok.length) {
-    ok.sort((a, b) => (TIER_PRIO[a.tier] - TIER_PRIO[b.tier])
-      || (Math.abs(a.margin - tierTarget(a.tier)) - Math.abs(b.margin - tierTarget(b.tier))));
-    return { ...ok[0], warn: false };
-  }
-  const dist = (p) => { const [lo, hi] = marginBand(p.tier); return p.margin < lo ? lo - p.margin : p.margin - hi; };
-  const c = plans.slice().sort((a, b) => dist(a) - dist(b));
-  return c.length ? { ...c[0], warn: true } : null;
+function bestPlan(plans, pack) {
+  const k = packOf(pack);
+  const nice = new Set(NICE_QTY);
+  const mult = k > 1 ? plans.filter((p) => p.n % k === 0) : [];   // 묶음 상품은 입수 배수가 먼저 (묶음을 쪼개 팔지 않게)
+  const pool = mult.length ? mult : plans.filter((p) => nice.has(p.n));   // 아니면 보기 좋은 수량 안에서만
+  const pick = (list) => {
+    const ok = list.filter((p) => p.ok);
+    if (ok.length) {
+      ok.sort((a, b) => (TIER_PRIO[a.tier] - TIER_PRIO[b.tier])
+        || (Math.abs(a.margin - tierTarget(a.tier)) - Math.abs(b.margin - tierTarget(b.tier))));
+      return { ...ok[0], warn: false };
+    }
+    const dist = (p) => { const [lo, hi] = marginBand(p.tier); return p.margin < lo ? lo - p.margin : p.margin - hi; };
+    const c = list.slice().sort((a, b) => dist(a) - dist(b));
+    return c.length ? { ...c[0], warn: true } : null;
+  };
+  const r = pool.length ? pick(pool) : null;
+  if (r && !r.warn) return r;
+  const all = pick(plans);   // 후보 안에 범위 안이 없으면: 후보 중 가장 가까운 것, 그것도 없으면 전체
+  return r || all;
 }
 
 /* --- AI 추출 --- */
@@ -6239,7 +6251,7 @@ function caCalc() {
   if (st.mix && st.mixCounts && mixTotal(st.mixCounts) > 0) st.sel = planFor(mixTotal(st.mixCounts), eff.yuan, ship, eff.pack);
   else if (eff.set && eff.n && st.selBy !== "user") st.sel = planFor(eff.n, eff.yuan, ship, eff.pack);   // 구성품을 묶은 옵션은 구성품 개수 합이 곧 구성 수량
   else if (st.sel && st.sel.n) st.sel = planFor(st.sel.n, eff.yuan, ship, eff.pack);
-  else st.sel = bestPlan(st.plans);
+  else st.sel = bestPlan(st.plans, eff.pack);
   if (!st.sel || st.sel.over) {
     card.style.display = "block"; card.className = "warn";
     card.innerHTML = "판매가 2만 원 미만으로는 순마진이 나오지 않습니다 — 단가·수량을 확인해 주세요";
