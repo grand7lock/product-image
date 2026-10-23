@@ -715,7 +715,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (V1.47) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
+    <h1>이미지 생성기 (V1.48) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -6189,7 +6189,9 @@ window.openCalcModal = () => {
     if (td.dataset.k === "qty") td.addEventListener("input", () => caQtyEdit(td));
   });
   caState.cn = JSON.parse(JSON.stringify(current.optCnManual || {}));
-  caState.cnLevels = Math.min(3, Math.max(1, current.optCnLevels || 0, ...Object.values(caState.cn).map((v) => (v || []).length)));
+  // 저장본이 {cn,price,pack} 형식이면 (v||[]).length 가 undefined 라 NaN 이 되어 [＋/－ 단계] 버튼이 죽던 문제 → cnInfo 로 읽는다
+  caState.cnLevels = Math.min(3, Math.max(1, current.optCnLevels || 0, ...Object.values(caState.cn).map((v) => cnInfo(v).cn.length)));
+  if (!Number.isFinite(caState.cnLevels)) caState.cnLevels = 1;
   caState.cnKeys = (current.optCnOrder || Object.keys(caState.cn)).slice();   // 옵션 이름이 바뀌어도 순서대로 물려받기
   $("#cn-paste").style.display = "none";
   $("#cn-table").innerHTML = "";   // 앞 상품에서 입력하던 칸이 새 상품 값으로 저장되지 않게
