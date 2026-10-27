@@ -715,7 +715,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (V1.48) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
+    <h1>이미지 생성기 (V1.49) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -5624,7 +5624,7 @@ function freshWS(extra) {
 function addOrOverwrite(prod, cands, over) {
   if (over && current) {
     Object.assign(current, prod, { no: current.no });   // 상품번호와 작업(사진·문구)은 그대로
-    if (cands && workspaces[curIdx] && !(workspaces[curIdx].candidates || []).length) workspaces[curIdx].candidates = cands;
+    if (cands && cands.length && workspaces[curIdx]) workspaces[curIdx].candidates = cands;   // 새 주소로 덮어쓰면 후보 사진도 새것으로 (골라 둔 원본 사진은 별도라 그대로)
     fillProductFields(current);
     applyMainCaptions();
     renderCandidates();
