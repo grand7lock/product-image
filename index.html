@@ -276,6 +276,23 @@
   .btn.dl { background:#2e9e44; color:#fff; }
   .btn.dl:hover { background:#278239; }
   #bimodal .mtitle { text-align:left; }
+  /* 주소칸 — 5줄마다 띠·구분선, 왼쪽 1~20 번호 눈금, 10줄 보이고 스크롤, 20줄 넘는 자리는 회색 */
+  #bi-wrap { position:relative; border:1.5px solid #cfd6de; border-radius:8px; overflow:hidden; background:#fff; margin-top:4px; }
+  #bi-wrap:focus-within { border-color:#0a7cff; }
+  #bi-wrap textarea { border:none; outline:none; margin:0; resize:none; display:block; width:100%; box-sizing:border-box; padding:0 10px 0 44px; line-height:24px; font-size:13px; font-family:inherit; height:240px; overflow-y:auto; white-space:pre; overflow-x:hidden;
+    background-attachment:local; background-image:
+      linear-gradient(to bottom, transparent 0, transparent 480px, #eceff2 480px),
+      repeating-linear-gradient(to bottom, transparent 0, transparent 118px, #9dbbe6 118px, #9dbbe6 120px),
+      repeating-linear-gradient(to bottom, #fff 0, #fff 120px, #eef4fc 120px, #eef4fc 240px); }
+  #bi-gut { position:absolute; left:0; top:0; width:36px; pointer-events:none; }
+  #bi-gut div { height:24px; line-height:24px; font-size:11px; text-align:right; padding-right:8px; color:#9aa3ad; font-weight:700; border-right:1.5px solid #e3e8ee; box-sizing:border-box; }
+  #bi-gut div.g1 { background:#f6f8fb; }
+  #bi-gut div.g2 { background:#e4edfa; }
+  #bi-gut div.end { border-bottom:2px solid #9dbbe6; color:#1b5fae; }
+  #bi-count { margin-left:auto; align-self:center; font-size:12px; font-weight:800; color:#1b5fae; background:#eaf2fd; border-radius:999px; padding:2px 10px; }
+  #bi-count.over { color:#c62828; background:#fdecec; }
+  #bi-groups { font-size:11.5px; color:#6b7580; margin:4px 0 0; text-align:left; word-break:keep-all; }
+  #bi-groups b { color:#1b5fae; }
   /* 접었다 펴는 상자 */
   .fold { border:1.5px solid #e3e8ee; border-radius:10px; background:#fbfcfe; margin-top:10px; }
   .fold .fold-h { cursor:pointer; padding:9px 12px; font-size:13px; font-weight:800; color:#444; display:flex; align-items:center; gap:7px; }
@@ -715,7 +732,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (V1.49) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
+    <h1>이미지 생성기 (V1.50) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -1356,8 +1373,13 @@
       <button type="button" class="on" data-tab="url">주소로 가져오기</button>
       <button type="button" data-tab="text">페이지 본문 붙여넣기</button>
       <span class="tabhint" id="bi-tabhint">수집기가 1688 페이지를 읽습니다 · 한 줄에 1개, 최대 20개</span>
+      <span id="bi-count">0 / 20개</span>
     </div>
-    <textarea id="bi-urls" rows="6" style="width:100%;" placeholder="1688 상품 주소를 한 줄에 1개씩 붙여넣기&#10;예) https://detail.1688.com/offer/123456789.html"></textarea>
+    <div id="bi-wrap">
+      <textarea id="bi-urls" placeholder="1688 상품 주소를 한 줄에 1개씩 붙여넣기&#10;예) https://detail.1688.com/offer/123456789.html"></textarea>
+      <div id="bi-gut"></div>
+    </div>
+    <div id="bi-groups">5개마다 한 묶음 — <b>① 1~5</b> · <b>② 6~10</b> · <b>③ 11~15</b> · <b>④ 16~20</b> · 20개를 넘는 줄(회색 자리)은 가져오지 않습니다</div>
     <textarea id="bi-text" rows="6" style="width:100%; display:none;" placeholder="1688 상품 페이지에서 Ctrl+A(전체 선택) → Ctrl+C 복사한 내용을 여기에 붙여넣기 (Ctrl+V)"></textarea>
     <label id="bi-over-row"><input type="checkbox" id="bi-over"> 지금 보고 있는 상품에 덮어쓰기 <span>(새로 추가하지 않음 · 상품번호와 골라 둔 사진·문구는 그대로)</span></label>
     <div style="margin-top:8px; text-align:left;">
@@ -5921,6 +5943,7 @@ $("#btn-1688-batch").addEventListener("click", () => {
   try { rest = localStorage.getItem("bi_rest") || ""; } catch (_) {}
   biTabSet("url");
   if (rest && !$("#bi-urls").value.trim()) { $("#bi-urls").value = rest; $("#bi-start").textContent = "이어서 가져오기"; }
+  biCountRefresh();
   biStatus();
 });
 $("#bi-close").addEventListener("click", () => { if (!biRunning) $("#bimodal").classList.remove("open"); });
@@ -5930,12 +5953,26 @@ $("#bi-folder").addEventListener("click", async () => {
   biStatus();
 });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/* 주소칸 왼쪽 1~20 번호 눈금 (5줄마다 띠 색이 바뀌고 5·10·15·20 아래 구분선) — 스크롤하면 같이 움직인다 */
+$("#bi-gut").innerHTML = Array.from({ length: 20 }, (_, i) => { const n = i + 1; return `<div class="${Math.ceil(n / 5) % 2 ? "g1" : "g2"}${n % 5 === 0 ? " end" : ""}">${n}</div>`; }).join("");
+$("#bi-urls").addEventListener("scroll", () => { $("#bi-gut").style.transform = `translateY(-${$("#bi-urls").scrollTop}px)`; });
+/* 지금 넣은 주소 개수 — 1688 주소가 든 줄만 센다 · 20개를 넘으면 빨갛게 */
+function biUrlLines() { return $("#bi-urls").value.split("\n").map((v) => v.trim()).filter((v) => /1688\.com/.test(v)); }
+function biCountRefresh() {
+  const n = biUrlLines().length, c = $("#bi-count");
+  c.textContent = `${n} / 20개`;
+  c.classList.toggle("over", n > 20);
+}
+$("#bi-urls").addEventListener("input", biCountRefresh);
 let biTab = "url";   // url = 주소로 · text = 페이지 본문
 function biTabSet(t) {
   biTab = t;
   $$("#bi-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
-  $("#bi-urls").style.display = t === "url" ? "" : "none";
+  $("#bi-wrap").style.display = t === "url" ? "" : "none";
+  $("#bi-groups").style.display = t === "url" ? "" : "none";
+  $("#bi-count").style.display = t === "url" ? "" : "none";
   $("#bi-text").style.display = t === "text" ? "" : "none";
+  biCountRefresh();
   $("#bi-tabhint").textContent = t === "url"
     ? "수집기가 1688 페이지를 읽습니다 · 한 줄에 1개, 최대 20개"
     : "1688이 막히거나 수집기가 없을 때 — 수집기 없이도 됩니다";
@@ -5992,8 +6029,9 @@ $("#bi-start").addEventListener("click", async () => {
   try { hp = await biStatus(); } finally { biChecking = false; sb.disabled = false; sb.textContent = lbl; }
   if (!hp) return;
   if (hp.cooldown_until && hp.cooldown_until > Date.now()) { toast(`1688 차단 냉각 중입니다 — ${hm(hp.cooldown_until)} 이후 다시 시도해 주세요`); return; }
-  let urls = $("#bi-urls").value.split("\n").map((s) => s.trim()).filter((s) => /1688\.com/.test(s));
+  let urls = biUrlLines();
   if (!urls.length) { toast("1688 상품 주소를 한 줄에 1개씩 붙여넣어 주세요"); return; }
+  if (urls.length > 20) { toast(`주소는 한 번에 20개까지 — 앞 20개만 가져오고 ${urls.length - 20}개는 남겨 둡니다`); urls = urls.slice(0, 20); }
   const over = $("#bi-over").checked && !!current;
   if (over && urls.length > 1) { urls = urls.slice(0, 1); toast("덮어쓰기는 주소 1개만 처리합니다"); }
   const room = 20 - products.length;
@@ -6073,6 +6111,7 @@ $("#bi-start").addEventListener("click", async () => {
   for (let j = stopAt + 1; stopAt >= 0 && j < urls.length; j++) row(j, "wait", "보관됨 — [이어서 가져오기]");
   biSaveRest(rest);
   $("#bi-urls").value = rest.join("\n");
+  biCountRefresh();
   renderProductList();
   if (firstNew >= 0) switchProduct(firstNew);
   // 작업 파일 자동 저장 (구글 드라이브 폴더)
@@ -6441,6 +6480,7 @@ function skuNoneRender(show) {
     $("#bimodal").classList.add("open");
     biTabSet("url");
     $("#bi-urls").value = url;
+    biCountRefresh();
     $("#bi-start").textContent = "가져오기 시작";
     biOverSync();
     const ov = $("#bi-over");
