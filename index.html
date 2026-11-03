@@ -190,7 +190,7 @@
   #app { display:flex; height:100vh; }
 
   /* ---------- 사이드바 ---------- */
-  #sidebar { width:340px; min-width:340px; background:#fff; border-right:1px solid #ddd; overflow-y:auto; padding:26px 22px 60px; }
+  #sidebar { width:340px; min-width:340px; background:#fff; border-right:1px solid #ddd; overflow-y:auto; padding:26px 22px 140px; }
   #sidebar h1 { font-size:21px; font-weight:800; margin-bottom:4px; }
   #sidebar .desc { font-size:12.5px; color:#888; line-height:1.55; margin-bottom:18px; }
   .step { border-top:1px solid #eee; padding:18px 0; }
@@ -248,6 +248,14 @@
        font-size:17px; font-weight:800; color:#fff; box-shadow:0 4px 14px rgba(0,0,0,.2); font-family:inherit; transition:background .12s; }
   #wing button:hover { background:#B93433; }
   #wing .wing-label { font-size:10.5px; display:block; margin-top:-2px; }
+  /* 왼쪽 설정 패널 날개 — 패널 오른쪽 아래 구석, 맨 위/맨 아래에 닿으면 그 버튼은 숨김 */
+  #swing { position:fixed; left:272px; bottom:24px; display:flex; flex-direction:column; gap:8px; z-index:50; }
+  #swing button { width:46px; height:46px; border-radius:50%; border:none; background:#E14B4A; color:#fff; cursor:pointer; padding:0; line-height:1;
+       box-shadow:0 4px 14px rgba(0,0,0,.22); font-family:inherit; display:flex; flex-direction:column; align-items:center; justify-content:center; transition:background .12s, opacity .15s; }
+  #swing button:hover { background:#B93433; }
+  #swing button .ar { font-size:15px; font-weight:800; }
+  #swing button .wl { font-size:9.5px; font-weight:700; margin-top:2px; }
+  #swing button.off { opacity:0; pointer-events:none; }
 
   #toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); background:#111; color:#fff;
            padding:10px 20px; border-radius:24px; font-size:13.5px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:99; white-space:nowrap; }
@@ -748,7 +756,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (V1.52) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
+    <h1>이미지 생성기 (V1.53) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -1163,6 +1171,10 @@
 <div id="wing">
   <button id="wing-top" title="맨 위로">▲</button>
   <button id="wing-bottom" title="맨 아래로">▼</button>
+</div>
+<div id="swing">
+  <button id="swing-top" title="설정 패널 맨 위로"><span class="ar">▲</span><span class="wl">맨 위</span></button>
+  <button id="swing-bottom" title="설정 패널 맨 아래로"><span class="ar">▼</span><span class="wl">맨 아래</span></button>
 </div>
 <div id="szmodal" class="modal">
   <div class="mbox">
@@ -7686,6 +7698,17 @@ $("#wing-bottom").addEventListener("click", () => {
   const w = $("#preview-wrap");
   w.scrollTo({ top: w.scrollHeight, behavior: "smooth" });
 });
+/* 왼쪽 설정 패널 날개 — 패널만 움직이고 미리보기는 그대로 · 맨 위에선 ▲, 맨 아래에선 ▼ 가 숨는다 */
+function swingRefresh() {
+  const s = $("#sidebar"), max = s.scrollHeight - s.clientHeight;
+  $("#swing-top").classList.toggle("off", s.scrollTop < 80);
+  $("#swing-bottom").classList.toggle("off", max - s.scrollTop < 80);
+}
+$("#swing-top").addEventListener("click", () => $("#sidebar").scrollTo({ top: 0, behavior: "smooth" }));
+$("#swing-bottom").addEventListener("click", () => { const s = $("#sidebar"); s.scrollTo({ top: s.scrollHeight, behavior: "smooth" }); });
+$("#sidebar").addEventListener("scroll", swingRefresh);
+window.addEventListener("resize", swingRefresh);
+swingRefresh();
 
 /* ---------- 높이 표시 ---------- */
 function updateHeight() {
