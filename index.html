@@ -129,6 +129,10 @@
   #cn-table td.sub { font-weight:700; color:#333; white-space:nowrap; padding-left:16px; }
   #cn-table tr.optTot td { background:#f7fbf8; color:#2e7d3e; font-weight:800; }
   #cn-table td.cnt { text-align:center; font-weight:700; color:#555; }
+  /* 묶음 줄: 1688 구매 수량(묶음 수)을 직접 적는 주황 칸 · 개수 칸 아래 '= N묶음 × 입수 P' */
+  #cn-table td.auto input.bu { width:44px; text-align:right; font-weight:800; border:1.5px solid #f0a04b; background:#fffaf2; border-radius:5px; padding:3px 5px; color:#c25e00; }
+  #cn-table td.auto .u { font-size:11px; color:#c25e00; margin-left:3px; }
+  #cn-table td.num .eq { display:block; font-size:10.5px; color:#8a94a0; white-space:nowrap; margin-top:2px; }
   #cn-table .onum { display:inline-block; background:#eef2f8; color:#5a6a80; font-size:10.5px; font-weight:800; border-radius:6px; padding:1px 6px; margin-right:5px; }
   #ca-sumtag { font-size:11.5px; font-weight:800; color:#2e7d3e; background:#f3f9f4; border:1.5px solid #bfe3c6; border-radius:7px; padding:3px 8px; }
   #cn-grid .sum { margin-top:7px; font-size:11.5px; color:#c25e00; font-weight:700; }
@@ -1459,7 +1463,7 @@
       1688옵션명: 한 옵션 안의 단계는 &gt;로, 옵션끼리는 지금처럼 /로 이어집니다. <span style="color:#999">· 칸에 붙여넣고 Enter = 아래 줄 같은 칸에 같은 이름</span><br>
       <b style="color:#0a63cc">엑셀에 들어갈 이름은 내가 쓰는 칸이 아니라 자동으로 채워지는 칸입니다.</b> 파란 창에서 고른 옵션 &gt; AI가 찾은 이름(회색 (AI)) 순서로 들어가고, 직접 쓴 이름이 있으면 그 이름이 먼저입니다. 빨간 <b>(?)</b> 일 때만 1688에서 복사해 넣어 주세요.<br>
       아래에서 수량을 바꾸면(계산표 줄 선택 · 세트 옵션의 개수 칸 · 구성 조정) 맨 위 <b>구성</b> 칸도 함께 바뀝니다.
-      <b>입수를 넣으면 개수·수량이 그보다 작을 때 입수로 맞춰집니다</b>(묶음은 통째로 판매) — 그 뒤 직접 고치면 고친 값이 우선입니다.</p>
+      <b>입수를 넣으면 [1688 구매 수량] 칸(주황)에 묶음 수를 적습니다</b> — 개수는 묶음 × 입수로 자동 (6개입 2묶음 = 12개). 개수 칸에 입수보다 작은 수를 적으면 묶음 수로 보고, 배수가 아니면 올려서 맞춥니다 (묶음은 통째로 판매).</p>
     <div class="sub-label" style="margin-top:12px">가격·구성 계산</div>
     <div class="ca-row" style="margin-top:4px;">
       <span id="ca-yuan-lb">개당 상품가(¥)</span><input type="number" id="ca-yuan" step="0.01"><span id="ca-sumtag" style="display:none"></span>
@@ -5659,7 +5663,7 @@ function colorChipBg(name) {
   const key = Object.keys(COLOR_MAP).find((k) => name.includes(k));
   return key ? COLOR_MAP[key] : "#e8e8e8";
 }
-function renderMixBox(box, colors, counts, onChange, summaryFn) {
+function renderMixBox(box, colors, counts, onChange, summaryFn, stepOf) {
   box.innerHTML = `<div style="font-size:12.5px; font-weight:800; color:#0a63cc; margin-bottom:4px;">구성 조정 — 옵션별 개수 (0개 = 빼기)</div>`
     + colors.map((c, i) => `<div class="mx-row" data-i="${i}"><span class="mx-chip"></span><span class="mx-name"></span>`
       + `<button type="button" class="btn mx-dec">-</button><b class="mx-n"></b><button type="button" class="btn mx-inc">+</button></div>`).join("")
@@ -5680,11 +5684,13 @@ function renderMixBox(box, colors, counts, onChange, summaryFn) {
       const row = b.closest(".mx-row");
       if (!row) return;
       const c = colors[+row.dataset.i];
-      if (b.classList.contains("mx-inc")) counts[c] = (counts[c] || 0) + 1;
+      const step = Math.max(1, (stepOf ? stepOf(c) : 1) || 1);   // 묶음 줄은 입수만큼
+      if (b.classList.contains("mx-inc")) counts[c] = (counts[c] || 0) + step;
       else if (b.classList.contains("mx-dec")) {
         if (!(counts[c] > 0)) return;
-        if (mixTotal(counts) <= 1) { toast("합계는 1개 이상이어야 합니다"); return; }
-        counts[c]--;
+        const d = Math.min(step, counts[c]);
+        if (mixTotal(counts) - d < 1) { toast("합계는 1개 이상이어야 합니다"); return; }
+        counts[c] -= d;
       }
     }
     onChange(counts);
@@ -6345,7 +6351,8 @@ function caMixSync() {
   }
   box.style.display = "block";
   renderMixBox(box, colors, st.mixCounts, () => { caCalc(); caCompSync(); },
-    (cnt) => `옵션 ${mixOptString(colors, cnt)} · 구성 ${mixCompString(colors, cnt)} (${mixTotal(cnt)}개)`);
+    (cnt) => `옵션 ${mixOptString(colors, cnt)} · 구성 ${mixCompString(colors, cnt)} (${mixTotal(cnt)}개)`,
+    (c) => { const tr = cnRowMap()[c]; return tr ? packOf(cnVal(tr, "pk")) : 1; });
 }
 function caCalc() {
   const st = cnState();
@@ -6442,6 +6449,8 @@ $$(".btn.pim2").forEach((b) => b.addEventListener("click", () => {
   st.mix = b.dataset.pim2 === "mix";
   $$(".btn.pim2").forEach((x) => x.classList.toggle("active", x === b));
   st.mixCounts = null;
+  const otd = $("#ca-table td.v[data-k=opt]");   // 상품 옵션 칸: 한 세트면 블랙+화이트, 따로면 블랙/화이트
+  if (otd) { const names = optNames(otd.textContent.trim(), $("#ca-color").value); if (names.length >= 2) otd.textContent = names.join(st.mix ? "+" : "/"); }
   caCalc();
   cnGridRender();   // 믹스면 '옵션 1개 · 구성품' 모양으로 다시 그린다
 }));
@@ -6867,8 +6876,8 @@ function cnGridRender(skipSave) {
   const anySet = tree.some((o) => o.set && o.parts.length > 1);
   const multi = tree.length > 1;
   let html = `<tr><th>${anySet ? "상품 옵션 · 구성품" : "상품 옵션"}</th>${[1, 2, 3].slice(0, L).map((n) => `<th>${n}단계</th>`).join("")}`
-    + `<th class="num">1688 원가(¥)</th>${anySet ? '<th class="num">개수</th>' : ""}`
-    + `<th class="num">입수<br><span style="font-weight:400">1688 1개에 몇 개</span></th><th class="num">1688 구매 수량</th><th>엑셀에 들어갈 이름<br><span style="font-weight:400">자동 · (AI) 면 그냥 두기</span></th></tr>`;
+    + `<th class="num">1688 원가(¥)</th>${anySet ? '<th class="num">개수<br><span style="font-weight:400">묶음이면 묶음×입수</span></th>' : ""}`
+    + `<th class="num">입수<br><span style="font-weight:400">1688 1개에 몇 개</span></th><th class="num">1688 구매 수량<br><span style="font-weight:400">입수 있으면 묶음 수를 여기에</span></th><th>엑셀에 들어갈 이름<br><span style="font-weight:400">자동 · (AI) 면 그냥 두기</span></th></tr>`;
   const cols = 1 + L + 3 + (anySet ? 1 : 0);
   tree.forEach((o, oi) => {
     const isSet = o.set && o.parts.length > 1;
@@ -6933,8 +6942,21 @@ function cnGridResult(skipCalc) {
       const ph = lvs[0] ? lvs[0].placeholder : "";
       tr.querySelector("td.res").innerHTML = vals.length ? escH(vals.join(">"))
         : (ph ? `<span class="ai">${escH(ph)} (AI)</span>` : `<span class="warn">(?)</span>`);
+      const ctIn = tr.querySelector("input.ct");
+      if (pt.mixCnt && ctIn && document.activeElement !== ctIn && String(pt.n) !== ctIn.value) ctIn.value = pt.n;   // 구성 조정 값과 맞춤
       const r = cnRow(pt, rows);
-      tr.querySelector("td.auto").textContent = r.units || "";
+      const au = tr.querySelector("td.auto"), pk = packOf(r.pack);
+      const canBuy = pk > 1 && (ctIn || !(o.set && o.parts.length > 1));   // 묶음 줄: 1688 구매 수량(묶음 수)을 직접 적는다
+      if (canBuy) {
+        let bu = au.querySelector("input.bu");
+        if (!bu) { au.innerHTML = `<input class="bu" value="${r.units || ""}" title="1688 에서 사는 묶음 수 — 개수는 묶음 × 입수로 자동"><span class="u">묶음</span>`; }
+        else if (document.activeElement !== bu) bu.value = r.units || "";
+      } else au.textContent = r.units || "";
+      if (ctIn) {   // 개수 칸 아래 '= N묶음 × 입수 P'
+        let eq = ctIn.parentElement.querySelector(".eq");
+        if (pk > 1) { if (!eq) { eq = document.createElement("span"); eq.className = "eq"; ctIn.parentElement.appendChild(eq); } eq.textContent = `= ${r.units}묶음 × 입수 ${pk}`; }
+        else if (eq) eq.remove();
+      }
       const ct = tr.querySelector("td.cnt");
       if (ct) ct.textContent = o.set && o.parts.length > 1 ? (r.cnt || "") : "";
       if (packOf(r.pack) > 1) packed = true;
@@ -7069,6 +7091,20 @@ function packFill(inp) {
 }
 $("#cn-table").addEventListener("input", (e) => {   // 이벤트 객체가 skipCalc 로 넘어가지 않게
   const st = cnState();
+  if (e.target.classList.contains("bu")) {   // 1688 구매 수량(묶음 수) → 개수 = 묶음 × 입수
+    const tr = e.target.closest("tr[data-key]"), key = tr ? tr.dataset.key : "";
+    const units = parseInt(e.target.value, 10);
+    if (!st || !tr || !(units >= 0)) return;
+    const n = units * packOf(cnVal(tr, "pk"));
+    const ct = tr.querySelector("input.ct");
+    if (ct) {
+      ct.value = n;
+      if (st.mix && st.mixCounts && Object.prototype.hasOwnProperty.call(st.mixCounts, key)) { st.mixCounts[key] = n; caCalc(); caCompSync(); return; }
+      cnGridResult(); caCompSync(); return;
+    }
+    if (n > 0) { st.sel = { n }; st.selBy = "user"; cnGridResult(); caCompSync(); }   // 단일·옵션 따로: 맨 위 수량
+    return;
+  }
   if (e.target.classList.contains("pk") && packFill(e.target)) return;
   if (e.target.classList.contains("ct") && st && st.mix && st.mixCounts) {   // 묶은 옵션: 개수 칸 = 구성 조정 값
     const tr = e.target.closest("tr[data-key]");
@@ -7083,6 +7119,19 @@ $("#cn-table").addEventListener("input", (e) => {   // 이벤트 객체가 skipC
   }
   cnGridResult();
   if (e.target.classList.contains("ct")) caCompSync();   // 개수를 고치면 맨 위 구성도
+});
+$("#cn-table").addEventListener("change", (e) => {   // 개수 칸: 입수보다 작으면 묶음 수로, 배수가 아니면 올림
+  if (!e.target.classList.contains("ct")) return;
+  const st = cnState(), tr = e.target.closest("tr[data-key]"), key = tr ? tr.dataset.key : "";
+  if (!st || !tr) return;
+  const pk = packOf(cnVal(tr, "pk")), v = parseInt(e.target.value, 10);
+  if (pk <= 1 || !(v > 0) || v % pk === 0) return;
+  const n = v < pk ? v * pk : Math.ceil(v / pk) * pk;
+  e.target.value = n;
+  if (st.mix && st.mixCounts && Object.prototype.hasOwnProperty.call(st.mixCounts, key)) { st.mixCounts[key] = n; caCalc(); caCompSync(); }
+  else { cnGridResult(); caCompSync(); }
+  toast(v < pk ? `개수 ${v}는 ${v}묶음으로 보고 ${v} × 입수 ${pk} = ${n}개로 맞췄습니다 — 묶음 수는 [1688 구매 수량] 칸에 적어 주세요`
+               : `입수 ${pk}개 묶음이라 ${v}개 → ${n / pk}묶음 = ${n}개로 맞췄습니다 (묶음 통째로 판매)`);
 });
 $("#cn-table").addEventListener("keydown", (e) => {
   const inp = e.target.closest("input");
