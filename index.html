@@ -246,6 +246,13 @@
   #imodel-cost { font-size:11.5px; color:#555; margin-top:4px; line-height:1.6; }
   #imodel-cost b { color:#0b7a5f; }
   #btn-ai-img .tag { font-size:10.5px; background:rgba(255,255,255,.25); border-radius:5px; padding:1px 6px; margin-left:6px; font-weight:700; }
+  /* AI 문구 요청사항 — 상품마다 따로 기억, 비우면 지금과 같음 */
+  #copyreq { margin-top:8px; }
+  #copyreq label { display:block; font-size:12px; font-weight:700; color:#333; margin-bottom:4px; }
+  #copyreq label .opt { font-weight:400; color:#888; margin-left:4px; }
+  #copyreq textarea { width:100%; box-sizing:border-box; font-family:inherit; font-size:12.5px; border:1.5px solid #4a7fd6; background:#f4f8ff; border-radius:6px; padding:7px 9px; resize:vertical; }
+  #copyreq textarea:placeholder-shown { border-color:#b9c9e6; background:#fafcff; }
+  #copyreq .hint { margin-top:4px; }
   /* 우측 날개 배너 */
   #wing { position:fixed; right:54px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:10px; z-index:50; }
   #wing button { width:46px; height:46px; border-radius:50%; border:none; background:#E14B4A; cursor:pointer;
@@ -760,7 +767,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (V1.53) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
+    <h1>이미지 생성기 (V1.54) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -836,6 +843,11 @@
       <p class="hint">기본 문구를 채운 뒤 미리보기에서 직접 수정하거나, AI 문구를 생성할 수 있습니다. 문구가 이미지 생성의 기준이 되므로 문구를 먼저 완성하세요.</p>
       <button class="btn blue" id="btn-ai">AI 문구 생성</button>
       <button class="btn primary" id="btn-copy">기본 문구 채우기</button>
+      <div id="copyreq">
+        <label for="copy-req">AI 문구 요청사항<span class="opt">(선택 · 상품마다 따로 기억)</span></label>
+        <textarea id="copy-req" rows="3" placeholder="예: 이 상품은 삑삑이(소리 나는 장난감)가 아님 — '삑삑이' 단어 쓰지 말 것. 소리 없는 웹캠 가림 커버로 설명."></textarea>
+        <p class="hint">AI 문구 생성 · 상세 AI 생성(문구 자동 선행) · 검색태그 다시 생성 · 로켓 모드 상품명 다듬기에 함께 반영됩니다. 1688 상품명에 엉뚱한 단어가 섞여 있을 때 여기 적어 주세요. 따옴표로 감싼 단어를 '쓰지 말 것'이라 적으면 상품명·검색태그에서도 걸러냅니다.</p>
+      </div>
       <div class="fold" id="fold-tags">
         <div class="fold-h"><span class="ar">▸</span>쿠팡 검색태그 (20개)<span class="fold-sum">자동 생성 · 눌러서 확인·수정</span></div>
         <div class="fold-b">
@@ -2475,6 +2487,7 @@ function snapshotCurrent() {
   ws.photoFrom = srcFrom.slice();
   ws.modelMode = modelMode;
   ws.tags = $("#tags-area").value;
+  ws.copyReq = copyReq();
   ws.mains = {};
   MAIN_SLOTS.forEach((n) => {
     const el = $(`[data-slot=${n}]`);
@@ -2539,6 +2552,7 @@ function switchProduct(i) {
     srcFrom = ws.photoFrom || [];
     renderSrcThumbs();
     $("#tags-area").value = ws.tags || "";
+    $("#copy-req").value = ws.copyReq || "";
     clearMainSlots();
     MAIN_SLOTS.forEach((n) => {
       const m = ws.mains && ws.mains[n];
@@ -2563,6 +2577,7 @@ function switchProduct(i) {
     srcFrom = ws.photoFrom || [];
     renderSrcThumbs();
     $("#tags-area").value = "";
+    $("#copy-req").value = ws.copyReq || "";
     fillProductFields(current);
     if (isToy()) { fillToyDefaults(); renderChips(); applyToyPalette(); }
     else if (!isRocket()) { fillDefaultCopy(); }
@@ -2652,6 +2667,7 @@ async function polishNameAI(p, idx) {
   const key = apiKey();
   if (!key) return;
   try {
+    const req = copyReqOf(idx == null ? products.indexOf(p) : idx), ban = copyReqBan(req);
     const prompt = `다음 상품 정보로 (1) 쿠팡 검색에 최적화된 깔끔한 상품명과 (2) 쿠팡 검색태그 20개를 작성하세요.
 규칙:
 - 상품명: 중복 단어 제거, 번역투 제거, 자연스러운 단어 배열, 검색에 도움이 되는 추천 키워드 1~2개 추가 가능, 15~30자, 특수문자 최소화, 어린이·아동 관련 단어 금지. 수량(개·종·세트·p)과 사이즈(cm·mm 숫자)는 상품명에 넣지 않기 (별도 칸에 있음).
@@ -2659,9 +2675,11 @@ ${TAG_RULES}
 판매 카테고리: ${category}
 원본 상품명: ${p.name}
 구성: ${p.comp || "정보 없음"} / 사이즈: ${p.size || "정보 없음"} / 소재: ${p.mat || "정보 없음"}
-JSON으로만 응답: {"name":"다듬은 상품명","tags":["태그1","태그2", ...20개]}`;
+JSON으로만 응답: {"name":"다듬은 상품명","tags":["태그1","태그2", ...20개]}` + copyReqLine(req);
     const j = await geminiTextJSON(prompt, key);
     if (j.name) j.name = stripQtySize(j.name);   // 수량·사이즈는 상품명에 넣지 않는다
+    if (j.name && ban.length) j.name = stripBanned(j.name, ban);
+    if (ban.length && Array.isArray(j.tags)) j.tags = j.tags.filter((t) => !hasBanned(t, ban));
     const i = idx == null ? products.indexOf(p) : idx;
     const tags = Array.isArray(j.tags) && j.tags.length ? j.tags.slice(0, 20).join(", ") : "";
     if (j.name) p.name = j.name;
@@ -2692,8 +2710,10 @@ ${TAG_RULES}
 판매 카테고리: ${category}
 상품명: ${$("#f-name").textContent.trim()}
 구성: ${current.comp || "정보 없음"} / 사이즈: ${current.size || "정보 없음"} / 소재: ${current.mat || "정보 없음"}
-JSON으로만 응답: {"tags":["태그1","태그2", ...20개]}`;
+JSON으로만 응답: {"tags":["태그1","태그2", ...20개]}` + copyReqLine();
     const j = await geminiTextJSON(prompt, key);
+    const ban = copyReqBan(copyReq());
+    if (ban.length && Array.isArray(j.tags)) j.tags = j.tags.filter((t) => !hasBanned(t, ban));
     if (Array.isArray(j.tags) && j.tags.length) {
       $("#tags-area").value = j.tags.slice(0, 20).join(", ");
       toast("검색태그 20개를 생성했습니다");
@@ -2735,6 +2755,30 @@ $("#btn-copy").addEventListener("click", () => {
   toast("기본 문구를 채웠습니다 — 클릭해서 수정하세요");
 });
 
+/* ---------- AI 문구 요청사항 (상품마다) ---------- */
+function copyReq() { const t = $("#copy-req"); return t ? t.value.trim() : ""; }
+function copyReqOf(i) {   // 지금 보는 상품은 칸에서, 아니면 작업칸에서
+  if (i === curIdx || i == null || i < 0) return copyReq();
+  const ws = workspaces[i]; return ws && ws.copyReq ? String(ws.copyReq).trim() : "";
+}
+function copyReqLine(req) { const r = req == null ? copyReq() : req; return r ? `\n[사용자 요청사항 — 반드시 반영]: ${r}` : ""; }
+/* '쓰지 말 것·금지·빼' 가 있는 문장에서 따옴표로 감싼 단어 → 상품명·태그에서 걸러낼 단어 */
+function copyReqBan(req) {
+  const out = [];
+  String(req || "").split(/[.\n;]+/).forEach((seg) => {
+    if (!/쓰지\s*마|넣지\s*마|말\s*것|말것|금지|제외|빼\s*[고주세]|빼기|없애/.test(seg)) return;
+    const re = /['"‘’“”「」『』]([^'"‘’“”「」『』]{1,20})['"‘’“”「」『』]/g;
+    let m; while ((m = re.exec(seg))) { const w = m[1].trim(); if (w && !out.includes(w)) out.push(w); }
+  });
+  return out;
+}
+function stripBanned(text, ban) {
+  let t = String(text || "");
+  (ban || []).forEach((w) => { t = t.split(w).join(" "); });
+  return t.replace(/\s{2,}/g, " ").trim();
+}
+function hasBanned(text, ban) { const t = String(text || ""); return (ban || []).some((w) => t.includes(w)); }
+
 /* ---------- AI 문구 ---------- */
 async function genAICopy(silentPopup) {
   if (!current) { toast("먼저 상품 정보를 불러와 주세요"); return false; }
@@ -2762,7 +2806,8 @@ async function genAICopy(silentPopup) {
 상품명(원본): ${p.name}
 구성: ${p.comp || "정보 없음"} / 색상: ${p.color || "정보 없음"} / 수량: ${p.qty || "정보 없음"} / 사이즈: ${p.size || "정보 없음"} / 소재: ${p.mat || "정보 없음"}
 JSON으로만 응답: {"display_name":"다듬은 상품명 15~25자 (수량·사이즈 숫자 넣지 않기)","catch":"한 줄 캐치프레이즈 12~20자","badges":["특징 배지 8~14자" 4개],"trow_caps":["짧은 캡션 8~14자" 3개],"icon_labels":["혜택 2~6자" 5개],"p1_title":"포인트1 헤드라인 8~14자","p1_cap":"말풍선 캡션 10~18자","p2_title":"컬러/옵션 헤드라인 8~14자","play_title":"놀이 섹션 제목 8~12자","play_caps":["동작 캡션 6~10자" 3개],"warn_title":"경고 제목 6~12자","warn_sub":"경고 설명 2문장","note_feature":"제품특징 주의 2문장","note_use":"사용안내 2문장"}`;
-    const prompt = toy ? toyPrompt : `당신은 한국 이커머스(쿠팡) 상세페이지 전문 카피라이터입니다. 아래 상품 정보로 상세페이지 카피를 작성하세요.
+    const req = copyReq(), ban = copyReqBan(req);
+    const prompt0 = toy ? toyPrompt : `당신은 한국 이커머스(쿠팡) 상세페이지 전문 카피라이터입니다. 아래 상품 정보로 상세페이지 카피를 작성하세요.
 규칙:
 - 과장·최상급 표현(최고, 1위, 완벽 등)과 효능 보장 표현 금지. 자연스럽고 담백한 한국어.
 - 어린이·아이·유아·키즈 등 아동 사용을 암시하는 표현 절대 금지 (KC 인증 관련 표현 주의). 성인 취미/일상 관점으로 작성.
@@ -2776,6 +2821,7 @@ JSON으로만 응답: {"display_name":"다듬은 상품명 15~25자 (수량·사
 사이즈: ${p.size || "정보 없음"}
 소재: ${p.mat || "정보 없음"}
 다음 JSON 형식으로만 응답: {"display_name":"다듬은 상품명","hero_sub":"3~4줄 서브카피(\\n 줄바꿈)","hook_title":"감성 헤드라인 8~14자","hook_body":"3줄 내외 소개(\\n 줄바꿈 허용)","points":[{"title":"소제목 6~12자","body":"설명 3~4문장"},{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."}]}`;
+    const prompt = prompt0 + copyReqLine(req);
     const models = ["gemini-3.6-flash", "gemini-3-flash", "gemini-2.5-flash"];
     let data = null, lastErr = null;
     for (const model of models) {
@@ -2795,6 +2841,7 @@ JSON으로만 응답: {"display_name":"다듬은 상품명 15~25자 (수량·사
     const c = JSON.parse(text);
     if (current !== p || isToy() !== toy) { toast("상품이 전환되어 AI 문구 적용을 건너뛰었습니다"); return false; }
     if (c.display_name) c.display_name = stripQtySize(c.display_name);   // 수량·사이즈는 상품명에 넣지 않는다
+    if (c.display_name && ban.length) c.display_name = stripBanned(c.display_name, ban);   // 요청사항의 '쓰지 말 것' 단어는 상품명에서 한 번 더 제거
     if (c.display_name) { $("#f-name").textContent = c.display_name; $("#f-name2").textContent = c.display_name; }
     if (toy) {
       const set = (id, v) => { const el = $(id); if (el && v) el.textContent = v; };
@@ -7771,6 +7818,7 @@ document.addEventListener("input", (e) => {
   if (e.target && e.target.id === "f-size") updateSizeSlots();
   if (e.target && (e.target.id === "f-color" || e.target.id === "f-kcno" || e.target.id === "f-opt")) { updateOptionSlots(); applyMainCaptions(); }
   if (e.target && e.target.id === "f-qty") refreshQtyBadges();
+  if (e.target && e.target.id === "copy-req" && curIdx >= 0 && workspaces[curIdx]) workspaces[curIdx].copyReq = e.target.value;   // 적는 즉시 그 상품에 기억
   // 미리보기에서 문구를 직접 고치면 기록 — 상세 AI 생성 시 문구 자동 선행이 수기 문구를 덮어쓰지 않도록
   if (e.target && e.target.isContentEditable && e.target.closest("#page") && curIdx >= 0 && workspaces[curIdx]) {
     workspaces[curIdx].copyEdited = true;
