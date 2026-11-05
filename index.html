@@ -111,6 +111,7 @@
   #qbox td { border:1px solid #dfeee3; background:#fff; font-size:12px; padding:4px 5px; }
   #qbox td.cn { font-family:'Microsoft YaHei','Malgun Gothic',sans-serif; }
   #qbox .num { text-align:center; }
+  #qbox td.memo { font-family:'Microsoft YaHei','Malgun Gothic',sans-serif; color:#8a5a00; font-size:11px; max-width:300px; }
   #cn-table select.lv { width:100%; border:1.5px solid #e9dccb; border-radius:6px; padding:4px 5px; font-size:13px; font-family:'Microsoft YaHei','Malgun Gothic',sans-serif; background:#fff; }
   #cn-grid { margin:10px 0 2px; border:2px solid #f5b877; background:#fffaf3; border-radius:10px; padding:10px 12px 12px; }
   #cn-grid .hd { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
@@ -141,6 +142,8 @@
   #cn-table td.res { font-family:'Microsoft YaHei','Malgun Gothic',sans-serif; color:#2e7d3e; font-weight:700; white-space:nowrap; }
   #cn-table td.res .ai { color:#9a8a76; font-weight:400; }
   #cn-table td.res .warn { color:#e14b4a; }
+  #cn-sum .lvshort { color:#e14b4a; font-weight:700; }
+  #cn-sum .packnote { color:#8a5a00; background:#fff3c4; border-radius:5px; padding:1px 6px; display:inline-block; margin-top:3px; }
   #cn-paste textarea { width:100%; height:84px; margin-top:8px; border:1.5px solid #e6d3bd; border-radius:8px; padding:7px 8px; font-size:13.5px; font-family:'Microsoft YaHei','Malgun Gothic',sans-serif; }
   .cn-desc { font-size:12px; color:#555; margin:5px 2px 0; line-height:1.6; }
   #design-bar { background:#fff; border:2px solid #111; border-radius:10px; padding:10px 14px; margin:0 0 14px; }
@@ -767,7 +770,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (V1.54) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
+    <h1>이미지 생성기 (V1.55) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -1474,6 +1477,7 @@
       상품 옵션에서 <b>＋</b>로 이으면 그 자체가 <b>옵션 1개</b>(구성품 묶음), <b>/</b>로 나누면 <b>서로 다른 옵션</b>입니다. (예: 5cm+8cm+13cm = 1옵션 · 화이트/크라프트 = 2옵션)<br>
       1688옵션명: 한 옵션 안의 단계는 &gt;로, 옵션끼리는 지금처럼 /로 이어집니다. <span style="color:#999">· 칸에 붙여넣고 Enter = 아래 줄 같은 칸에 같은 이름</span><br>
       <b style="color:#0a63cc">엑셀에 들어갈 이름은 내가 쓰는 칸이 아니라 자동으로 채워지는 칸입니다.</b> 파란 창에서 고른 옵션 &gt; AI가 찾은 이름(회색 (AI)) 순서로 들어가고, 직접 쓴 이름이 있으면 그 이름이 먼저입니다. 빨간 <b>(?)</b> 일 때만 1688에서 복사해 넣어 주세요.<br>
+      빨간 <b>(단계 부족)</b>은 1688 옵션이 2단계 이상(예: 颜色 → 规格)인데 이름에 끝 단계가 없다는 뜻입니다 — 그대로 두면 쿠플러스에서 <b>매칭필요</b>가 되니 파란 목록에서 끝 단계까지 골라 주세요(원가도 그 옵션 값으로 들어갑니다).<br>
       아래에서 수량을 바꾸면(계산표 줄 선택 · 세트 옵션의 개수 칸 · 구성 조정) 맨 위 <b>구성</b> 칸도 함께 바뀝니다.
       <b>입수를 넣으면 [1688 구매 수량] 칸(주황)에 묶음 수를 적습니다</b> — 개수는 묶음 × 입수로 자동 (6개입 2묶음 = 12개). 개수 칸에 입수보다 작은 수를 적으면 묶음 수로 보고, 배수가 아니면 올려서 맞춥니다 (묶음은 통째로 판매).</p>
     <div class="sub-label" style="margin-top:12px">가격·구성 계산</div>
@@ -4137,7 +4141,7 @@ function wsFields(i) {
 }
 
 const EXCEL_HEADER = ["NO", "상품명", "상품 구성", "색상", "수량", "사이즈", "소재", "1688URL", "1688옵션명", "1688구매 수량",
-  "옵션1원가", "옵션2원가", "옵션3원가", "1688배송비", "검색태그(20개)", "판매가"];
+  "옵션1원가", "옵션2원가", "옵션3원가", "1688배송비", "주문참고", "검색태그(20개)", "판매가"];
 /* 옵션1~3원가: 같은 가격끼리 묶어 '금액x옵션 수' — 가격이 4가지 이상이면 3번째 칸에 나머지를 + 로 전부 */
 function priceCols(prices) {
   const groups = [];
@@ -4192,6 +4196,7 @@ function soldTree(f, p) {
       || (tree.length === 1 && o.parts.length === 1 && map.length === 1 ? map[0] : null);
     pt.cn = manName || (map.length ? (m ? m.cn : (pt.name ? pt.name + "(?)" : "")) : "");
     pt.cnt = (pt.fixed ? pt.n : (+info.cnt || pt.n)) || 0;
+    pt.pack = packOf(info.pack);
     pt.units = pt.cnt ? buyUnits(pt.cnt, info.pack) : 0;   // 1688 구매 수량 = 올림(개수 ÷ 입수)
     pt.price = +info.price || (m && m.price) || +p.priceYuan || 0;   // 직접 넣은 원가가 우선
   }));
@@ -4222,6 +4227,41 @@ function colorWordOf(name) {
   const hit = toks.filter((t) => isColorWord(t));
   return hit.length ? hit.join(" ") : "";
 }
+/* ── 주문참고 메모 ──
+   입수 메모: 세트 구성품의 묶음 수가 서로 다르거나 입수가 2 이상인 구성품이 있으면, 구성품별 '입수 × 묶음 = 개수'와 실제 1688 주문 수량을 적는다
+   (구매수량 칸의 숫자로 1688 에서 주문하므로, 그 숫자와 실제 주문 수량이 다를 때 헷갈리지 않게) */
+function packMemo(parts, S) {
+  const ps = (parts || []).filter((pt) => pt.cnt > 0);
+  if (ps.length < 2) return "";
+  const packs = ps.map((pt) => packOf(pt.pack)), units = ps.map((pt) => pt.units || 0);
+  const diff = units.some((u) => u !== units[0]);
+  if (!diff && !packs.some((k) => k > 1)) return "";
+  const body = ps.map((pt, j) => `${pt.cn && !/\(\?\)$/.test(pt.cn) ? pt.cn : pt.name} ${packs[j]}개입 ×${units[j]}${packs[j] > 1 ? "묶음" : ""} = ${pt.cnt}개`).join(" · ");
+  return `${diff ? "입수 다름" : "입수"} — ${body} (구매수량 ${S} = 세트 수, 1688 주문은 ${units.join(" + ")})`;
+}
+/* 1688 옵션표(수집기)가 2단계 이상인데 엑셀 이름의 단계가 모자라면 — 쿠플러스에서 '매칭필요'가 되는 원인 */
+function skuLevelsOf(p) {   // 값이 2가지 이상인 단계만 센다 (값이 하나뿐인 단계는 없어도 쿠플러스가 찾는다)
+  const d = p && p.sku1688;
+  if (!d || !Array.isArray(d.props)) return [];
+  return d.props.filter((pr) => Array.isArray(pr.values) && pr.values.length > 1).map((pr) => pr.name || "");
+}
+function levelShort(p, cnName) {
+  const lv = skuLevelsOf(p);
+  if (lv.length < 2 || !cnName || /\(\?\)$/.test(cnName)) return null;
+  const have = String(cnName).split(">").map((x) => x.trim()).filter(Boolean).length;
+  return have < lv.length ? lv.slice(have) : null;   // 모자란 단계 이름들
+}
+function levelMemo(p, parts) {
+  const miss = [];
+  (parts || []).forEach((pt) => { const m = levelShort(p, pt.cn); if (m) m.forEach((x) => { if (miss.indexOf(x) < 0) miss.push(x); }); });
+  return miss.length ? `※ 1688 옵션 단계 부족 — ${miss.map((x) => x || "다음").join("·")} 단계가 비어 있음 → 판매가 계산 창 파란 목록에서 골라 채우기` : "";
+}
+/* 옵션1 원가의 더하기 식 — '=1.8+1.8+0.5*2' 문자열을 엑셀 수식 셀로. 값은 직접 계산(＋ 와 × 만) */
+const isFormula = (v) => typeof v === "string" && v.charAt(0) === "=";
+function formulaValue(fx) {
+  return String(fx).replace(/^=/, "").split("+").reduce((t, term) => t + term.split("*").reduce((m, x) => m * (parseFloat(x) || 0), 1), 0);
+}
+function formulaCell(fx) { return { t: "n", f: String(fx).replace(/^=/, ""), v: Math.round(formulaValue(fx) * 100) / 100 }; }
 function sheetRowsOf(i) { return sheetRowsFrom(wsFields(i), products[i] || {}); }
 function sheetRowsFrom(f, p) {
   const is1688 = !!p.url1688;
@@ -4233,16 +4273,19 @@ function sheetRowsFrom(f, p) {
     const parts = o.parts, k = parts.length;
     const isSet = o.set && k > 1;
     let comp, color, qty, S = "", cols = [];
+    const memo = [];   // 주문참고 — 사람이 보는 메모 (쿠플러스 자동화는 읽지 않는다)
     if (isSet) {
       comp = parts.map((pt) => `${pt.name} ${pt.cnt || 1}개`).join("+");
       color = parts.every((pt) => isColorWord(pt.name)) ? (k <= 3 ? parts.map((pt) => pt.name).join("+") : `${k}종`) : clean(f.color);
       qty = parts.reduce((t, pt) => t + (pt.cnt || 0), 0) + "개";
       const u = parts.map((pt) => pt.units || 0), pr = parts.map((pt) => pt.price || 0);
-      if (u.every((x) => x === u[0])) {
-        if (k >= 4 && pr.every((x) => x === pr[0])) { S = u[0] * k; cols = [pr[0]]; }   // 4종 이상 같은 단가: 원가 하나 · 구매수량 = 전체
-        else { S = u[0]; cols = pr.slice(); }                                               // 구성품별 단가 · 구매수량 = 세트 수
-      } else { S = 1; cols = pr.map((x, j) => x * u[j]); }                                 // 개수가 다르면: 단가×개수 · 구매수량 1
-      if (cols.length > 3) cols = [cols[0], cols[1], cols.slice(2).reduce((x, y) => x + y, 0)];   // 3칸을 넘으면 나머지는 옵션3에 합쳐서
+      const sameU = u.every((x) => x === u[0]);
+      if (k >= 4) {   // 4종 이상: 옵션1 한 칸에 더하기 식 (엑셀에는 실제 수식) · 구매수량 = 세트 수
+        if (sameU) { S = u[0]; cols = ["=" + pr.map(r2).join("+")]; }
+        else { S = 1; cols = ["=" + pr.map((x, j) => `${r2(x)}*${u[j]}`).join("+")]; }   // 묶음 수가 다르면 단가×묶음 수 · 구매수량 1 (+ 주문참고 메모)
+      } else if (sameU) { S = u[0]; cols = pr.slice(); }          // 2~3종: 구성품별 단가 · 구매수량 = 세트 수
+      else { S = 1; cols = pr.map((x, j) => x * u[j]); }          // 2~3종인데 묶음 수가 다르면: 단가×묶음 수 · 구매수량 1
+      if (is1688) memo.push(packMemo(parts, S));
     } else {
       comp = multi ? `${o.name} ${clean(f.qty)}`.trim() : clean(f.comp);
       color = (multi && colorWordOf(o.name)) || clean(f.color);
@@ -4250,9 +4293,10 @@ function sheetRowsFrom(f, p) {
       S = parts[0].units || "";
       cols = parts[0].price ? [parts[0].price] : [];
     }
-    const [T, U, V] = [0, 1, 2].map((j) => (is1688 && cols[j] != null && cols[j] !== "" ? r2(cols[j]) : ""));
+    const [T, U, V] = [0, 1, 2].map((j) => (is1688 && cols[j] != null && cols[j] !== "" ? (isFormula(cols[j]) ? cols[j] : r2(cols[j])) : ""));
     const buy = is1688 ? S : "";
-    return [clean(f.name), comp, color, qty, clean(f.size), clean(f.mat), "", "", "",
+    if (is1688) memo.unshift(levelMemo(p, parts));
+    return [clean(f.name), comp, color, qty, clean(f.size), clean(f.mat), memo.filter(Boolean).join(" / "), "", "",
             p.url1688 || "", "", is1688 ? parts.map((pt) => pt.cn).filter(Boolean).join(" + ") : "", "",
             buy, T, U, V, is1688 ? (p.shipYuan || 0) : "", buy];   // 배송비는 옵션 줄마다 같은 값
   });
@@ -4263,9 +4307,11 @@ function excelRow(i) {
   const optOut = f.opt === "기재예정" ? "" : (f.opt || "");
   const is1688 = !!p.url1688;   // 엑셀로 올린 상품은 1688 칸을 비워 둔다
   const so = is1688 ? sold1688(f, p) : { names: "", qty: "", cols: ["", "", ""] };
+  let memo = "";
+  try { memo = sheetRowsFrom(f, p).map((r) => r[6]).filter(Boolean).filter((x, j, a) => a.indexOf(x) === j).join(" / "); } catch (_) { memo = ""; }
   return [p.no || "", f.name, optOut, f.color, f.qty, f.size, f.mat,
           p.url1688 || "", so.names, so.qty, so.cols[0], so.cols[1], so.cols[2],
-          is1688 ? (p.shipYuan || "") : "", f.tags, p.sellPrice || ""];
+          is1688 ? (p.shipYuan || "") : "", memo, f.tags, p.sellPrice || ""];
 }
 function buildExcelWB(rows, idxs) {
   const wb = XLSX.utils.book_new();
@@ -4273,12 +4319,13 @@ function buildExcelWB(rows, idxs) {
     const sr = [];
     idxs.forEach((i) => sheetRowsOf(i).forEach((r) => sr.push(r)));
     const ws2 = XLSX.utils.aoa_to_sheet([SHEET_COLS, ...sr]);   // 1행 = 시트와 같은 항목 이름 (붙여넣을 땐 2행부터)
-    ws2["!cols"] = [40, 26, 14, 7, 14, 10, 6, 6, 6, 30, 6, 36, 8, 8, 8, 8, 8, 8, 8].map((w) => ({ wch: w }));
+    sr.forEach((r, R) => r.forEach((v, C) => { if (isFormula(v)) ws2[XLSX.utils.encode_cell({ r: R + 1, c: C })] = formulaCell(v); }));   // 4종 이상 세트의 옵션1 원가 = 더하기 식
+    ws2["!cols"] = [40, 26, 14, 7, 14, 10, 28, 6, 6, 30, 6, 36, 8, 8, 12, 8, 8, 8, 8].map((w) => ({ wch: w }));
     XLSX.utils.book_append_sheet(wb, ws2, "시트 붙여넣기");
   }
   const ws = XLSX.utils.aoa_to_sheet([EXCEL_HEADER, ...rows]);
   ws["!cols"] = [{ wch: 8.1 }, { wch: 41.1 }, { wch: 22 }, { wch: 18 }, { wch: 6 }, { wch: 12 }, { wch: 10 }, { wch: 30 },
-    { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 40 }, { wch: 9 }];
+    { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 28 }, { wch: 40 }, { wch: 9 }];
   XLSX.utils.book_append_sheet(wb, ws, "상품정보");
   return wb;
 }
@@ -6483,10 +6530,10 @@ function qboxRender() {
   try { rows = sheetRowsFrom(f, prod); } catch (_) { rows = []; }
   if (!rows.length) { box.style.display = "none"; return; }
   box.style.display = "block";
-  const cols = [[1, "구성"], [2, "색상"], [3, "수량"], [11, "1688 옵션명"], [13, "구매수량"], [14, "옵션1 원가"], [15, "옵션2 원가"], [16, "옵션3 원가"], [17, "배송비"]];
+  const cols = [[1, "구성"], [2, "색상"], [3, "수량"], [11, "1688 옵션명"], [13, "구매수량"], [14, "옵션1 원가"], [15, "옵션2 원가"], [16, "옵션3 원가"], [17, "배송비"], [6, "주문참고"]];
   box.innerHTML = `<div class="t">엑셀 [시트 붙여넣기] 에 들어갈 줄 — ${rows.length}줄</div><table>`
     + `<tr>${cols.map(([, n]) => `<th>${n}</th>`).join("")}</tr>`
-    + rows.map((r) => `<tr>${cols.map(([i]) => `<td class="${i === 11 ? "cn" : (i >= 3 ? "num" : "")}">${escH(String(r[i] == null ? "" : r[i]))}</td>`).join("")}</tr>`).join("")
+    + rows.map((r) => `<tr>${cols.map(([i]) => `<td class="${i === 11 ? "cn" : (i === 6 ? "memo" : (i >= 3 ? "num" : ""))}">${escH(String(r[i] == null ? "" : r[i]))}</td>`).join("")}</tr>`).join("")
     + `</table>`;
 }
 ["ca-yuan", "ca-ship", "ca-color"].forEach((id) => $("#" + id).addEventListener("input", () => { const st = cnState(); if (!st) return; st.sel = null; st.selBy = null; caCalc(); }));
@@ -6977,9 +7024,10 @@ function cnGridResult(skipCalc) {
   if (!skipCalc) cnGridSave();   // 입력한 원가·입수를 계산에 바로 반영
   const rows = cnRowMap();
   const tree = caOptTree();
-  let msg = "", packed = false, buyAll = 0;
+  let msg = "", packed = false, buyAll = 0, shortRows = 0;
+  const packNotes = [];
   tree.forEach((o, oi) => {
-    const names = [], buys = [];
+    const names = [], buys = [], pparts = [];
     let cost = 0, cnts = 0;
     o.parts.forEach((pt) => {
       const tr = rows[pt.key];
@@ -6987,8 +7035,12 @@ function cnGridResult(skipCalc) {
       const lvs = [...tr.querySelectorAll(".lv")];
       const vals = lvs.map((i) => i.value.trim()).filter(Boolean);
       const ph = lvs[0] ? lvs[0].placeholder : "";
-      tr.querySelector("td.res").innerHTML = vals.length ? escH(vals.join(">"))
-        : (ph ? `<span class="ai">${escH(ph)} (AI)</span>` : `<span class="warn">(?)</span>`);
+      const shown = vals.length ? vals.join(">") : ph;
+      const miss = levelShort(current, shown);
+      if (miss) shortRows++;
+      tr.querySelector("td.res").innerHTML = (vals.length ? escH(vals.join(">"))
+        : (ph ? `<span class="ai">${escH(ph)} (AI)</span>` : `<span class="warn">(?)</span>`))
+        + (miss ? ` <span class="warn" title="1688 옵션은 ${escH(skuLevelsOf(current).join(" · "))} 단계인데 이 이름은 ${escH(miss.join("·"))} 단계가 비어 있습니다 — 위 파란 목록에서 고르면 채워집니다">(단계 부족)</span>` : "");
       const ctIn = tr.querySelector("input.ct");
       if (pt.mixCnt && ctIn && document.activeElement !== ctIn && String(pt.n) !== ctIn.value) ctIn.value = pt.n;   // 구성 조정 값과 맞춤
       const r = cnRow(pt, rows);
@@ -7012,6 +7064,7 @@ function cnGridResult(skipCalc) {
       buyAll += r.units;
       buys.push(r.units);
       names.push(vals.length ? vals.join(">") : (ph || pt.name));
+      pparts.push({ name: pt.name, cn: vals.length ? vals.join(">") : ph, cnt: r.cnt, units: r.units, pack: r.pack });
     });
     const hd = $(`#cn-table tr.optHead[data-oh="${oi}"]`);
     if (hd) hd.querySelector("td").innerHTML = `<span class="onum">옵션 ${oi + 1}</span>${escH(o.name)} — 옵션 1개 · 구성품 ${o.parts.length}가지${o.mix ? " (한 세트로 묶음)" : ""}`;
@@ -7023,12 +7076,20 @@ function cnGridResult(skipCalc) {
       tot.querySelector(".tbuy").textContent = buySum + "묶음";
       tot.querySelector(".tname").textContent = names.join("+");
       msg = `옵션 ${oi + 1}(${o.name}) = 구성품 ${o.parts.length}가지를 묶은 옵션 1개 · 1688에서는 ${buySum}묶음 주문`;
+      const sameU = buys.every((b) => b === buys[0]);
+      const pm = packMemo(pparts, o.parts.length >= 4 && !sameU ? 1 : (sameU ? buys[0] : 1));   // 엑셀 줄과 같은 구매수량 기준
+      if (pm) packNotes.push(`옵션 ${oi + 1}: ${pm} → 엑셀 주문참고에 이 메모가 들어갑니다`);
+      if (o.parts.length >= 4) packNotes.push(`옵션 ${oi + 1}: 구성품 4종 이상 — 엑셀 옵션1 원가에 더하기 식(=a+b+c+d)으로, 구매수량은 ${sameU ? "세트 수" : "1"}`);
     }
   });
   const sm = $("#cn-sum");
   if (sm) {
     const note = msg || (packed && buyAll ? `1688에서는 모두 ${buyAll}묶음만 주문하면 됩니다 (구성 수량 ÷ 입수, 올림)` : "");
-    sm.innerHTML = (cnState() && cnState().cnCarried ? `<span style="color:#0a63cc">옵션 이름이 바뀌어 이전 1688 옵션명을 순서대로 가져왔습니다 — 다르면 그 칸을 비우세요</span>${note ? "<br>" : ""}` : "") + escH(note);
+    const lv = skuLevelsOf(current);
+    const shortNote = shortRows ? `<span class="lvshort">1688 옵션이 ${lv.length}단계(${escH(lv.join(" · "))})인데 ${shortRows}줄은 단계가 모자랍니다 — 위 파란 목록에서 끝 단계까지 고르면 엑셀 이름·원가가 그 옵션으로 채워집니다. 그대로 적용하면 쿠플러스에서 매칭필요가 되고, 엑셀 주문참고에 메모가 남습니다.</span>` : "";
+    sm.innerHTML = (cnState() && cnState().cnCarried ? `<span style="color:#0a63cc">옵션 이름이 바뀌어 이전 1688 옵션명을 순서대로 가져왔습니다 — 다르면 그 칸을 비우세요</span>${note ? "<br>" : ""}` : "") + escH(note)
+      + (shortNote ? (note ? "<br>" : "") + shortNote : "")
+      + packNotes.map((x) => `<br><span class="packnote">${escH(x)}</span>`).join("");
   }
   if (!skipCalc && cnState()) caCalc();
 }
