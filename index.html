@@ -143,6 +143,7 @@
   #cn-table td.res .ai { color:#9a8a76; font-weight:400; }
   #cn-table td.res .warn { color:#e14b4a; }
   #cn-sum .lvshort { color:#e14b4a; font-weight:700; }
+  #cn-table input.lv.dup { border-color:#e14b4a; background:#fff5f5; }
   #cn-sum .packnote { color:#8a5a00; background:#fff3c4; border-radius:5px; padding:1px 6px; display:inline-block; margin-top:3px; }
   #cn-paste textarea { width:100%; height:84px; margin-top:8px; border:1.5px solid #e6d3bd; border-radius:8px; padding:7px 8px; font-size:13.5px; font-family:'Microsoft YaHei','Malgun Gothic',sans-serif; }
   .cn-desc { font-size:12px; color:#555; margin:5px 2px 0; line-height:1.6; }
@@ -770,7 +771,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (V1.55) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
+    <h1>이미지 생성기 (V1.56) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -1475,8 +1476,9 @@
     </div>
     <p class="cn-desc">입수 = 1688 1개(묶음)에 들어 있는 개수 (6개입이면 6 · 낱개면 1). 1688 구매 수량 = 올림(구성 수량 ÷ 입수)이고, 세트 원가도 묶음 단위로 계산합니다.<br>
       상품 옵션에서 <b>＋</b>로 이으면 그 자체가 <b>옵션 1개</b>(구성품 묶음), <b>/</b>로 나누면 <b>서로 다른 옵션</b>입니다. (예: 5cm+8cm+13cm = 1옵션 · 화이트/크라프트 = 2옵션)<br>
-      1688옵션명: 한 옵션 안의 단계는 &gt;로, 옵션끼리는 지금처럼 /로 이어집니다. <span style="color:#999">· 칸에 붙여넣고 Enter = 아래 줄 같은 칸에 같은 이름</span><br>
+      1688옵션명: 한 옵션 안의 단계는 &gt;로, 옵션끼리는 지금처럼 /로 이어집니다. <span style="color:#999">· Enter = 아래 칸으로 이동 (2~3단계 표의 윗 단계 칸은 아래 칸이 비어 있으면 같은 이름을 채움)</span><br>
       <b style="color:#0a63cc">엑셀에 들어갈 이름은 내가 쓰는 칸이 아니라 자동으로 채워지는 칸입니다.</b> 파란 창에서 고른 옵션 &gt; AI가 찾은 이름(회색 (AI)) 순서로 들어가고, 직접 쓴 이름이 있으면 그 이름이 먼저입니다. 빨간 <b>(?)</b> 일 때만 1688에서 복사해 넣어 주세요.<br>
+      빨간 <b>(같은 이름)</b>은 서로 다른 줄의 1688 옵션명이 똑같다는 뜻입니다 — 이대로면 1688 에서 한 가지 옵션만 주문되니 줄마다 맞는 이름인지 확인해 주세요.<br>
       빨간 <b>(단계 부족)</b>은 1688 옵션이 2단계 이상(예: 颜色 → 规格)인데 이름에 끝 단계가 없다는 뜻입니다 — 그대로 두면 쿠플러스에서 <b>매칭필요</b>가 되니 파란 목록에서 끝 단계까지 골라 주세요(원가도 그 옵션 값으로 들어갑니다).<br>
       아래에서 수량을 바꾸면(계산표 줄 선택 · 세트 옵션의 개수 칸 · 구성 조정) 맨 위 <b>구성</b> 칸도 함께 바뀝니다.
       <b>입수를 넣으면 [1688 구매 수량] 칸(주황)에 묶음 수를 적습니다</b> — 개수는 묶음 × 입수로 자동 (6개입 2묶음 = 12개). 개수 칸에 입수보다 작은 수를 적으면 묶음 수로 보고, 배수가 아니면 올려서 맞춥니다 (묶음은 통째로 판매).</p>
@@ -4256,6 +4258,20 @@ function levelMemo(p, parts) {
   (parts || []).forEach((pt) => { const m = levelShort(p, pt.cn); if (m) m.forEach((x) => { if (miss.indexOf(x) < 0) miss.push(x); }); });
   return miss.length ? `※ 1688 옵션 단계 부족 — ${miss.map((x) => x || "다음").join("·")} 단계가 비어 있음 → 판매가 계산 창 파란 목록에서 골라 채우기` : "";
 }
+/* 서로 다른 옵션(이름)이 같은 1688 옵션명을 쓰는 묶음 — 붙여넣기 실수로 화이트 이름이 블랙 줄에도 들어간 경우를 잡는다.
+   같은 이름의 구성품이 여러 옵션에 들어간 것(레드+블루 / 레드+그린)은 정상이라 세지 않는다 */
+function dupGroups(items) {
+  const m = {};
+  (items || []).forEach((it) => {
+    const cn = String(it.cn || "").trim();
+    if (!cn || !it.name || /\(\?\)$/.test(cn)) return;
+    const k = normOpt(cn);
+    if (!m[k]) m[k] = { cn, names: [] };
+    if (m[k].names.indexOf(it.name) < 0) m[k].names.push(it.name);
+  });
+  return Object.values(m).filter((g) => g.names.length > 1);
+}
+const dupHit = (groups, name, cn) => (groups || []).find((g) => g.names.indexOf(name) >= 0 && normOpt(g.cn) === normOpt(cn)) || null;
 /* 옵션1 원가의 더하기 식 — '=1.8+1.8+0.5*2' 문자열을 엑셀 수식 셀로. 값은 직접 계산(＋ 와 × 만) */
 const isFormula = (v) => typeof v === "string" && v.charAt(0) === "=";
 function formulaValue(fx) {
@@ -4269,6 +4285,7 @@ function sheetRowsFrom(f, p) {
   const r2 = (x) => Math.round(x * 100) / 100;
   const tree = soldTree(f, p);
   const multi = tree.length > 1;
+  const dups = is1688 ? dupGroups(tree.flatMap((o) => o.parts.map((pt) => ({ name: pt.name, cn: pt.cn })))) : [];
   return tree.map((o) => {
     const parts = o.parts, k = parts.length;
     const isSet = o.set && k > 1;
@@ -4296,6 +4313,7 @@ function sheetRowsFrom(f, p) {
     const [T, U, V] = [0, 1, 2].map((j) => (is1688 && cols[j] != null && cols[j] !== "" ? (isFormula(cols[j]) ? cols[j] : r2(cols[j])) : ""));
     const buy = is1688 ? S : "";
     if (is1688) memo.unshift(levelMemo(p, parts));
+    dups.forEach((g) => { if (parts.some((pt) => dupHit([g], pt.name, pt.cn))) memo.unshift(`※ 1688 옵션명 중복 — ${g.names.join("·")} 이 같은 옵션(${g.cn}) → 확인`); });
     return [clean(f.name), comp, color, qty, clean(f.size), clean(f.mat), memo.filter(Boolean).join(" / "), "", "",
             p.url1688 || "", "", is1688 ? parts.map((pt) => pt.cn).filter(Boolean).join(" + ") : "", "",
             buy, T, U, V, is1688 ? (p.shipYuan || 0) : "", buy];   // 배송비는 옵션 줄마다 같은 값
@@ -7025,7 +7043,7 @@ function cnGridResult(skipCalc) {
   const rows = cnRowMap();
   const tree = caOptTree();
   let msg = "", packed = false, buyAll = 0, shortRows = 0;
-  const packNotes = [];
+  const packNotes = [], allRows = [];
   tree.forEach((o, oi) => {
     const names = [], buys = [], pparts = [];
     let cost = 0, cnts = 0;
@@ -7038,6 +7056,7 @@ function cnGridResult(skipCalc) {
       const shown = vals.length ? vals.join(">") : ph;
       const miss = levelShort(current, shown);
       if (miss) shortRows++;
+      allRows.push({ tr, name: pt.name, shown });
       tr.querySelector("td.res").innerHTML = (vals.length ? escH(vals.join(">"))
         : (ph ? `<span class="ai">${escH(ph)} (AI)</span>` : `<span class="warn">(?)</span>`))
         + (miss ? ` <span class="warn" title="1688 옵션은 ${escH(skuLevelsOf(current).join(" · "))} 단계인데 이 이름은 ${escH(miss.join("·"))} 단계가 비어 있습니다 — 위 파란 목록에서 고르면 채워집니다">(단계 부족)</span>` : "");
@@ -7082,12 +7101,21 @@ function cnGridResult(skipCalc) {
       if (o.parts.length >= 4) packNotes.push(`옵션 ${oi + 1}: 구성품 4종 이상 — 엑셀 옵션1 원가에 더하기 식(=a+b+c+d)으로, 구매수량은 ${sameU ? "세트 수" : "1"}`);
     }
   });
+  // 서로 다른 줄의 1688 옵션명이 똑같으면 빨간 (같은 이름)
+  const dupG = dupGroups(allRows.map((r) => ({ name: r.name, cn: r.shown })));
+  allRows.forEach((r) => {
+    const g = dupHit(dupG, r.name, r.shown);
+    r.tr.querySelectorAll("input.lv").forEach((i) => i.classList.toggle("dup", !!g));
+    if (g) r.tr.querySelector("td.res").insertAdjacentHTML("beforeend",
+      ` <span class="warn" title="${escH(g.names.join(" · "))} 줄의 1688 옵션명이 같습니다 — 이대로면 1688 에서 같은 옵션만 주문됩니다">(같은 이름)</span>`);
+  });
+  const dupNote = dupG.map((g) => `<span class="lvshort">${escH(g.names.join(" · "))} ${g.names.length}줄의 1688 옵션명이 같습니다 (${escH(g.cn)}) — 이대로면 1688 에서 같은 옵션만 주문됩니다. 이름을 확인해 주세요. 그대로 적용하면 엑셀 주문참고에 메모가 남습니다.</span><br>`).join("");
   const sm = $("#cn-sum");
   if (sm) {
     const note = msg || (packed && buyAll ? `1688에서는 모두 ${buyAll}묶음만 주문하면 됩니다 (구성 수량 ÷ 입수, 올림)` : "");
     const lv = skuLevelsOf(current);
     const shortNote = shortRows ? `<span class="lvshort">1688 옵션이 ${lv.length}단계(${escH(lv.join(" · "))})인데 ${shortRows}줄은 단계가 모자랍니다 — 위 파란 목록에서 끝 단계까지 고르면 엑셀 이름·원가가 그 옵션으로 채워집니다. 그대로 적용하면 쿠플러스에서 매칭필요가 되고, 엑셀 주문참고에 메모가 남습니다.</span>` : "";
-    sm.innerHTML = (cnState() && cnState().cnCarried ? `<span style="color:#0a63cc">옵션 이름이 바뀌어 이전 1688 옵션명을 순서대로 가져왔습니다 — 다르면 그 칸을 비우세요</span>${note ? "<br>" : ""}` : "") + escH(note)
+    sm.innerHTML = dupNote + (cnState() && cnState().cnCarried ? `<span style="color:#0a63cc">옵션 이름이 바뀌어 이전 1688 옵션명을 순서대로 가져왔습니다 — 다르면 그 칸을 비우세요</span>${note ? "<br>" : ""}` : "") + escH(note)
       + (shortNote ? (note ? "<br>" : "") + shortNote : "")
       + packNotes.map((x) => `<br><span class="packnote">${escH(x)}</span>`).join("");
   }
@@ -7250,7 +7278,12 @@ $("#cn-table").addEventListener("keydown", (e) => {
   while (next && !next.dataset.key) next = next.nextElementSibling;
   if (!next) return;
   const t = next.querySelector(`input[data-j="${inp.dataset.j}"]`);
-  if (t) { t.value = inp.value; t.focus(); t.select(); cnGridResult(); }
+  if (!t) return;
+  // 끝 단계까지 복사하면 두 줄이 같은 1688 옵션이 된다 (화이트 이름이 블랙 줄에도 들어가던 문제)
+  // → 2~3단계 표의 윗 단계 칸만, 아래 칸이 비어 있을 때만 같은 이름을 채운다. 그 밖에는 아래 칸으로 이동만.
+  const st = cnState(), L = (st && st.cnLevels) || 1, j = +inp.dataset.j;
+  if (L > 1 && j < L - 1 && !t.value.trim() && inp.value.trim()) { t.value = inp.value; cnGridResult(); }
+  t.focus(); t.select();
 });
 $("#cn-lv-add").addEventListener("click", () => { const st = cnState(); if (st && st.cnLevels < 3) { st.cnLevels++; cnGridRender(); } });
 $("#cn-lv-del").addEventListener("click", () => { const st = cnState(); if (st && st.cnLevels > 1) { cnGridSave(); st.cnLevels--; Object.values(st.cn).forEach((v) => { const arr = Array.isArray(v) ? v : (v && v.cn); if (Array.isArray(arr)) arr.splice(st.cnLevels); }); cnGridRender(); } });
