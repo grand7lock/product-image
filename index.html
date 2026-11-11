@@ -752,6 +752,30 @@
   /* F·I. 편집 모달 */
   .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:200; align-items:center; justify-content:center; }
   .modal.open { display:flex; }
+  /* 새 버전 알림 띠 — 창(.modal) 아래에 깔려, 판매가 계산 같은 창이 열려 있는 동안에는 가려진다 */
+  #verbar { position:fixed; left:0; right:0; top:0; height:46px; z-index:150; display:none; align-items:center; gap:12px; padding:0 18px;
+    background:#1f2a44; color:#fff; font-size:14px; box-shadow:0 2px 10px rgba(0,0,0,.25); white-space:nowrap; }
+  #verbar.show { display:flex; }
+  #verbar > * { flex-shrink:0; }
+  #verbar b.n { color:#ffd58a; }
+  #verbar .dim { color:#c9d2e6; font-size:12.5px; }
+  #verbar .note { color:#c9d2e6; font-size:12.5px; border-left:1px solid #46557d; padding-left:12px; flex-shrink:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+  #verbar .sp { flex:1 1 0; min-width:0; }
+  #verbar button { font-family:inherit; font-size:13px; font-weight:800; border-radius:7px; padding:7px 14px; cursor:pointer; border:0; }
+  #verbar .go { background:#ffb020; color:#1f2a44; }
+  #verbar .later { background:transparent; color:#c9d2e6; border:1px solid #46557d; }
+  #verbar.ok { background:#1f7a3a; }
+  #verbar.ok b.n, #verbar.ok .dim { color:#d7ffd9; }
+  #verbar.ok .later { color:#d7ffd9; border-color:#5fb878; }
+  #verbar.warn { background:#8a5a00; }
+  #verbar.warn .dim { color:#ffe9bd; }
+  #verbar.warn .later { color:#ffe9bd; border-color:#c79a3d; }
+  @media (max-width:1280px) { #verbar .tail { display:none; } }
+  body.hasbar #app { height:calc(100vh - 46px); margin-top:46px; }
+  #ver-now.old { color:#e14b4a; }
+  .verchip { display:block; clear:both; width:max-content; background:#e14b4a; color:#fff; font-size:11.5px; font-weight:800; line-height:1.5; border-radius:6px; padding:2px 8px; margin:6px 0 2px; cursor:pointer; }
+  .verchip[hidden] { display:none; }
+  #verpop { z-index:10050; }
   /* 자동 저장 복구 안내: 브라우저 기본 확인창이 뜨던 자리보다 한 칸 아래 */
   #restmodal { align-items:flex-start; }
   #restmodal .mbox { margin-top:110px; }
@@ -771,7 +795,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (V1.56) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a></h1>
+    <h1>이미지 생성기 (<span id="ver-now">V1.56</span>) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a><span id="ver-chip" class="verchip" hidden></span></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -1516,6 +1540,18 @@
       <button class="btn blue" id="rs-restore">복구하기</button>
       <button class="btn" id="rs-later">나중에</button>
       <button class="btn" id="rs-drop">지우기</button>
+    </div>
+  </div>
+</div>
+<div id="verbar"></div>
+<div id="verpop" class="modal">
+  <div class="mbox" style="width:520px; max-width:94vw; text-align:left;">
+    <div class="mtitle">새 버전으로 바꾼 뒤 저장합니다</div>
+    <p class="msub" id="vp-msg" style="line-height:1.7"></p>
+    <p class="hint" id="vp-hint" style="margin-top:6px; line-height:1.6;"></p>
+    <div style="margin-top:14px;">
+      <button class="btn blue" id="vp-go">새로고침하고 저장</button>
+      <button class="btn" id="vp-cancel">취소</button>
     </div>
   </div>
 </div>
@@ -2637,6 +2673,7 @@ function markSaved() {
 }
 
 window.addEventListener("beforeunload", (e) => {
+  if (verReloading) return;   // 새 버전 새로고침 — 자동 임시저장을 마쳤고 다시 열리면 그대로 복구한다
   snapshotCurrent();
   if (workspaces.some((w) => w && w.html && !w.saved)) { e.preventDefault(); e.returnValue = ""; }
 });
@@ -4088,6 +4125,7 @@ $("#btn-save-mains-jpg").addEventListener("click", () => saveMainImages("jpg"));
 /* 3종 한 번에 저장 — {상품번호} {상품명}.zip 안의 동명 폴더에 대표·상세·엑셀 */
 $("#btn-save-all").addEventListener("click", async () => {
   if (!current) { toast("먼저 상품을 불러와 주세요"); return; }
+  if (!(await verGate("zip"))) return;   // ZIP 안에 엑셀이 들어가므로 같이 막는다
   const btn = $("#btn-save-all");
   const orig = btn.textContent;
   btn.disabled = true;
@@ -4347,16 +4385,18 @@ function buildExcelWB(rows, idxs) {
   XLSX.utils.book_append_sheet(wb, ws, "상품정보");
   return wb;
 }
-$("#btn-save-excel").addEventListener("click", () => {
+$("#btn-save-excel").addEventListener("click", async () => {
   if (!current) { toast("먼저 엑셀을 업로드해 주세요"); return; }
+  if (!(await verGate("excel"))) return;   // 옛 버전 화면이면 저장하지 않고 새로고침을 안내
   const wb = buildExcelWB([excelRow(curIdx)], [curIdx]);
   const { no, name } = fileBase();
   XLSX.writeFile(wb, `${no}${name} EX.xlsx`);
   markSaved();
   toast("현재 상품의 상품정보 엑셀을 저장했습니다");
 });
-$("#btn-save-excel-all").addEventListener("click", () => {
+$("#btn-save-excel-all").addEventListener("click", async () => {
   if (!current) { toast("먼저 엑셀을 업로드해 주세요"); return; }
+  if (!(await verGate("excel-all"))) return;
   const wb = buildExcelWB(products.map((_, i) => excelRow(i)), products.map((_, i) => i));
   XLSX.writeFile(wb, "상품정보_전체.xlsx");
   markSaved();
@@ -7763,6 +7803,7 @@ setInterval(async () => {
 }, 180000);
 const AUTOSAVE_DAYS = 3;  // 자동 저장본 보관 기간 — 지나면 안내도 안 뜨고 저장본도 지움
 setTimeout(async () => {
+  if (verFlag) { if (await verAfterReload()) return; }   // 새 버전 새로고침 직후 — 묻지 않고 바로 복구
   if (products.length) return;  // 이미 작업 시작했으면 묻지 않음
   const v = await idbGet();
   const head = v && (v.ver === 2 ? v.meta : v);
@@ -7788,6 +7829,130 @@ setTimeout(async () => {
   $("#restmodal").classList.add("open");
 }, 1200);
 
+
+/* ---------- 새 버전 알림 ----------
+   배포하면 version.json 의 build(만든 시각)가 올라간다. 열어 둔 탭은 옛 코드 그대로라, 옛 규칙으로 엑셀이 나오는 일을 막는다.
+   확인 시점: 열 때 · 10분마다 · 다른 탭에서 돌아올 때 · 엑셀/ZIP 저장 직전. 확인을 못 하면(인터넷 끊김·파일로 연 화면) 조용히 넘어간다. */
+const APP_VER = "V1.56", APP_BUILD = "202611111332";
+const VER_KEY = "ver_reload";
+const VER_KIND = { excel: ["상품정보 엑셀", "#btn-save-excel"], "excel-all": ["전체 엑셀", "#btn-save-excel-all"], zip: ["3종 한 번에 저장 (ZIP)", "#btn-save-all"] };
+let verNew = null, verLater = "", verStuck = false, verReloading = false, verLastCheck = 0, verBarTimer = 0;
+let verFlag = null;   // 새 버전 새로고침 직후에만 값이 있다
+try { verFlag = JSON.parse(sessionStorage.getItem(VER_KEY) || "null"); sessionStorage.removeItem(VER_KEY); } catch (_) { verFlag = null; }
+if (verFlag && Date.now() - (verFlag.t || 0) > 120000) verFlag = null;
+const verLabel = (v) => (v.ver && v.ver !== APP_VER) ? v.ver : `${APP_VER} 수정본${v.time ? " (" + v.time + ")" : ""}`;
+function verBar(html, cls) {
+  const b = $("#verbar");
+  clearTimeout(verBarTimer);
+  b.innerHTML = html || "";
+  b.className = html ? ("show" + (cls ? " " + cls : "")) : "";
+  document.body.classList.toggle("hasbar", !!html);
+}
+async function verCheck(force) {
+  if (!/^https?:$/.test(location.protocol) || !/^[0-9]+$/.test(APP_BUILD)) return verNew;
+  if (!force && Date.now() - verLastCheck < 60000) return verNew;
+  verLastCheck = Date.now();
+  try {
+    const ac = new AbortController();
+    const tm = setTimeout(() => ac.abort(), 4000);
+    const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store", signal: ac.signal });
+    clearTimeout(tm);
+    if (!r.ok) return verNew;
+    const j = await r.json();
+    const b = j && /^[0-9]+$/.test(String(j.build || "")) ? String(j.build) : "";
+    if (b && Number(b) > Number(APP_BUILD) && (!verNew || Number(b) > Number(verNew.build))) {
+      verNew = { ver: String(j.ver || ""), build: b, time: String(j.time || ""), note: String(j.note || "") };
+      verShow();
+    }
+  } catch (_) { /* 확인 못 함 — 조용히 넘어감 */ }
+  return verNew;
+}
+function verShow() {
+  const v = verNew;
+  if (!v) return;
+  $("#ver-now").classList.add("old");
+  const chip = $("#ver-chip");
+  chip.textContent = "새 버전" + (v.ver && v.ver !== APP_VER ? " " + v.ver : "");
+  chip.title = "눌러서 새 버전 안내 열기";
+  chip.hidden = false;
+  if (verLater === v.build) return;   // [나중에]를 누른 버전 — 칩만 남긴다 (엑셀 저장 때는 다시 안내)
+  verBar(`<span>🔔 <b class="n">새 버전 ${escH(verLabel(v))}</b> 이 나왔습니다</span><span class="dim">지금 화면은 ${APP_VER}</span>`
+    + (v.note ? `<span class="note" title="${escH(v.note)}">바뀐 것: ${escH(v.note)}</span>` : "")
+    + `<span class="sp"></span><span class="dim tail">하던 작업은 자동 저장 후 그대로 이어집니다</span>`
+    + `<button class="go" id="vb-go">지금 새로고침</button><button class="later" id="vb-later">나중에</button>`);
+  $("#vb-go").onclick = () => verReload("");
+  $("#vb-later").onclick = () => { verLater = v.build; verBar(""); };
+}
+/* 자동 임시저장 → 새 버전으로 다시 열기. 다시 열리면 verAfterReload 가 묻지 않고 복구하고, pending(누른 저장)을 이어서 한다 */
+async function verReload(pending) {
+  if (verReloading) return;
+  if (biRunning) { toast("1688 가져오기가 끝난 뒤 눌러 주세요"); return; }
+  verReloading = true;
+  const has = products.length > 0;
+  try { if (has) await autoSaveNow(); }
+  catch (e) {
+    verReloading = false;
+    console.warn("새로고침 전 자동 저장 실패:", e);
+    logError("저장 실패", `새 버전 새로고침 전 자동 임시저장 · 상품 ${products.length}개 · ${(e && (e.name + ": " + e.message)) || e}`);
+    verBar(`<span>⚠ 자동 임시저장에 실패해 <b class="n">새로고침하지 않았습니다</b></span><span class="dim">STEP 5 [작업물 저장]으로 파일을 저장한 뒤 F5 를 누르고, [작업물 수정하기]로 다시 열어 주세요</span><span class="sp"></span><button class="later" id="vb-x">닫기</button>`, "warn");
+    $("#vb-x").onclick = () => verBar("");
+    return;
+  }
+  try {
+    sessionStorage.setItem(VER_KEY, JSON.stringify({ from: APP_VER, fromBuild: APP_BUILD, build: verNew ? verNew.build : "", restore: has, pending: pending || "", t: Date.now() }));
+  } catch (_) { /* 못 적어도 새로고침은 한다 — 다시 열리면 [이전 작업 복구] 안내가 뜬다 */ }
+  const u = new URL(location.href);
+  u.searchParams.set("v", verNew ? verNew.build : String(Date.now()));   // 주소를 바꿔 옛 화면이 다시 나오지 않게
+  location.replace(u.toString());
+}
+/* 새로고침 직후 — true 를 돌려주면 [이전 작업 복구] 안내를 건너뛴다 */
+async function verAfterReload() {
+  const f = verFlag;
+  verFlag = null;
+  const upgraded = Number(APP_BUILD) > Number(f.fromBuild || 0);
+  let restored = false;
+  if (f.restore && !products.length) {
+    try {
+      const v = await idbGet();
+      const st = v && (v.ver === 2 ? unpackImages(v.meta, v.images || []) : v);
+      restored = !!(st && Array.isArray(st.products) && st.products.length && restoreStateObj(st));
+    } catch (e) { console.error(e); }
+  }
+  const kind = VER_KIND[f.pending];
+  const work = !f.restore ? "" : restored ? `하던 작업을 그대로 복구했습니다 — 상품 ${products.length}개` : "하던 작업을 복구하지 못했습니다 — [작업물 수정하기]로 저장해 둔 파일을 열어 주세요";
+  const next = restored && kind ? ` · 누르신 저장(${kind[0]})을 이어서 합니다` : "";
+  if (upgraded) {
+    verBar(`<span>✅ <b class="n">${APP_VER}</b> ${f.from && f.from !== APP_VER ? "로 바뀌었습니다" : "새 수정본으로 바뀌었습니다"}</span><span class="dim">${work}${next}</span><span class="sp"></span><button class="later" id="vb-x">닫기</button>`, "ok");
+    if (restored || !f.restore) verBarTimer = setTimeout(() => verBar(""), kind ? 9000 : 5000);
+  } else {   // 새 버전을 받지 못함 — 저장을 계속 막으면 일을 못 하므로 이 화면에서는 풀어 준다
+    verStuck = true;
+    verBar(`<span>⚠ <b class="n">새 버전을 아직 받지 못했습니다</b></span><span class="dim">Ctrl+Shift+R 로 다시 열어 주세요 · 이 화면에서는 저장이 그대로 됩니다${work ? " · " + work : ""}</span><span class="sp"></span><button class="later" id="vb-x">닫기</button>`, "warn");
+  }
+  $("#vb-x").onclick = () => verBar("");
+  if (restored && kind) {
+    try { await document.fonts.ready; } catch (_) {}
+    setTimeout(() => { const b = $(kind[1]); if (b && !b.disabled) b.click(); }, 1500);
+  }
+  return !!f.restore;
+}
+/* 엑셀·ZIP 저장 직전 — 옛 버전 화면이면 저장하지 않고 [새로고침하고 저장] / [취소] 만 준다 */
+async function verGate(kind) {
+  if (verStuck) return true;
+  await verCheck(true);
+  if (!verNew) return true;
+  const v = verNew;
+  $("#vp-msg").innerHTML = `지금 화면은 <b style="color:#e14b4a">${APP_VER}</b> 이고 새 버전 <b>${escH(verLabel(v))}</b> 이 나와 있습니다.<br>`
+    + `옛 화면에서 만든 엑셀은 <b>옛 규칙(구매수량·원가·주문참고)</b>으로 나오기 때문에, 옛 버전 화면에서는 엑셀을 저장하지 않습니다.`;
+  $("#vp-hint").textContent = `[새로고침하고 저장]을 누르면 하던 작업을 자동 저장 → 새 버전으로 다시 열고 → 작업을 복구한 뒤 → 누르신 저장(${VER_KIND[kind][0]})을 이어서 합니다. 이미지 저장·작업물 저장은 지금 화면에서도 됩니다.`;
+  $("#vp-go").onclick = () => { $("#verpop").classList.remove("open"); verReload(kind); };
+  $("#vp-cancel").onclick = () => $("#verpop").classList.remove("open");
+  $("#verpop").classList.add("open");
+  return false;
+}
+$("#ver-chip").addEventListener("click", () => { verLater = ""; verShow(); });
+setTimeout(() => verCheck(true), 4000);
+setInterval(() => verCheck(true), 600000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) verCheck(false); });
 
 /* ---------- 새 기능 말풍선 — 이 브라우저에서 접속 2번까지, 기능마다 따로 ([알겠어요] = 끝) ---------- */
 const TIPS = [
