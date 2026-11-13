@@ -789,13 +789,15 @@
   .szchip.arr { background:#f08c1e; }
   #ed-box { position:absolute; border:1.5px dashed #0a7cff; cursor:move; touch-action:none; }
   .exp-hide { display:none !important; }
+  #f-med:empty::before { content:"(비워 둔 줄 — 저장 이미지에는 들어가지 않습니다. 문구를 쓰면 다시 나옵니다)"; color:#c4c4c4; font-weight:400; }
+  body.exporting .med-row.med-empty { display:none !important; }
   .ed-h { position:absolute; width:14px; height:14px; background:#0a7cff; border:2px solid #fff; border-radius:3px; box-shadow:0 1px 4px rgba(0,0,0,.3); touch-action:none; }
 </style>
 </head>
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (<span id="ver-now">V1.56</span>) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a><span id="ver-chip" class="verchip" hidden></span></h1>
+    <h1>이미지 생성기 (<span id="ver-now">V1.57</span>) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a><span id="ver-chip" class="verchip" hidden></span></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -1157,6 +1159,7 @@
           <div class="spec-row"><div class="k">소재</div><div class="v" id="f-mat" contenteditable="true">기재예정</div></div>
           <div class="spec-row"><div class="k">제조국</div><div class="v" contenteditable="true">중국</div></div>
           <div class="spec-row"><div class="k">사용 연령</div><div class="v" id="f-age" contenteditable="true">14세 이상</div></div>
+          <div class="spec-row med-row"><div class="k" style="min-width:0"></div><div class="v" id="f-med" contenteditable="true">본 상품은 의료기기가 아닙니다.</div></div>
         </div>
         <div id="row-kc" style="display:none; margin:44px 48px 0; text-align:left;">
           <div style="display:flex; align-items:center; justify-content:flex-end; gap:26px; border-top:2px solid #e8e8e8; padding-top:34px;">
@@ -1925,6 +1928,7 @@ const TOY_TEMPLATE = `
     <tr><td class="k">MATERIAL</td><td id="f-mat" contenteditable="true">기재예정</td></tr>
     <tr><td class="k">ORIGIN</td><td contenteditable="true">중국</td></tr>
     <tr><td class="k">AGE</td><td id="f-age" contenteditable="true">14세 이상</td></tr>
+    <tr class="med-row"><td colspan="2" id="f-med" contenteditable="true">본 상품은 의료기기가 아닙니다.</td></tr>
   </table>
   <div id="row-kc" style="display:none; margin:36px 0 0;">
     <div style="display:flex; align-items:center; justify-content:flex-end; gap:26px;">
@@ -1983,6 +1987,7 @@ const ROCKET_TEMPLATE = `
     <div class="rrow"><div class="rk">수량</div><div class="rv" id="f-qty" contenteditable="true"></div></div>
     <div class="rrow"><div class="rk">재질</div><div class="rv" id="f-mat" contenteditable="true"></div></div>
     <div class="rrow"><div class="rk">제조국</div><div class="rv" contenteditable="true">중국 (Made in China)</div></div>
+    <div class="rrow med-row"><div class="rv" id="f-med" contenteditable="true" style="color:#888; flex:1;">본 상품은 의료기기가 아닙니다.</div></div>
   </div>
 </section>`;
 
@@ -3439,8 +3444,25 @@ window.restoreSlot = (ev, btn) => {
   toast("제거한 이미지를 복구했습니다");
 };
 
+/* 「본 상품은 의료기기가 아닙니다.」 — 이 줄이 없던 때 만든 상품·작업 파일(.ktw)을 열면 넣어 준다.
+   줄이 이미 있으면(비워 둔 것 포함) 건드리지 않는다. */
+const MED_TEXT = "본 상품은 의료기기가 아닙니다.";
+function ensureMedNote() {
+  const pg = $("#page");
+  if (!pg || pg.querySelector("#f-med")) return;
+  const age = pg.querySelector("#f-age");
+  if (pg.querySelector(".sec-rkt-title")) {
+    const box = pg.querySelector(".rkt-box");
+    if (box) box.insertAdjacentHTML("beforeend", `<div class="rrow med-row"><div class="rv" id="f-med" contenteditable="true" style="color:#888; flex:1;">${MED_TEXT}</div></div>`);
+  } else if (age && age.closest("tr")) {
+    age.closest("tr").insertAdjacentHTML("afterend", `<tr class="med-row"><td colspan="2" id="f-med" contenteditable="true">${MED_TEXT}</td></tr>`);
+  } else if (age && age.closest(".spec-row")) {
+    age.closest(".spec-row").insertAdjacentHTML("afterend", `<div class="spec-row med-row"><div class="k" style="min-width:0"></div><div class="v" id="f-med" contenteditable="true">${MED_TEXT}</div></div>`);
+  }
+}
 function bindPageSlots() {
   ensureUseAdd();
+  ensureMedNote();
   $$("#page .slot").forEach((slot) => {
     slot.addEventListener("click", () => { pendingSlot = slot; $("#file-slot").click(); });
     bindSlotDnD(slot);
@@ -3947,6 +3969,7 @@ async function buildCanvas() {
     return slots.length > 0 && slots.every((s) => s.classList.contains("empty"));
   });
   emptySecs.forEach((s) => s.classList.add("exp-hide"));
+  $$("#page .med-row").forEach((r) => r.classList.toggle("med-empty", !r.textContent.trim()));
   // WYSIWYG 보정: html2canvas가 object-fit:cover(칸 맞춤 자르기)를 무시하므로,
   // 미리보기와 동일한 중앙 크롭을 캡처 직전에 이미지에 직접 구워 넣고 캡처 후 복원
   const pageImgs = $$("#page .slot.filled img");
@@ -7833,7 +7856,7 @@ setTimeout(async () => {
 /* ---------- 새 버전 알림 ----------
    배포하면 version.json 의 build(만든 시각)가 올라간다. 열어 둔 탭은 옛 코드 그대로라, 옛 규칙으로 엑셀이 나오는 일을 막는다.
    확인 시점: 열 때 · 10분마다 · 다른 탭에서 돌아올 때 · 엑셀/ZIP 저장 직전. 확인을 못 하면(인터넷 끊김·파일로 연 화면) 조용히 넘어간다. */
-const APP_VER = "V1.56", APP_BUILD = "202611111332";
+const APP_VER = "V1.57", APP_BUILD = "202611131051";
 const VER_KEY = "ver_reload";
 const VER_KIND = { excel: ["상품정보 엑셀", "#btn-save-excel"], "excel-all": ["전체 엑셀", "#btn-save-excel-all"], zip: ["3종 한 번에 저장 (ZIP)", "#btn-save-all"] };
 let verNew = null, verLater = "", verStuck = false, verReloading = false, verLastCheck = 0, verBarTimer = 0;
