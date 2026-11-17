@@ -806,7 +806,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (<span id="ver-now">V1.58</span>) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a><span id="ver-chip" class="verchip" hidden></span></h1>
+    <h1>이미지 생성기 (<span id="ver-now">V1.59</span>) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a><span id="ver-chip" class="verchip" hidden></span></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -6948,11 +6948,17 @@ function skuApply() {
     ko = String(ko).replace(/[+\/]/g, "·").trim();   // + · / 는 옵션을 가르는 기호라 이름에 두지 않는다
     while (names.indexOf(ko) >= 0) ko += " ·";        // 같은 이름이 겹치면 구분
     names.push(ko);
-    const info = cnInfo(st.cn[ko]);
+    const lf = (st.cnLeft || []).findIndex((it) => it.key === ko);   // 체크를 풀었다 다시 켠 옵션 — 적어 둔 입수·개수는 그대로
+    const info = cnInfo(st.cn[ko] || (lf >= 0 ? st.cnLeft.splice(lf, 1)[0].val : null));
+    if (st.cnHist) delete st.cnHist[ko];
     const pr = skuPrice(x, fb);
     st.cn[ko] = { cn: (x.attrs || []).slice(0, 3), price: pr.v ? String(pr.v) : info.price, pack: info.pack, cnt: info.cnt };
   });
   st.cnLevels = Math.min(3, Math.max(st.cnLevels || 1, ...picked.map((x) => (x.attrs || []).length)));
+  if (Array.isArray(st.cnLeft)) {   // 지금 체크한 옵션과 같은 값이 '남겨 둔 값'에 있으면 버린다 (나중에 새 줄로 들어가 같은 이름이 겹치지 않게)
+    const on = picked.map((x) => normOpt((x.attrs || []).slice(0, 3).join(">")));
+    st.cnLeft = st.cnLeft.filter((it) => on.indexOf(normOpt(cnInfo(it.val).cn.filter(Boolean).join(">"))) < 0);
+  }
   st.mix = false;
   $$(".btn.pim2").forEach((x) => x.classList.toggle("active", x.dataset.pim2 === "keep"));
   setOpt(names.join("/"));
@@ -7145,16 +7151,40 @@ function cnCarryOver(st, tree) {
   tree.forEach((o) => o.parts.forEach((pt) => keys.push(pt.key)));
   const has = (k) => { const i = cnInfo(st.cn[k]); return i.cn.some(Boolean) || i.price || i.pack; };
   const carried = st.cnCarriedKeys instanceof Set ? st.cnCarriedKeys : new Set();
-  // 이름이 그대로인 줄은 그대로. 사라진 이름(값이 있는 것)과 새로 생긴 이름(값이 없는 것)을 차례대로 짝지어 물려준다.
-  // 줄 수가 달라도 됨 — 옵션을 지우고 다시 쓰는 중에 '/' 나 글자가 잠깐 비어도 끊기지 않게, 자리를 못 찾은 옛 이름은 다음 비교 때까지 기억한다.
+  // 이름이 그대로인 줄은 그대로. 사라진 이름(값이 있는 것)의 값을 새로 생긴 이름(값이 없는 것)에 물려준다.
+  // 11-17: 값을 '복사'하지 않고 '옮긴다' — 값 하나는 늘 한 줄에만 있다. (복사일 때는 '핑크 +그린' 을 적는 도중의 '핑크 +' 가
+  //        핑크 값을 받아 다음 글자에서 새 줄(그…)에 넘겨, 그린 줄에 핑크의 1688 옵션명이 들어갔다 — 1758C)
+  //   짝짓는 순서: ① 그 이름으로 불린 적이 있는 값 ('핑크 +' → 핑크) ② 사라진 순서대로 ③ 앞서 자리를 못 찾아 남겨 둔 값(cnLeft).
+  //   남겨 둔 값은 st.cn 밖에 둔다 — 지우는 도중의 이름이 남겨 둔 이름과 같아져도(透色→透) 값이 뒤바뀌지 않게.
   const prev = Array.isArray(st.cnKeys) ? st.cnKeys : [];
-  const leftOld = prev.filter((k) => keys.indexOf(k) < 0 && has(k));
-  const leftNew = keys.filter((k) => prev.indexOf(k) < 0 && !has(k));
-  leftNew.forEach((k, i) => {
-    const old = leftOld[i];
-    if (old) { st.cn[k] = JSON.parse(JSON.stringify(st.cn[old])); carried.add(k); }
+  if (!Array.isArray(st.cnLeft)) st.cnLeft = [];
+  const hist = st.cnHist || (st.cnHist = {});   // 줄 이름 → 그 값이 거쳐 온 이름들 (맨 앞 = 처음 이름)
+  prev.forEach((k) => { if (keys.indexOf(k) < 0 && !has(k)) delete hist[k]; });
+  const gone = prev.filter((k) => keys.indexOf(k) < 0 && has(k)).map((k) => {
+    const it = { key: k, val: st.cn[k], names: (hist[k] || []).concat([k]) };
+    delete st.cn[k];
+    delete hist[k];
+    return it;
   });
-  st.cnKeys = keys.concat(leftOld.slice(leftNew.length));
+  const fresh = keys.filter((k) => prev.indexOf(k) < 0 && !has(k));
+  const give = (k, it) => {
+    st.cn[k] = it.val;
+    hist[k] = it.names.length > 40 ? [it.names[0]].concat(it.names.slice(-30)) : it.names;
+    if (hist[k][0] === k) carried.delete(k); else carried.add(k);   // 처음 이름으로 돌아오면 안내도 사라짐
+  };
+  const rest = [];
+  fresh.forEach((k) => {
+    const j = gone.findIndex((it) => it.names.indexOf(k) >= 0);
+    if (j >= 0) give(k, gone.splice(j, 1)[0]); else rest.push(k);
+  });
+  rest.forEach((k) => {
+    if (gone.length) { give(k, gone.shift()); return; }
+    if (!st.cnLeft.length) return;
+    const j = Math.max(0, st.cnLeft.findIndex((it) => it.names.indexOf(k) >= 0));
+    give(k, st.cnLeft.splice(j, 1)[0]);
+  });
+  gone.forEach((it) => st.cnLeft.push(it));
+  st.cnKeys = keys.slice();
   st.cnCarriedKeys = new Set([...carried].filter((k) => keys.indexOf(k) >= 0));   // 지금 표에 있는 줄만 (이름을 되돌리면 안내도 사라짐)
   st.cnCarried = st.cnCarriedKeys.size > 0;
 }
@@ -8009,7 +8039,7 @@ setTimeout(async () => {
 /* ---------- 새 버전 알림 ----------
    배포하면 version.json 의 build(만든 시각)가 올라간다. 열어 둔 탭은 옛 코드 그대로라, 옛 규칙으로 엑셀이 나오는 일을 막는다.
    확인 시점: 열 때 · 10분마다 · 다른 탭에서 돌아올 때 · 엑셀/ZIP 저장 직전. 확인을 못 하면(인터넷 끊김·파일로 연 화면) 조용히 넘어간다. */
-const APP_VER = "V1.58", APP_BUILD = "202611141408";
+const APP_VER = "V1.59", APP_BUILD = "202611171328";
 const VER_KEY = "ver_reload";
 const VER_KIND = { excel: ["상품정보 엑셀", "#btn-save-excel"], "excel-all": ["전체 엑셀", "#btn-save-excel-all"], zip: ["3종 한 번에 저장 (ZIP)", "#btn-save-all"] };
 let verNew = null, verLater = "", verStuck = false, verReloading = false, verLastCheck = 0, verBarTimer = 0;
