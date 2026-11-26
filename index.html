@@ -361,6 +361,7 @@
   #ca-plans tr.bad td { background:#fff4f2; color:#a94442; }
   #ca-plans tr { cursor:pointer; }
   #ca-plans tr.moretg td { background:#f7f8fa; color:#0a63cc; font-weight:800; text-align:center; }
+  #ca-plans tr.pick td:last-child { color:#1b7a2f; font-weight:800; }
   #ad-cost { border:1.5px solid #cfe0f5; background:#f7fbff; border-radius:11px; padding:12px 14px; margin:12px 0 4px; }
   #ad-cost .hd { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
   #ad-cost .hd b { font-size:14px; color:#1b5fae; }
@@ -3498,10 +3499,55 @@ function ensureMedNote() {
     age.closest(".spec-row").insertAdjacentHTML("afterend", `<div class="spec-row med-row"><div class="k" style="min-width:0"></div><div class="v" id="f-med" contenteditable="true">${MED_TEXT}</div></div>`);
   }
 }
+/* 11-26: 문구 칸(<p contenteditable>) 안의 블록(<div>·<p>)을 줄바꿈으로 편다.
+   <p> 안에는 <div> 가 들어갈 수 없어서, 그대로 저장했다 다시 읽으면 <p> 가 닫히고 뒤 내용이 칸 밖으로 나온다 (엔터로 줄을 나눈 문구가 박스 밖으로 빠지던 원인) */
+function flatEditP(p) {
+  let changed = false;
+  [...p.querySelectorAll("div, p")].forEach((b) => {
+    const frag = document.createDocumentFragment();
+    if (b.previousSibling) frag.appendChild(document.createElement("br"));
+    if (b.childNodes.length === 1 && b.firstChild.nodeName === "BR") b.firstChild.remove();   // 빈 줄: 줄바꿈 하나면 된다
+    while (b.firstChild) frag.appendChild(b.firstChild);
+    b.replaceWith(frag);
+    changed = true;
+  });
+  return changed;
+}
+/* 이미 칸 밖으로 나와 있는 글자(예전 화면에서 엔터로 나눈 문구)를 칸 안으로 되돌린다 — 아무 표시도 없는 <div>·<p> 만 대상 */
+function ensureEditP() {
+  $$("#page p[contenteditable]").forEach((p) => {
+    flatEditP(p);
+    let n = p.nextSibling;
+    while (n) {
+      const next = n.nextSibling;
+      if (n.nodeType === 3 && !n.textContent.trim()) { n = next; continue; }
+      if (n.nodeType !== 1 || !/^(DIV|P)$/.test(n.tagName) || n.attributes.length || n.querySelector("[id], [class], img, button, input, section")) break;
+      if (n.textContent.trim()) {
+        if (p.childNodes.length) p.appendChild(document.createElement("br"));
+        while (n.firstChild) p.appendChild(n.firstChild);
+        flatEditP(p);
+      }
+      n.remove();
+      n = next;
+    }
+  });
+}
+document.addEventListener("keydown", (e) => {   // 문구 칸의 엔터 = 줄바꿈만 (새 블록을 만들지 않는다)
+  if (e.key !== "Enter" || e.isComposing || e.keyCode === 229 || e.ctrlKey || e.metaKey || e.altKey) return;
+  const host = e.target && e.target.closest ? e.target.closest("#page [contenteditable]") : null;
+  if (!host || host.tagName !== "P") return;
+  e.preventDefault();
+  document.execCommand("insertLineBreak");
+});
+document.addEventListener("focusout", (e) => {   // 붙여넣기 등으로 블록이 들어왔으면 칸을 떠날 때 편다
+  const host = e.target && e.target.closest ? e.target.closest("#page p[contenteditable]") : null;
+  if (host && flatEditP(host)) updateHeight();
+});
 function bindPageSlots() {
   ensureUseAdd();
   ensureMedNote();
   ensureHeroBox();
+  ensureEditP();
   $$("#page .slot").forEach((slot) => {
     slot.addEventListener("click", () => { pendingSlot = slot; $("#file-slot").click(); });
     bindSlotDnD(slot);
@@ -5835,11 +5881,44 @@ function calcPlans(yuan, ship, pack) {
   }
   return plans;
 }
-function bestPlan(plans, pack) {
+/* 11-26: 추천 구성 — 판매가(7,900~19,900원) 단계마다 1줄(보기 좋은 수량 · 목표 순마진 범위 안 · 순마진이 목표 가운데에 가장 가까운 수량), 최대 7줄.
+   「제안」 = 점수가 가장 높은 구성. 점수 = 순마진 35(2,000원 0점 … 3,600원 만점) + 개당 판매가 30(가장 적은 수량 구성보다 개당 가격이 싼 비율)
+            + 판매가 부담 35(9,900원 이하 만점 … 19,900원 0점). 2등과의 차이가 5점 이하면 애매한 것으로 보고 둘 다 제안 */
+const PLAN_ROWS_MAX = 7, PLAN_TIE = 5, PLAN_W = { margin: 35, unit: 30, price: 35 };
+function planPool(plans, pack) {
   const k = packOf(pack);
   const nice = new Set(NICE_QTY);
   const mult = k > 1 ? plans.filter((p) => p.n % k === 0) : [];   // 묶음 상품은 입수 배수가 먼저 (묶음을 쪼개 팔지 않게)
-  const pool = mult.length ? mult : plans.filter((p) => nice.has(p.n));   // 아니면 보기 좋은 수량 안에서만
+  return mult.length ? mult : plans.filter((p) => nice.has(p.n));   // 아니면 보기 좋은 수량 안에서만
+}
+function recoPlans(plans, pack) {
+  const by = {};
+  planPool(plans, pack).filter((p) => p.ok).forEach((p) => {
+    const d = Math.abs(p.margin - tierTarget(p.tier));
+    if (!by[p.tier] || d < Math.abs(by[p.tier].margin - tierTarget(by[p.tier].tier))) by[p.tier] = p;
+  });
+  const cs = Object.keys(by).map(Number).sort((a, b) => a - b).map((t) => by[t]);
+  if (!cs.length) return { rows: [], picks: [], score: () => 0 };
+  const u0 = cs[0].tier / cs[0].n;   // 가장 적은 수량 구성의 개당 판매가
+  const sc = new Map();
+  cs.forEach((c) => sc.set(c.n, Math.max(0, Math.min(1, (c.margin - 2000) / 1600)) * PLAN_W.margin
+    + Math.max(0, 1 - (c.tier / c.n) / u0) * PLAN_W.unit
+    + (1 - Math.max(0, c.tier - 9900) / 10000) * PLAN_W.price));
+  const top = cs.slice().sort((a, b) => (sc.get(b.n) - sc.get(a.n)) || (a.n - b.n));
+  const picks = [top[0]];
+  if (top[1] && sc.get(top[0].n) - sc.get(top[1].n) <= PLAN_TIE) picks.push(top[1]);
+  let rows = cs;
+  if (cs.length > PLAN_ROWS_MAX) {   // 가장 싼 것 · 가장 비싼 것 · 제안은 남기고, 나머지 자리는 점수가 높은 순으로
+    const keep = new Set([cs[0], cs[cs.length - 1]].concat(picks));
+    top.forEach((c) => { if (keep.size < PLAN_ROWS_MAX) keep.add(c); });
+    rows = cs.filter((c) => keep.has(c));
+  }
+  return { rows, picks, score: (n) => sc.get(n) || 0 };
+}
+function bestPlan(plans, pack) {
+  const reco = recoPlans(plans, pack);
+  if (reco.picks.length) return { ...reco.picks[0], warn: false };
+  // 목표 순마진 범위 안인 구성이 하나도 없으면: 후보 중 범위에 가장 가까운 것, 그것도 없으면 전체에서
   const pick = (list) => {
     const ok = list.filter((p) => p.ok);
     if (ok.length) {
@@ -5851,10 +5930,9 @@ function bestPlan(plans, pack) {
     const c = list.slice().sort((a, b) => dist(a) - dist(b));
     return c.length ? { ...c[0], warn: true } : null;
   };
+  const pool = planPool(plans, pack);
   const r = pool.length ? pick(pool) : null;
-  if (r && !r.warn) return r;
-  const all = pick(plans);   // 후보 안에 범위 안이 없으면: 후보 중 가장 가까운 것, 그것도 없으면 전체
-  return r || all;
+  return r || pick(plans);
 }
 
 /* --- AI 추출 --- */
@@ -6699,22 +6777,23 @@ function caCalc() {
     + ` · 예상 순마진 <b>${st.sel.margin.toLocaleString()}원</b>`
     + (st.sel.ok ? "" : ' <span style="font-weight:700">(목표 순마진 범위 밖)</span>');
   tbl.style.display = "table";
-  const moreRows = st.plans.filter((p) => p.tier > PLAN_SHOW_MAX && !(st.sel && p.n === st.sel.n));   // 14,900원 초과는 접어 둔다
-  tbl.classList.toggle("showmore", !!st.planMore);
-  let moreInserted = false;
+  // 11-26: 표에는 19,900원까지 판매가 단계마다 추천 구성 1줄씩(최대 7줄)만 — [수량 전부 보기] 를 누르면 수량을 전부 나열
+  const reco = recoPlans(st.plans, eff.pack);
+  const pickNs = reco.picks.map((p) => p.n), recoNs = new Set(reco.rows.map((p) => p.n));
+  const showAll = !!st.planMore || !reco.rows.length;
+  const list = showAll ? st.plans : st.plans.filter((p) => recoNs.has(p.n) || (st.sel && p.n === st.sel.n));   // 직접 적은 수량은 줄을 함께 보여 준다
+  const judge = (p) => { const i = pickNs.indexOf(p.n); return i >= 0 ? (pickNs.length > 1 ? `제안 ${i + 1}` : "제안") : (recoNs.has(p.n) ? "추천" : (p.ok ? "가능" : "범위 밖")); };
+  tbl.classList.remove("showmore");
   tbl.innerHTML = `<tr><th>수량</th><th>세트 원가</th><th>판매가</th><th>개당 판매가</th><th>순마진</th><th>판정</th></tr>` +
-    st.plans.map((p) => {
-      const isMore = p.tier > PLAN_SHOW_MAX && !(st.sel && p.n === st.sel.n);
-      const tg = isMore && !moreInserted && moreRows.length
-        ? `<tr class="moretg"><td colspan="6">${st.planMore ? "▲ 접기" : `▼ 더 보기 — ${moreRows[0].tier.toLocaleString()}원 이상 ${moreRows.length}줄 (2만 원 미만까지)`}</td></tr>` : "";
-      if (tg) moreInserted = true;
-      return tg + `<tr data-n="${p.n}" class="${st.sel && p.n === st.sel.n ? "sel" : (p.ok ? "" : "bad")}${isMore ? " more" : ""}">
+    list.map((p) => `<tr data-n="${p.n}" class="${st.sel && p.n === st.sel.n ? "sel" : (p.ok ? "" : "bad")}${pickNs.indexOf(p.n) >= 0 ? " pick" : ""}"${recoNs.has(p.n) ? ` title="추천 점수 ${Math.round(reco.score(p.n))}점 (순마진 · 개당 판매가 · 판매가 부담)"` : ""}>
       <td>${p.n}개</td><td>${p.setCost.toLocaleString()}원</td><td>${p.tier.toLocaleString()}원</td>
       <td>${Math.round(p.tier / p.n).toLocaleString()}원</td>
-      <td>${p.margin.toLocaleString()}원</td><td>${p.ok ? (st.sel && p.n === st.sel.n ? "제안" : "가능") : "범위 밖"}</td></tr>`;
-    }).join("");
+      <td>${p.margin.toLocaleString()}원</td><td>${judge(p)}</td></tr>`).join("")
+    + (reco.rows.length && st.plans.length > reco.rows.length
+      ? `<tr class="moretg"><td colspan="6">${st.planMore ? "▲ 추천 구성만 보기" : `▼ 수량 전부 보기 (${st.plans.length}줄)`}</td></tr>` : "");
   const cost1 = Math.round((eff.yuan + ship / 2) * priceSettings().rate);
-  const tail = `. 고정비·배송비는 세트당 1번만. 판매가가 2만 원 이상이 되는 수량부터는 제안하지 않습니다.`;
+  const tail = `. 고정비·배송비는 세트당 1번만. 판매가가 2만 원 이상이 되는 수량부터는 제안하지 않습니다.`
+    + `<br>표에는 판매가 단계마다 <b>추천 구성</b> 1줄씩(최대 ${PLAN_ROWS_MAX}줄)만 보입니다. <b>제안</b> = 순마진 · 개당 판매가 · 판매가 부담을 함께 본 점수가 가장 높은 구성(비슷하면 2개).`;
   note.innerHTML = (eff.set
     ? `세트 원가 = (구성품 원가 합계 <b>¥${eff.sum}</b> + 배송비 ÷ 2) × 환산율 — 구성 ${eff.n}개 한 세트 ${Math.round((eff.sum + ship / 2) * priceSettings().rate).toLocaleString()}원`
     : `세트 원가 = (상품가 × <b>1688 구매 묶음 수</b> + 배송비 ÷ 2) × 환산율 — 1묶음 기준 ${cost1.toLocaleString()}원`
@@ -8184,7 +8263,7 @@ setTimeout(async () => {
 /* ---------- 새 버전 알림 ----------
    배포하면 version.json 의 build(만든 시각)가 올라간다. 열어 둔 탭은 옛 코드 그대로라, 옛 규칙으로 엑셀이 나오는 일을 막는다.
    확인 시점: 열 때 · 10분마다 · 다른 탭에서 돌아올 때 · 엑셀/ZIP 저장 직전. 확인을 못 하면(인터넷 끊김·파일로 연 화면) 조용히 넘어간다. */
-const APP_VER = "V1.62", APP_BUILD = "202611261111";
+const APP_VER = "V1.62", APP_BUILD = "202611261145";
 const VER_KEY = "ver_reload";
 const VER_KIND = { excel: ["상품정보 엑셀", "#btn-save-excel"], "excel-all": ["전체 엑셀", "#btn-save-excel-all"], zip: ["3종 한 번에 저장 (ZIP)", "#btn-save-all"] };
 let verNew = null, verLater = "", verStuck = false, verReloading = false, verLastCheck = 0, verBarTimer = 0;
