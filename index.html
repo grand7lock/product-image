@@ -130,6 +130,15 @@
   #cn-table td.sub { font-weight:700; color:#333; white-space:nowrap; padding-left:16px; }
   #cn-table tr.optTot td { background:#f7fbf8; color:#2e7d3e; font-weight:800; }
   #cn-table td.cnt { text-align:center; font-weight:700; color:#555; }
+  /* 11-26: 옵션마다 구성 수량(oq)·판매가(sp) */
+  #cn-table input.oq { text-align:center; font-weight:800; border-color:#f0a04b; background:#fffaf2; color:#c25e00; }
+  #cn-table input.oq::placeholder { color:#c9b79f; font-weight:400; }
+  #cn-table th.sp, #cn-table td.sp { width:132px; text-align:center; }
+  #cn-table td.sp { font-weight:800; color:#2e7d3e; white-space:nowrap; background:#f3f9f4; }
+  #cn-table td.sp span { display:block; font-size:10.5px; font-weight:400; color:#6b7a70; margin-top:1px; }
+  #cn-table td.sp.over { color:#e14b4a; background:#fff5f5; }
+  #cn-table td.sp.none { color:#c4c9d0; font-weight:400; background:#fff; }
+  #ca-card .po { display:block; line-height:1.7; }
   /* 묶음 줄: 1688 구매 수량(묶음 수)을 직접 적는 주황 칸 · 개수 칸 아래 '= N묶음 × 입수 P' */
   #cn-table td.auto input.bu { width:44px; text-align:right; font-weight:800; border:1.5px solid #f0a04b; background:#fffaf2; border-radius:5px; padding:3px 5px; color:#c25e00; }
   #cn-table td.auto .u { font-size:11px; color:#c25e00; margin-left:3px; }
@@ -825,7 +834,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <h1>이미지 생성기 (<span id="ver-now">V1.61</span>) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a><span id="ver-chip" class="verchip" hidden></span></h1>
+    <h1>이미지 생성기 (<span id="ver-now">V1.62</span>) <a href="이미지_생성기_사용설명서.html" target="_blank" style="float:right; font-size:19px; font-weight:700; color:#0a7cff; text-decoration:none; margin-top:2px;">설명서</a><span id="ver-chip" class="verchip" hidden></span></h1>
     <p class="desc">엑셀 상품정보 업로드 → 문구 → 이미지 → 저장.<br>상세 780px · 대표 1000×1000 · 모든 문구는 미리보기에서 클릭해 바로 수정할 수 있습니다.</p>
 
     <div class="step first">
@@ -1530,6 +1539,7 @@
         <button type="button" class="mini" id="cn-paste-go">표에 채우기</button></div>
     </div>
     <p class="cn-desc">입수 = 1688 1개(묶음)에 들어 있는 개수 (6개입이면 6 · 낱개면 1). 1688 구매 수량 = 올림(구성 수량 ÷ 입수)이고, 세트 원가도 묶음 단위로 계산합니다.<br>
+      <b style="color:#c25e00">옵션( / )마다 파는 수량이 다르면</b> 표의 <b>구성 수량</b> 칸에 줄마다 적어 주세요 (예: 30ml 60 · 수납함 1) — <b>판매가도 옵션마다 따로</b> 나옵니다. 비워 두면 맨 위 수량 하나를 모든 옵션에 씁니다.<br>
       상품 옵션에서 <b>＋</b>로 이으면 그 자체가 <b>옵션 1개</b>(구성품 묶음), <b>/</b>로 나누면 <b>서로 다른 옵션</b>입니다. (예: 5cm+8cm+13cm = 1옵션 · 화이트/크라프트 = 2옵션)<br>
       1688옵션명: 한 옵션 안의 단계는 &gt;로, 옵션끼리는 지금처럼 /로 이어집니다. <span style="color:#999">· Enter = 아래 칸으로 이동 (2~3단계 표의 윗 단계 칸은 아래 칸이 비어 있으면 같은 이름을 채움)</span><br>
       <b style="color:#0a63cc">엑셀에 들어갈 이름은 내가 쓰는 칸이 아니라 자동으로 채워지는 칸입니다.</b> 파란 창에서 고른 옵션 &gt; AI가 찾은 이름(회색 (AI)) 순서로 들어가고, 직접 쓴 이름이 있으면 그 이름이 먼저입니다. 빨간 <b>(?)</b> 일 때만 1688에서 복사해 넣어 주세요.<br>
@@ -2064,7 +2074,7 @@ function setBadgeSize(v, silent) {
 function refreshQtyBadges() {
   const qtyEl = $("#f-qty");
   const qty = qtyEl ? qtyEl.textContent.trim() : "";
-  const show = !isRocket() && qty && qty !== "기재예정";
+  const show = !isRocket() && qty && qty !== "기재예정" && qty.indexOf("/") < 0;   // 옵션마다 수량이 다르면 한 숫자로 적을 수 없어 배지를 뺀다
   const f = badgeScale();
   ["d0", "o2", "o3", "o4", "o5", "o6"].forEach((n) => {
     const s = $(`[data-slot=${n}]`);
@@ -3204,7 +3214,7 @@ $$(".btn.cmode").forEach((b) => b.addEventListener("click", () => setCompCap(b.d
 setCompCap(compCap, true);
 /* 구성 이미지 프롬프트 꼬리 — 수량이 많으면 낱개를 다 늘어놓지 않게 */
 function compCountRule() {
-  const q = parseInt(String(($("#f-qty") ? $("#f-qty").textContent : "")).replace(/[^\d]/g, ""), 10) || 0;
+  const q = qtyNum($("#f-qty") ? $("#f-qty").textContent : "");
   if (compCap !== "cap" || q < COMP_CAP_FROM) return " 이 구성과 수량·색상에 일치하도록 정확히 표현하세요.";
   return " 구성품 종류는 모두 보이게 하되, 같은 물건이 여러 개일 때는 낱개를 전부 늘어놓지 말고 대표 3개 정도만 앞에 또렷하게 두고"
     + " 나머지는 뒤에 겹쳐 쌓이거나 묶음(포장) 상태로 자연스럽게 표현하세요. 색상 구성은 그대로 지키세요.";
@@ -4184,7 +4194,7 @@ async function collectMainFiles(fmt) {
   const { no, name } = fileBase();
   const qtyEl = $("#f-qty");
   const qty = qtyEl ? qtyEl.textContent.trim() : "";
-  const badge = !rocket && qty && qty !== "기재예정" ? qty : "";
+  const badge = !rocket && qty && qty !== "기재예정" && qty.indexOf("/") < 0 ? qty : "";
   const out = [];
   for (const { el, n, i } of filled) {
     const isDMain = n === "d0" || /^o\d$/.test(n);
@@ -4305,8 +4315,13 @@ function matchOpt(map, name) {
     || map.find((m) => m.ko && (normOpt(m.ko).includes(k) || k.includes(normOpt(m.ko)))) || null;
 }
 /* 실제로 파는 옵션(상품 구성) — "/" 는 옵션끼리, "+" 는 한 옵션 안의 구성품. 구성품마다 1688 이름·개수·구매 묶음·원가 */
+/* 수량 칸의 숫자 — 옵션마다 수량이 다른 상품(「30ml 60개 / 수납함 1개」)은 한 숫자가 아니라서 0 */
+function qtyNum(v) {
+  const t = String(v || "");
+  return t.indexOf("/") >= 0 ? 0 : (parseInt(t.replace(/[^\d]/g, ""), 10) || 0);
+}
 function soldTree(f, p) {
-  const n = parseInt(String(f.qty || p.qty || "").replace(/[^\d]/g, ""), 10) || 0;
+  const n = qtyNum(f.qty || p.qty);
   const opt = f.opt && f.opt !== "기재예정" ? f.opt : "";
   const col = f.color && f.color !== "기재예정" ? f.color : "";
   const raw = opt || col;
@@ -4337,11 +4352,13 @@ function soldTree(f, p) {
       || (manName ? map.find((x) => normOpt(x.cn) === normOpt(manName) || normOpt(x.cn) === normOpt(info.cn[0])) : null)
       || (tree.length === 1 && o.parts.length === 1 && map.length === 1 ? map[0] : null);
     pt.cn = manName || (map.length ? (m ? m.cn : (pt.name ? pt.name + "(?)" : "")) : "");
-    pt.cnt = (pt.fixed ? pt.n : (+info.cnt || pt.n)) || 0;
+    pt.oq = tree.length > 1 && !(o.set && o.parts.length > 1) ? (parseInt(info.oq, 10) || 0) : 0;   // 옵션마다 따로 적은 구성 수량
+    pt.cnt = (pt.fixed ? pt.n : (pt.oq || +info.cnt || pt.n)) || 0;
     pt.pack = packOf(info.pack);
     pt.units = pt.cnt ? buyUnits(pt.cnt, info.pack) : 0;   // 1688 구매 수량 = 올림(개수 ÷ 입수)
     pt.price = +info.price || (m && m.price) || +p.priceYuan || 0;   // 직접 넣은 원가가 우선
   }));
+  tree.perOpt = tree.some((o) => o.parts.some((pt) => pt.oq > 0));   // 한 줄이라도 적었으면 옵션별 수량·판매가
   return tree;
 }
 function sold1688(f, p) {   // [상품정보] 탭 (예전 형식)
@@ -4444,9 +4461,10 @@ function sheetRowsFrom(f, p) {
       else { S = 1; cols = pr.map((x, j) => x * u[j]); }          // 2~3종인데 묶음 수가 다르면: 단가×묶음 수 · 구매수량 1
       if (is1688) memo.push(packMemo(parts, S));
     } else {
-      comp = multi ? `${o.name} ${clean(f.qty)}`.trim() : clean(f.comp);
+      const own = tree.perOpt ? (parts[0].cnt || 0) + "개" : "";   // 옵션마다 구성 수량을 따로 적은 상품은 그 옵션의 수량
+      comp = multi ? `${o.name} ${own || clean(f.qty)}`.trim() : clean(f.comp);
       color = (multi && colorWordOf(o.name)) || clean(f.color);
-      qty = clean(f.qty);
+      qty = own || clean(f.qty);
       S = parts[0].units || "";
       cols = parts[0].price ? [parts[0].price] : [];
     }
@@ -4467,9 +4485,17 @@ function excelRow(i) {
   const so = is1688 ? sold1688(f, p) : { names: "", qty: "", cols: ["", "", ""] };
   let memo = "";
   try { memo = sheetRowsFrom(f, p).map((r) => r[6]).filter(Boolean).filter((x, j, a) => a.indexOf(x) === j).join(" / "); } catch (_) { memo = ""; }
-  return [p.no || "", f.name, optOut, f.color, f.qty, f.size, f.mat,
+  let perQty = "", perSell = "";   // 옵션별 수량·판매가는 옵션 순서대로 / 로 이어 적는다 (60개/1개 · 10900/9900)
+  try {
+    const t0 = is1688 ? soldTree(f, p) : [];
+    if (t0.perOpt) {
+      perQty = t0.map((o) => o.parts.reduce((t, pt) => t + (pt.cnt || 0), 0) + "개").join("/");
+      if (Array.isArray(p.sellPrices) && p.sellPrices.length === t0.length) perSell = p.sellPrices.join("/");
+    }
+  } catch (_) {}
+  return [p.no || "", f.name, optOut, f.color, perQty || f.qty, f.size, f.mat,
           p.url1688 || "", so.names, so.qty, so.cols[0], so.cols[1], so.cols[2],
-          is1688 ? (p.shipYuan || "") : "", memo, f.tags, p.sellPrice || ""];
+          is1688 ? (p.shipYuan || "") : "", memo, f.tags, perSell || p.sellPrice || ""];
 }
 function buildExcelWB(rows, idxs) {
   const wb = XLSX.utils.book_new();
@@ -6029,7 +6055,7 @@ window.openMixAdjust = (ev) => {
   if (colors.length < 2) { toast("옵션이 2개 이상일 때 구성을 조정할 수 있습니다 — 상품 옵션(없으면 색상) 칸을 / 로 구분해 주세요"); return; }
   let counts = mixCountsOf($("#f-opt") ? $("#f-opt").textContent.trim() : "", $("#f-comp") ? $("#f-comp").textContent.trim() : "", colors);
   if (!counts) {
-    const q = parseInt((($("#f-qty") ? $("#f-qty").textContent : "") || "").replace(/[^\d]/g, ""), 10);
+    const q = qtyNum($("#f-qty") ? $("#f-qty").textContent : "");
     counts = evenCounts(colors, q > 0 ? q : colors.length);
   }
   mxState = { colors, counts };
@@ -6064,6 +6090,7 @@ $("#mx-apply").addEventListener("click", () => {
   current.opt = opt;
   current.qty = total + "개";
   current.comp = comp;
+  delete current.sellPrices;
   if (current.priceYuan) current.sellPrice = planFor(total, current.priceYuan, current.shipYuan || 0, current.milkrun || 0).tier;
   updateOptionSlots();
   applyMainCaptions();
@@ -6545,8 +6572,8 @@ function cnCollect(base) {
   $$("#cn-table tr[data-key]").forEach((tr) => {
     const v = [...tr.querySelectorAll(".lv")].map((i) => i.value.trim());
     while (v.length && !v[v.length - 1]) v.pop();
-    const price = cnVal(tr, "pr"), pack = cnVal(tr, "pk"), cnt = cnVal(tr, "ct");
-    if (v.some(Boolean) || price || pack || cnt) out[tr.dataset.key] = { cn: v, price: price, pack: pack, cnt: cnt };
+    const price = cnVal(tr, "pr"), pack = cnVal(tr, "pk"), cnt = cnVal(tr, "ct"), oq = cnVal(tr, "oq");
+    if (v.some(Boolean) || price || pack || cnt || oq) out[tr.dataset.key] = { cn: v, price: price, pack: pack, cnt: cnt, oq: oq };
     else delete out[tr.dataset.key];   // 칸을 비우면 예전 값도 지운다 (입수를 지웠는데 1 이 남던 문제)
   });
   const st = cnState();
@@ -6586,7 +6613,7 @@ window.openCalcModal = () => {
   if (mcounts) { caState.mix = true; caState.mixCounts = mcounts; caState.mixKey = mcolors.join("/"); }
   $$(".btn.pim2").forEach((x) => x.classList.toggle("active", x.dataset.pim2 === (caState.mix ? "mix" : "keep")));
   skuRender();
-  const q0 = parseInt(String(rv("qty")).replace(/[^\d]/g, ""), 10) || 0;
+  const q0 = qtyNum(rv("qty"));
   if (q0) caState.sel = { n: q0 };   // 상품에 적어 둔 수량 그대로 (계산이 안 되면 caCalc 이 제안으로 돌린다)
   cnGridRender();
   caCalc();
@@ -6638,6 +6665,25 @@ function caCalc() {
   else if (eff.set && eff.n && st.selBy !== "user") st.sel = planFor(eff.n, eff.yuan, ship, eff.pack);   // 구성품을 묶은 옵션은 구성품 개수 합이 곧 구성 수량
   else if (st.sel && st.sel.n) st.sel = planFor(st.sel.n, eff.yuan, ship, eff.pack);
   else st.sel = bestPlan(st.plans, eff.pack);
+  st.per = null;
+  if (cnPerOn()) {   // 11-26: 옵션마다 구성 수량을 따로 적은 상품 — 판매가도 옵션마다
+    if (!(st.sel && st.sel.n)) st.sel = { n: 1 };
+    const per = cnPerPlans();
+    st.per = per;
+    card.style.display = "block";
+    card.className = per.some((p) => p.over || !p.ok) ? "warn" : "";
+    card.innerHTML = per.map((p, i) => `<span class="po">옵션 ${i + 1} <b>${escH(p.name)}</b> — ${p.n}개 구성 · `
+      + (p.over ? `판매가 2만 원 미만으로는 순마진이 나오지 않습니다 (세트 원가 ${p.setCost.toLocaleString()}원)`
+        : `판매가 <b>${p.tier.toLocaleString()}원</b> · 예상 순마진 <b>${p.margin.toLocaleString()}원</b>` + (p.ok ? "" : ' <span style="font-weight:700">(목표 순마진 범위 밖)</span>'))
+      + `</span>`).join("");
+    tbl.style.display = "none";
+    note.innerHTML = `옵션마다 <b>구성 수량</b>을 따로 적은 상품입니다 — 판매가도 옵션마다 따로 계산합니다. 옵션별 세트 원가 = (그 옵션 1688 원가 × 1688 구매 수량 + 배송비 ÷ 2) × 환산율. 구성 수량 칸을 모두 비우면 수량 하나·판매가 하나로 돌아갑니다.`;
+    caMixSync();
+    cnCountSync();
+    caQtySync(0);
+    qboxRender();
+    return;
+  }
   if (!st.sel || st.sel.over) {
     card.style.display = "block"; card.className = "warn";
     card.innerHTML = "판매가 2만 원 미만으로는 순마진이 나오지 않습니다 — 단가·수량을 확인해 주세요";
@@ -6839,7 +6885,7 @@ function skuNoneRender(show) {
 function caQtyEdit(td) {
   const st = cnState();
   if (!st) return;
-  const n = parseInt(String(td.textContent).replace(/[^\d]/g, ""), 10) || 0;
+  const n = qtyNum(td.textContent);
   if (!n) return;
   const eff = cnEff();
   if (st.mix || eff.set) {   // 구성품을 묶은 옵션은 구성품 개수 합이 곧 수량
@@ -6854,14 +6900,17 @@ function caQtyEdit(td) {
 /* 계산·개수가 바뀌면 맨 위 [수량] 칸도 따라간다 (내가 그 칸에 적는 중이면 건드리지 않음) */
 function caQtySync(total) {
   const td = $("#ca-table td.v[data-k=qty]");
-  if (!td || document.activeElement === td || !total) return;
-  const txt = total + "개";
+  if (!td || document.activeElement === td) return;
+  const st = cnState();
+  const txt = st && st.per ? st.per.map((p) => `${p.name} ${p.n}개`).join(" / ") : (total ? total + "개" : "");   // 옵션별 수량이면 옵션마다
+  if (!txt) return;
   if (td.textContent.trim() !== txt) td.textContent = txt;
 }
 /* 아래에서 수량을 바꾸면 맨 위 [구성] 칸도 바로 따라간다 — 창을 열 때는 건드리지 않는다 */
 function caCompSync() {
   const st = cnState(), td = $("#ca-table td.v[data-k=comp]");
   if (!st || !td || !st.sel || !$("#calcmodal").classList.contains("open")) return;
+  if (st.per) return;   // 옵션마다 수량이 다른 상품은 구성 칸의 개수를 맞추지 않는다
   const colors = optNames(cnHost().opt, $("#ca-color").value);
   const eff = cnEff();
   const useMix = st.mix && colors.length >= 2 && st.mixCounts && mixTotal(st.mixCounts) > 0;
@@ -6983,7 +7032,7 @@ function skuApply() {
     const info = cnInfo(st.cn[ko] || (lf >= 0 ? st.cnLeft.splice(lf, 1)[0].val : null));
     if (st.cnHist) delete st.cnHist[ko];
     const pr = skuPrice(x, fb);
-    st.cn[ko] = { cn: (x.attrs || []).slice(0, 3), price: pr.v ? String(pr.v) : info.price, pack: info.pack, cnt: info.cnt };
+    st.cn[ko] = { cn: (x.attrs || []).slice(0, 3), price: pr.v ? String(pr.v) : info.price, pack: info.pack, cnt: info.cnt, oq: info.oq };
   });
   st.cnLevels = Math.min(3, Math.max(st.cnLevels || 1, ...picked.map((x) => (x.attrs || []).length)));
   if (Array.isArray(st.cnLeft)) {   // 지금 체크한 옵션과 같은 값이 '남겨 둔 값'에 있으면 버린다 (나중에 새 줄로 들어가 같은 이름이 겹치지 않게)
@@ -7051,6 +7100,7 @@ function caOptTree() {
       return parts.length > 1 ? { name: os, set: true, parts } : { name: os, parts: [{ name: os, n: total }] };
     }) : [{ name: "", parts: [{ name: "", n: total }] }];
   }
+  if (tree.length > 1) tree.forEach((o) => { if (!(o.set && o.parts.length > 1)) o.parts[0].oqOk = true; });   // / 로 나눈 단독 옵션은 구성 수량을 따로 적을 수 있다
   const used = {};
   tree.forEach((o, oi) => o.parts.forEach((pt) => {   // 저장 열쇠 = 옵션 이름 (같은 이름이 겹치면 뒤에 번호)
     pt.key = used[pt.name] ? pt.name + "#" + (oi + 1) : pt.name;
@@ -7059,8 +7109,8 @@ function caOptTree() {
   return tree;
 }
 function cnInfo(v) {   // 예전 저장본(배열)도 읽는다
-  if (Array.isArray(v)) return { cn: v.slice(), price: "", pack: "", cnt: "" };
-  return { cn: (v && v.cn) ? v.cn.slice() : [], price: (v && v.price) || "", pack: (v && v.pack) || "", cnt: (v && v.cnt) || "" };
+  if (Array.isArray(v)) return { cn: v.slice(), price: "", pack: "", cnt: "", oq: "" };
+  return { cn: (v && v.cn) ? v.cn.slice() : [], price: (v && v.price) || "", pack: (v && v.pack) || "", cnt: (v && v.cnt) || "", oq: (v && v.oq) || "" };
 }
 function cnRowMap() { const m = {}; $$("#cn-table tr[data-key]").forEach((tr) => { m[tr.dataset.key] = tr; }); return m; }
 function cnVal(tr, cls, ph) {
@@ -7076,8 +7126,9 @@ function cnRow(pt, rows) {
   const price = parseFloat(tr ? cnVal(tr, "pr", true) : info.price) || 0;
   const pack = tr ? cnVal(tr, "pk") : info.pack;
   const own = parseFloat(tr ? cnVal(tr, "pr", true) : info.price) > 0;
-  const cnt = pt.fixed ? pt.n : (parseInt(tr ? cnVal(tr, "ct") : info.cnt, 10) || pt.n);
-  return { price, pack, own, cnt, units: buyUnits(cnt, pack) };
+  const oq = pt.oqOk ? (parseInt(tr ? cnVal(tr, "oq") : info.oq, 10) || 0) : 0;   // 이 옵션만의 구성 수량 (비우면 맨 위 수량)
+  const cnt = pt.fixed ? pt.n : (oq || parseInt(tr ? cnVal(tr, "ct") : info.cnt, 10) || pt.n);
+  return { price, pack, own, cnt, oq, units: buyUnits(cnt, pack) };
 }
 function cnGridSave() {
   const st = cnState();
@@ -7085,7 +7136,7 @@ function cnGridSave() {
   $$("#cn-table tr[data-key]").forEach((tr) => {
     st.cn[tr.dataset.key] = {
       cn: [...tr.querySelectorAll(".lv")].map((i) => i.value.trim()),
-      price: cnVal(tr, "pr"), pack: cnVal(tr, "pk"), cnt: cnVal(tr, "ct"),
+      price: cnVal(tr, "pr"), pack: cnVal(tr, "pk"), cnt: cnVal(tr, "ct"), oq: cnVal(tr, "oq"),
     };
   });
 }
@@ -7121,6 +7172,25 @@ function cnEff() {
            set: false, sum: 0, n: 0, fallback: !hi,
            mixed: units.length > 1 && Math.min(...units) !== Math.max(...units) };
 }
+/* 11-26: 옵션( / )마다 구성 수량을 따로 적었는가 — 한 줄이라도 적으면 판매가도 옵션마다 따로 계산한다 */
+function cnPerOn() {
+  const st = cnState();
+  if (!st || st.mix) return false;
+  const rows = cnRowMap(), tree = caOptTree();
+  return tree.length > 1 && tree.some((o) => o.parts.some((pt) => pt.oqOk && cnRow(pt, rows).oq > 0));
+}
+/* 옵션별 계산 — 세트 원가 = (그 옵션의 1688 원가 × 구매 수량 + 배송비 ÷ 2) × 환산율. 구성품을 묶은 옵션은 구성품 합계 */
+function cnPerPlans() {
+  const st = cnState();
+  if (!st) return null;
+  const rows = cnRowMap(), tree = caOptTree();
+  const yuanIn = parseFloat($("#ca-yuan").value) || cnHost().yuan || 0, ship = parseFloat($("#ca-ship").value) || 0;
+  return tree.map((o) => {
+    let cost = 0, n = 0;
+    o.parts.forEach((pt) => { const r = cnRow(pt, rows); cost += (r.price || yuanIn) * r.units; n += r.cnt; });
+    return Object.assign(planFor(1, cost, ship, 1), { n, name: o.name, cost: Math.round(cost * 100) / 100 });
+  });
+}
 /* 구성품을 묶은 옵션이면 원가 칸이 "세트 1개 원가"가 되고 합계를 채워 준다 */
 function cnYuanLabel(eff) {
   const el = $("#ca-yuan"), lb = $("#ca-yuan-lb"), tag = $("#ca-sumtag");
@@ -7145,10 +7215,12 @@ function cnGridRender(skipSave) {
   cnCarryOver(st, tree);
   const anySet = tree.some((o) => o.set && o.parts.length > 1);
   const multi = tree.length > 1;
+  const showQ = anySet || multi;   // 개수(세트 구성품) · 구성 수량(/ 로 나눈 옵션) 칸
+  const tot0 = st.sel && st.sel.n ? st.sel.n : "";
   let html = `<tr><th>${anySet ? "상품 옵션 · 구성품" : "상품 옵션"}</th>${[1, 2, 3].slice(0, L).map((n) => `<th>${n}단계</th>`).join("")}`
-    + `<th class="num">1688 원가(¥)</th>${anySet ? '<th class="num">개수<br><span style="font-weight:400">묶음이면 묶음×입수</span></th>' : ""}`
-    + `<th class="num">입수<br><span style="font-weight:400">1688 1개에 몇 개</span></th><th class="num">1688 구매 수량<br><span style="font-weight:400">입수 있으면 묶음 수를 여기에</span></th><th>엑셀에 들어갈 이름<br><span style="font-weight:400">자동 · (AI) 면 그냥 두기</span></th></tr>`;
-  const cols = 1 + L + 3 + (anySet ? 1 : 0);
+    + `<th class="num">1688 원가(¥)</th>${showQ ? `<th class="num">${anySet ? (multi ? "개수 · 구성 수량" : "개수") : "구성 수량"}<br><span style="font-weight:400">${anySet ? "묶음이면 묶음×입수" : "옵션마다 다르면 여기에"}</span></th>` : ""}`
+    + `<th class="num">입수<br><span style="font-weight:400">1688 1개에 몇 개</span></th><th class="num">1688 구매 수량<br><span style="font-weight:400">입수 있으면 묶음 수를 여기에</span></th>${multi ? '<th class="num sp">판매가<br><span style="font-weight:400">옵션별 · 자동</span></th>' : ""}<th>엑셀에 들어갈 이름<br><span style="font-weight:400">자동 · (AI) 면 그냥 두기</span></th></tr>`;
+  const cols = 1 + L + 3 + (showQ ? 1 : 0) + (multi ? 1 : 0);
   tree.forEach((o, oi) => {
     const isSet = o.set && o.parts.length > 1;
     const badge = `<span class="onum">옵션 ${oi + 1}</span>`;
@@ -7162,14 +7234,16 @@ function cnGridRender(skipSave) {
         + `<td class="${isSet ? "sub" : "ko"}">${isSet ? "└ " : (multi ? badge : "")}${escH(pt.name || "(옵션 없음)")}</td>`
         + Array.from({ length: L }, (_, j) => `<td>${cnLevelCell(j, info.cn[j] || "", j === 0 && ai ? ai.cn : "")}</td>`).join("")
         + `<td class="num"><input class="pr" value="${escH(info.price)}" placeholder="${escH(prPh)}"></td>`
-        + (anySet ? (isSet && !pt.fixed
-            ? `<td class="num"><input class="ct" value="${escH(pt.mixCnt ? pt.n : (info.cnt || pt.n || 1))}"></td>`
-            : `<td class="cnt">${isSet ? (pt.n || "") : ""}</td>`) : "")   // 단독 옵션 줄은 구성 수량이 떠서 헷갈리므로 비움
+        + (showQ ? (isSet
+            ? (!pt.fixed ? `<td class="num"><input class="ct" value="${escH(pt.mixCnt ? pt.n : (info.cnt || pt.n || 1))}"></td>` : `<td class="cnt">${pt.n || ""}</td>`)
+            : (pt.oqOk   // / 로 나눈 단독 옵션: 이 옵션만의 구성 수량 (비우면 맨 위 수량 — 흐린 숫자)
+                ? `<td class="num"><input class="oq" value="${escH(info.oq)}" placeholder="${escH(tot0)}" title="이 옵션만의 구성 수량 — 비우면 맨 위 수량을 씁니다. 한 줄이라도 적으면 판매가가 옵션마다 따로 나옵니다"></td>`
+                : `<td class="cnt"></td>`)) : "")
         + `<td class="num"><input class="pk" value="${escH(info.pack)}" placeholder="1"></td>`
-        + `<td class="auto"></td><td class="res"></td></tr>`;
+        + `<td class="auto"></td>${multi ? '<td class="sp none"></td>' : ""}<td class="res"></td></tr>`;
     });
     if (isSet) html += `<tr class="optTot" data-tot="${oi}"><td>옵션 ${oi + 1} 합계</td><td colspan="${L}"></td>`
-      + `<td class="num tsum"></td><td class="cnt tcnt"></td><td class="num"></td><td class="num tbuy"></td><td class="tname"></td></tr>`;
+      + `<td class="num tsum"></td><td class="cnt tcnt"></td><td class="num"></td><td class="num tbuy"></td>${multi ? '<td class="sp tsp none"></td>' : ""}<td class="tname"></td></tr>`;
   });
   $("#cn-table").innerHTML = html;
   $("#cn-lv-add").disabled = L >= 3;
@@ -7283,6 +7357,21 @@ function cnGridResult(skipCalc) {
       if (o.parts.length >= 4) packNotes.push(`옵션 ${oi + 1}: 구성품 4종 이상 — 엑셀 옵션1 원가에 더하기 식(=a+b+c+d)으로, 구매수량은 ${sameU ? "세트 수" : "1"}`);
     }
   });
+  // 11-26: 옵션별 판매가 칸 · 구성 수량 칸의 흐린 숫자(맨 위 수량)
+  {
+    const st0 = cnState(), per = cnPerOn() ? cnPerPlans() : null, t0 = st0 && st0.sel && st0.sel.n ? st0.sel.n : "";
+    $$("#cn-table input.oq").forEach((i) => { i.placeholder = t0; });
+    tree.forEach((o, oi) => {
+      const isSet = o.set && o.parts.length > 1;
+      const cell = isSet ? $(`#cn-table tr[data-tot="${oi}"] td.tsp`) : (rows[o.parts[0].key] ? rows[o.parts[0].key].querySelector("td.sp") : null);
+      if (!cell) return;
+      const p = per ? per[oi] : null;
+      cell.className = "sp" + (isSet ? " tsp" : "") + (!p ? " none" : (p.over ? " over" : ""));
+      cell.innerHTML = !p ? "—" : (p.over ? `2만 원 초과<span>${p.n}개 · 세트 원가 ${p.setCost.toLocaleString()}원</span>`
+        : `${p.tier.toLocaleString()}원<span>${p.n}개 · 순마진 ${p.margin.toLocaleString()}원${p.ok ? "" : " (범위 밖)"}</span>`);
+      cell.title = !p ? "구성 수량 칸에 옵션마다 수량을 적으면 옵션별 판매가가 나옵니다" : "";
+    });
+  }
   // 서로 다른 줄의 1688 옵션명이 똑같으면 빨간 (같은 이름)
   const dupG = dupGroups(allRows.map((r) => ({ name: r.name, cn: r.shown })));
   allRows.forEach((r) => {
@@ -7370,6 +7459,8 @@ function packPopChoose(mode) {
   pk.value = "1";   // 낱개: 입수 1, 수량(또는 그 줄 개수) = N
   if (st.mix && st.mixCounts && Object.prototype.hasOwnProperty.call(st.mixCounts, tr.dataset.key)) { st.mixCounts[tr.dataset.key] = u.n; if (ct) ct.value = u.n; caCalc(); caCompSync(); return; }
   if (ct) { ct.value = String(u.n); cnGridResult(); caCompSync(); return; }
+  const oq = tr.querySelector("input.oq");
+  if (oq && (oq.value.trim() || cnPerOn())) { oq.value = String(u.n); cnGridResult(); return; }   // 옵션별 수량: 그 줄의 구성 수량
   st.sel = { n: u.n }; st.selBy = "user";
   cnGridResult(); caCompSync();
 }
@@ -7401,6 +7492,13 @@ function packFill(inp) {
     cnGridResult(); caCompSync(); say("개수를");
     return true;
   }
+  const oq = tr ? tr.querySelector("input.oq") : null;
+  if (oq && (oq.value.trim() || cnPerOn())) {   // 옵션별 수량: 그 줄의 구성 수량
+    if ((parseInt(oq.value, 10) || (st.sel ? st.sel.n : 0)) >= pack) return false;
+    oq.value = pack;
+    cnGridResult(); say("구성 수량을");
+    return true;
+  }
   const n = st.sel ? st.sel.n : 0;   // 단일 상품·옵션 따로 판매: 맨 위 수량
   if (n >= pack) return false;
   st.sel = { n: pack }; st.selBy = "user";
@@ -7420,6 +7518,8 @@ $("#cn-table").addEventListener("input", (e) => {   // 이벤트 객체가 skipC
       if (st.mix && st.mixCounts && Object.prototype.hasOwnProperty.call(st.mixCounts, key)) { st.mixCounts[key] = n; caCalc(); caCompSync(); return; }
       cnGridResult(); caCompSync(); return;
     }
+    const oq = tr.querySelector("input.oq");
+    if (oq && (oq.value.trim() || cnPerOn())) { if (n > 0) { oq.value = n; cnGridResult(); } return; }   // 옵션별 수량: 그 줄의 구성 수량
     if (n > 0) { st.sel = { n }; st.selBy = "user"; cnGridResult(); caCompSync(); }   // 단일·옵션 따로: 맨 위 수량
     return;
   }
@@ -7495,7 +7595,9 @@ $("#ca-apply").addEventListener("click", () => {
   const yuan = parseFloat($("#ca-yuan").value) || 0;
   const ship = parseFloat($("#ca-ship").value) || 0;
   if (!yuan) { toast("개당 상품가(¥)를 넣어 주세요"); return; }
-  if (!st.sel || st.sel.over) { toast("판매가 2만 원 미만으로 가능한 구성이 없습니다"); return; }
+  const per = cnPerOn() ? cnPerPlans() : null;   // 옵션마다 구성 수량을 따로 적은 상품
+  if (per && per.some((p) => p.over)) { toast("판매가 2만 원 미만으로 순마진이 나오지 않는 옵션이 있습니다 — 그 옵션의 구성 수량·원가를 확인해 주세요"); return; }
+  if (!per && (!st.sel || st.sel.over)) { toast("판매가 2만 원 미만으로 가능한 구성이 없습니다"); return; }
   const tv = (k) => { const td = $(`#ca-table td.v[data-k=${k}]`); return td ? td.textContent.trim() : ""; };
   const colors = optNames(tv("opt"), $("#ca-color").value);
   const useMix = st.mix && colors.length >= 2 && st.mixCounts && mixTotal(st.mixCounts) > 0;
@@ -7513,9 +7615,20 @@ $("#ca-apply").addEventListener("click", () => {
   current.color = $("#ca-color").value.trim();
   setField("#f-color", current.color);
   if (useMix) { const opt = mixOptString(colors, st.mixCounts); setField("#f-opt", opt); current.opt = opt; }   // 옵션 칸은 이름만
-  setField("#f-qty", total + "개"); current.qty = total + "개";
-  setField("#f-comp", comp); current.comp = comp;
-  current.sellPrice = pl.tier || st.sel.tier;
+  if (per) {
+    $$("#cn-table input.oq").forEach((i) => { if (!i.value.trim()) i.value = st.sel.n; });   // 비워 둔 옵션도 수량을 적어 둔다 (다시 열어도 그대로)
+    const qtxt = per.map((p) => `${p.name} ${p.n}개`).join(" / ");
+    setField("#f-qty", qtxt); current.qty = qtxt;
+    const c0 = tv("comp") || ($("#f-comp") ? $("#f-comp").textContent.trim() : "");
+    setField("#f-comp", c0); current.comp = c0;
+    current.sellPrices = per.map((p) => p.tier);          // 옵션 순서대로
+    current.sellPrice = Math.max(...current.sellPrices);
+  } else {
+    setField("#f-qty", total + "개"); current.qty = total + "개";
+    setField("#f-comp", comp); current.comp = comp;
+    current.sellPrice = pl.tier || st.sel.tier;
+    delete current.sellPrices;
+  }
   updateOptionSlots();
   applyMainCaptions();
   refreshQtyBadges();
@@ -7524,7 +7637,8 @@ $("#ca-apply").addEventListener("click", () => {
   Object.assign(current, cnCollect(current.optCnManual));   // 예전 옵션 이름 값도 남겨 둔다 (이름을 되돌리면 복구)
   $("#calcmodal").classList.remove("open");
   caState = null;
-  toast(`적용했습니다 — ${total}개 구성 · 판매가 ${(current.sellPrice || 0).toLocaleString()}원`);
+  toast(per ? "적용했습니다 — " + per.map((p) => `${p.name} ${p.n}개 ${p.tier.toLocaleString()}원`).join(" / ")
+    : `적용했습니다 — ${total}개 구성 · 판매가 ${(current.sellPrice || 0).toLocaleString()}원`);
   if (calcQueue.length) setTimeout(calcNext, 300);   // 수집 직후 차례로 열기
 });
 
@@ -8070,7 +8184,7 @@ setTimeout(async () => {
 /* ---------- 새 버전 알림 ----------
    배포하면 version.json 의 build(만든 시각)가 올라간다. 열어 둔 탭은 옛 코드 그대로라, 옛 규칙으로 엑셀이 나오는 일을 막는다.
    확인 시점: 열 때 · 10분마다 · 다른 탭에서 돌아올 때 · 엑셀/ZIP 저장 직전. 확인을 못 하면(인터넷 끊김·파일로 연 화면) 조용히 넘어간다. */
-const APP_VER = "V1.61", APP_BUILD = "202611240127";
+const APP_VER = "V1.62", APP_BUILD = "202611261111";
 const VER_KEY = "ver_reload";
 const VER_KIND = { excel: ["상품정보 엑셀", "#btn-save-excel"], "excel-all": ["전체 엑셀", "#btn-save-excel-all"], zip: ["3종 한 번에 저장 (ZIP)", "#btn-save-all"] };
 let verNew = null, verLater = "", verStuck = false, verReloading = false, verLastCheck = 0, verBarTimer = 0;
